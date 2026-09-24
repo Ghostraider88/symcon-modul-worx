@@ -387,17 +387,30 @@ class WorxMower extends IPSModule
             return false;
         }
         $schedule['p'] = WorxScheduleCodec::timeExtensionToProtocol($percent);
+        $desiredJson = WorxScheduleCodec::canonicalJson($schedule);
+        $serial = $this->ReadPropertyString('Serial');
         $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
-        if ($parent === 0 || !WORX_SetSchedule($parent, $this->ReadPropertyString('Serial'), WorxScheduleCodec::canonicalJson($schedule))) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Tägliche Arbeitszeitänderung nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.');
+        if ($parent === 0) {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Tägliche Arbeitszeitänderung nicht gesendet: Worx-Cloud-Verbindung fehlt.');
             return false;
         }
-        $this->WriteAttributeString('PendingSchedule', WorxScheduleCodec::canonicalJson($schedule));
-        $this->WriteAttributeString('PendingScheduleSerial', $this->ReadPropertyString('Serial'));
+        $this->WriteAttributeString('PendingSchedule', $desiredJson);
+        $this->WriteAttributeString('PendingScheduleSerial', $serial);
         $this->WriteAttributeString('PendingSchedulePurpose', 'time_extension');
         $this->WriteAttributeString('ScheduleEventSnapshot', $this->scheduleEventFingerprint($this->scheduleEventID()));
         $this->SetValueSafe('ScheduleSyncStatus', 'Tägliche Arbeitszeitänderung gesendet; Bestätigung durch Zurücklesen des Mähers steht aus.');
         $this->SetTimerInterval('ScheduleConfirmationTimeout', 120000);
+        if (!WORX_SetSchedule($parent, $serial, $desiredJson)) {
+            if ($this->ReadAttributeString('PendingSchedule') === $desiredJson
+                && $this->ReadAttributeString('PendingScheduleSerial') === $serial) {
+                $this->WriteAttributeString('PendingSchedule', '');
+                $this->WriteAttributeString('PendingScheduleSerial', '');
+                $this->WriteAttributeString('PendingSchedulePurpose', 'schedule');
+                $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
+                $this->SetValueSafe('ScheduleSyncStatus', 'Tägliche Arbeitszeitänderung nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.');
+            }
+            return false;
+        }
         return true;
     }
     public function Start(): bool
@@ -479,17 +492,29 @@ class WorxMower extends IPSModule
             return false;
         }
         $this->WriteAttributeString('FailedSchedule', '');
+        $serial = $this->ReadPropertyString('Serial');
         $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
-        if ($parent === 0 || !WORX_SetSchedule($parent, $this->ReadPropertyString('Serial'), WorxScheduleCodec::canonicalJson($desired))) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht übertragen: Worx-Cloud/MQTT ist nicht bereit oder hat den Befehl abgelehnt.');
+        if ($parent === 0) {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht übertragen: Worx-Cloud-Verbindung fehlt.');
             return false;
         }
         $this->WriteAttributeString('PendingSchedule', $desiredJson);
-        $this->WriteAttributeString('PendingScheduleSerial', $this->ReadPropertyString('Serial'));
+        $this->WriteAttributeString('PendingScheduleSerial', $serial);
         $this->WriteAttributeString('PendingSchedulePurpose', 'schedule');
         $this->WriteAttributeString('ScheduleEventSnapshot', $this->scheduleEventFingerprint($eventID));
         $this->SetValueSafe('ScheduleSyncStatus', 'Zeitplan gesendet; Bestätigung durch Zurücklesen des Mähers steht aus.');
         $this->SetTimerInterval('ScheduleConfirmationTimeout', 120000);
+        if (!WORX_SetSchedule($parent, $serial, $desiredJson)) {
+            if ($this->ReadAttributeString('PendingSchedule') === $desiredJson
+                && $this->ReadAttributeString('PendingScheduleSerial') === $serial) {
+                $this->WriteAttributeString('PendingSchedule', '');
+                $this->WriteAttributeString('PendingScheduleSerial', '');
+                $this->WriteAttributeString('PendingSchedulePurpose', 'schedule');
+                $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
+                $this->SetValueSafe('ScheduleSyncStatus', 'Nicht übertragen: Worx-Cloud/MQTT ist nicht bereit oder hat den Befehl abgelehnt.');
+            }
+            return false;
+        }
         return true;
     }
 
