@@ -11,6 +11,7 @@ require_once __DIR__ . '/../libs/WorxScheduleCodec.php';
 class WorxMower extends IPSModule
 {
     private const IF_CLOUD = '{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}';
+    private const MAX_RAIN_DELAY_MINUTES = 300;
 
     private const STATES = [
         0  => 'Bereit', 1 => 'In der Ladestation', 2 => 'Startsequenz', 3 => 'Verlässt Ladestation',
@@ -162,7 +163,7 @@ class WorxMower extends IPSModule
             return;
         }
         if ($Ident === 'RainDelaySet') {
-            $minutes = $this->validatedInteger($Value, 0, 1440, 'Regenverzögerung');
+            $minutes = $this->validatedInteger($Value, 0, self::MAX_RAIN_DELAY_MINUTES, 'Regenverzögerung');
             $this->SetValueSafe('RainDelaySet', $minutes);
             $this->SetRainDelay($minutes);
             return;
@@ -318,8 +319,8 @@ class WorxMower extends IPSModule
     /** Send the requested rain delay and keep the reported value as confirmed state. */
     public function SetRainDelay(int $minutes): bool
     {
-        if ($minutes < 0 || $minutes > 1440) {
-            throw new InvalidArgumentException('Regenverzögerung muss zwischen 0 und 1440 Minuten liegen.');
+        if ($minutes < 0 || $minutes > self::MAX_RAIN_DELAY_MINUTES) {
+            throw new InvalidArgumentException('Regenverzögerung muss zwischen 0 und ' . self::MAX_RAIN_DELAY_MINUTES . ' Minuten liegen.');
         }
         $device = $this->getDevice();
         if ($device === null || (int) ($device['protocol'] ?? -1) !== 0
@@ -846,7 +847,7 @@ class WorxMower extends IPSModule
         if ($timeExtensionSetID !== false && $timeExtensionSetID > 0) IPS_SetHidden($timeExtensionSetID, !$supportsTimeExtension);
         $supportsRainDelay = in_array('rain_delay', $device['capabilities'] ?? [], true)
             && isset($configuration['rd']) && is_numeric($configuration['rd'])
-            && (int) $configuration['rd'] >= 0 && (int) $configuration['rd'] <= 1440;
+            && (int) $configuration['rd'] >= 0;
         $rainDelayID = $this->GetIDForIdent('RainDelay');
         if ($rainDelayID !== false && $rainDelayID > 0) {
             IPS_SetHidden($rainDelayID, !$supportsRainDelay);
@@ -1118,7 +1119,7 @@ class WorxMower extends IPSModule
         if (!IPS_VariableProfileExists('WORX.Minutes')) {
             IPS_CreateVariableProfile('WORX.Minutes', VARIABLETYPE_INTEGER);
             IPS_SetVariableProfileText('WORX.Minutes', '', ' min');
-            IPS_SetVariableProfileValues('WORX.Minutes', 0, 1440, 1);
+            IPS_SetVariableProfileValues('WORX.Minutes', 0, self::MAX_RAIN_DELAY_MINUTES, 1);
             IPS_SetVariableProfileIcon('WORX.Minutes', 'Rain');
         }
         if (!IPS_VariableProfileExists('WORX.dBm')) {
