@@ -83,8 +83,8 @@ class WorxMower extends IPSModule
         $this->RegisterVariableFloat('WorkTime', 'Mähzeit gesamt', 'WORX.Hours', $p++);
         $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', 'WORX.Hours', $p++);
         $this->RegisterVariableBoolean('Rain', 'Regen erkannt', '~Alert', $p++);
-        $this->RegisterVariableInteger('TimeExtension', 'Tägliche Arbeitszeit (bestätigt)', 'WORX.Percent', $p++);
-        $this->RegisterVariableInteger('TimeExtensionSet', 'Tägliche Arbeitszeit setzen', 'WORX.Percent', $p++);
+        $this->RegisterVariableInteger('TimeExtension', 'Tägliche Arbeitszeit (bestätigt)', 'WORXMOWER.TimeExtension', $p++);
+        $this->RegisterVariableInteger('TimeExtensionSet', 'Tägliche Arbeitszeit setzen', 'WORXMOWER.TimeExtension', $p++);
         $this->RegisterVariableInteger('RainDelay', 'Regenverzögerung (bestätigt)', 'WORX.Minutes', $p++);
         $this->RegisterVariableInteger('RainDelaySet', 'Regenverzögerung setzen', 'WORX.Minutes', $p++);
         $this->RegisterVariableString('SettingStatus', 'Einstellungsrückmeldung', '', $p++);
@@ -109,8 +109,9 @@ class WorxMower extends IPSModule
     public function ApplyChanges()
     {
         parent::ApplyChanges();
-        // Repair profile bounds for instances created before the app-scale mapping.
+        // Refresh the dedicated profile on instances created before the app-scale mapping.
         $this->registerProfiles();
+        $this->applyTimeExtensionProfiles();
         $this->clearPendingForDifferentMower();
         foreach (['Schedule', 'SchedulePreview'] as $obsoleteIdent) {
             $obsoleteID = $this->GetIDForIdent($obsoleteIdent);
@@ -1103,6 +1104,19 @@ class WorxMower extends IPSModule
         return is_array($device) ? $device : null;
     }
 
+    private function applyTimeExtensionProfiles(): void
+    {
+        foreach (['TimeExtension', 'TimeExtensionSet'] as $ident) {
+            $variableID = $this->GetIDForIdent($ident);
+            if ($variableID === false || $variableID === 0) {
+                continue;
+            }
+            if (!IPS_SetVariableCustomProfile($variableID, 'WORXMOWER.TimeExtension')) {
+                throw new RuntimeException('Das Arbeitszeitprofil konnte Variable ' . $ident . ' nicht zugeordnet werden.');
+            }
+        }
+    }
+
     private function registerProfiles(): void
     {
         if (!IPS_VariableProfileExists('WORX.Control')) {
@@ -1136,12 +1150,12 @@ class WorxMower extends IPSModule
             IPS_SetVariableProfileDigits('WORX.Hours', 1);
             IPS_SetVariableProfileIcon('WORX.Hours', 'Clock');
         }
-        if (!IPS_VariableProfileExists('WORX.Percent')) {
-            IPS_CreateVariableProfile('WORX.Percent', VARIABLETYPE_INTEGER);
-            IPS_SetVariableProfileText('WORX.Percent', '', ' %');
-            IPS_SetVariableProfileIcon('WORX.Percent', 'Clock');
+        if (!IPS_VariableProfileExists('WORXMOWER.TimeExtension')) {
+            IPS_CreateVariableProfile('WORXMOWER.TimeExtension', VARIABLETYPE_INTEGER);
+            IPS_SetVariableProfileText('WORXMOWER.TimeExtension', '', ' %');
+            IPS_SetVariableProfileIcon('WORXMOWER.TimeExtension', 'Clock');
         }
-        IPS_SetVariableProfileValues('WORX.Percent', -100, 100, 1);
+        IPS_SetVariableProfileValues('WORXMOWER.TimeExtension', -100, 100, 1);
         if (!IPS_VariableProfileExists('WORX.Minutes')) {
             IPS_CreateVariableProfile('WORX.Minutes', VARIABLETYPE_INTEGER);
             IPS_SetVariableProfileText('WORX.Minutes', '', ' min');
