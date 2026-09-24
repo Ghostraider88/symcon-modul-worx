@@ -1,0 +1,43 @@
+# Worx-Feature-Matrix
+
+Stand: 2026-09-24. Zielgerät: Worx Landroid WR105SI.1.
+
+## Anlagenstand und Belege
+
+- Modell: im vom Nutzer bereitgestellten Worx-App-Screenshot als WR105SI.1 angezeigt.
+- Firmware: die Modellseite zeigt „3.52.0+1“ mit dem Hinweis „Latest“. Das belegt die neueste dort angezeigte Version, nicht sicher die aktuell installierte Firmware.
+- IP-Symcon: Kernel 9.1, read-only abgefragt.
+- Vorhandene Symcon-Verbindung: ältere Worx-MQTT-Bridge mit den sichtbaren Verbindungsvariablen „MQTT-Bridge“ und „Mähroboter“ auf „false“. Es wurde kein Gerätebefehl ausgelöst.
+- App-Zeitplan: manueller Wochenplan mit einem Zeitfenster pro Wochentag. Die App bietet je Eintrag „Rasenkanten-Schnitt“, „Ganzer Tag“, Start, Ende und Löschen. „Automatischer Zeitplan“ ist ausgeschaltet; die Zeiterweiterung wird mit 0 % angezeigt und lässt sich über Plus/Minus bedienen. Individuelle Uhrzeiten werden nicht veröffentlicht.
+- Transportbeleg: kein eigener Worx-Cloud- oder MQTT-Datensatz des Nutzers liegt vor. Deshalb ist die App-Darstellung ein Funktionsbeleg, aber kein Nachweis der Wire-Feldzuordnung oder Bestätigung eines Schreibbefehls.
+- Catomic-Basis: Commit 1ec15909b3d1f5b10ac566dd84e149ea2256d831.
+- Ziel: [Ghostraider88/symcon-modul-worx](https://github.com/Ghostraider88/symcon-modul-worx).
+
+| Funktion | Catomic-Ausgang | Beleg für WR105SI.1 | Transport / Bedienelement | Stand |
+|---|---|---|---|---|
+| Anmeldung und Gerätesuche | REST-Token, Inventar | Worx-App ist für das Gerät eingerichtet; Catomic-Transportbestandteil | WorxCloud, bestehende Instanz-GUID | Übernommen; Live-Anmeldung hier nicht ausgeführt |
+| Status und Telemetrie | MQTT-Push plus REST-Abfrage; Status, Fehler, Akku, Laufzeit, Regen, Sperre, Zone, Firmware | Catomic-Worx-Pfad und bestehende App-/Geräteansicht | Bestehende WorxMower-Variablen | IDs bleiben; Live-Empfang offen |
+| Start, Pause, Heimfahrt | MQTT-Befehle cmd 1/2/3 | Bestehender Catomic-Worx-Pfad | Control bleibt Aktion; State bleibt bestätigter Istzustand; zusätzlicher Befehlsstatus | Übernommen; keine Geräteaktion im Test |
+| Manueller Wochenplan | Catomic hatte keinen Scheduler | App zeigt einen Wochenplan mit einem Zeitfenster je Tag; Tages-/Eintragsansicht vorhanden | Symcon-Listeneditor in der Mower-Instanz; bestätigter Plan und lokaler Entwurf getrennt | Anzeige/Entwurf implementiert; Geräteschreibweg gesperrt |
+| Zweiter Einsatz je Tag | Nicht vorhanden | In den Bildern ist je Wochentag ein Zeitfenster dargestellt; kein Nachweis weiterer Slots | Nur bei empfangenem dd-Block / Gerätefähigkeit anbieten | Nicht belegt |
+| Tagesaktivierung und Löschen | Nicht vorhanden | App bietet „Löschen“ je Zeitplaneintrag | Aktivieren/deaktivieren des vorhandenen Tagesslots im Editor | UI belegt; Wire-Format offen |
+| Kantenschnitt | Nicht vorhanden | App zeigt je Zeitplan-Eintrag den Schalter „Rasenkanten-Schnitt“; öffentliche Protokoll-0-Beispiele führen eine dritte Slotkomponente | Der lokale Entwurf zeigt diese Komponente vorläufig als Kantenschnitt-Kandidat; Schreiben bleibt gesperrt | App-Funktion belegt; Zuordnung beim Nutzergerät offen |
+| Ganzer Tag | Nicht vorhanden | App zeigt den Schalter „Ganzer Tag“ | Editorfeld erst nach Datenbeleg für die entsprechende Repräsentation | UI belegt; Wire-Zuordnung offen |
+| Automatischer Zeitplan | Nicht vorhanden | App zeigt die Funktion; im Screenshot ist sie ausgeschaltet | Status nur aus Geräte-/Cloud-Daten; keine voreilige Fernsteuerung | Verfügbarkeit belegt; Transport offen |
+| Zeiterweiterung | Nicht vorhanden | App zeigt 0 % und +/- Bedienung | Read-only-Anzeige eines empfangenen Werts 0–100; Einstellung bleibt bis zur Feld- und Grenzbestätigung deaktiviert | Bedienung belegt; Datensatz und Schreibweg offen |
+| Regenverzögerung | Regenstatus vorhanden | Öffentliche Metadaten gleicher Protokollgeneration nennen rain_delay; kein Nutzer-Datensatz | Status/Bedienung nur bei Capability- und Feldbeleg | Kandidat |
+| Zonen | Aktuelle Zone vorhanden | Öffentliche Metadaten nennen multi_zone; Modellhandbuch behandelt Multi-Zone | Aktuelle Zone bleibt sichtbar; Auswahl erst mit Live-Formatprüfung | Status übernommen; Bedienung offen |
+| Sperre | Sperrstatus vorhanden | Öffentliche Metadaten nennen lock | Locked bleibt Istzustand; Befehl separat und capability-gesteuert | Status übernommen |
+| Firmware / Wartungswerte | Firmware, Laufzeiten, Ladezyklen | Im Cloud-Modell vorhanden; App zeigt Modell-Firmwareseite | Read-only-Variablen | Vorhanden |
+| Einmalmähen, Party-Modus, Drehmoment, Fern-Schnitthöhe, ACS, Off Limits | Nicht vorhanden | Für das konkrete Gerät bisher kein belastbarer API-Beleg; Schnitthöhe beim WR105SI.1 mechanisch einstellbar | Keine Bedienelemente ohne Beleg | Nicht belegt |
+| Nächster Einsatz / Tagesfortschritt | Nicht vorhanden | Aus bestätigtem Wochenplan und aktuellem Gerätestatus ableitbar | Read-only-Berechnung erst bei aktuellem Zeitplan | Offen |
+
+## Recherchequellen
+
+- Nutzerbelege: die bereitgestellten Worx-App-Screenshots (Modell, Planansicht, Tagesdetails, Zeiterweiterung).
+- Hersteller: [WR105SI-Downloadseite](https://www.teknihall.be/en/downloads/worx/wr105si), [Classic-Kantenschnitt](https://wiki.worx.com/en/Landroid-Classic-Installation-Setup-and-Usage/Cut-to-Edge-And-Border-Management).
+- Öffentliche Protokollbeobachtung: [ioBroker Landroid-Diskussion](https://forum.iobroker.net/topic/74380/adapter-worx-landroid-v3-x-x/186?page=2). Der dortige Datensatz gehört nicht zur Nutzeranlage. Personen- und Gerätekennungen wurden nicht übernommen.
+- Schnittstellenrecherche: [pyWorxCloud](https://github.com/MTrab/pyworxcloud) und [Home Assistant Worx Landroid](https://github.com/MTrab/landroid_cloud). Beide GPL-lizenzierten Projekte werden nur als Recherche verwendet; Quellcode wird nicht übernommen.
+- Symcon-Listenformular: [offizielle List-Dokumentation](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/konfigurationsformulare/list/).
+
+Zugangsdaten, Seriennummern, UUIDs, MAC-Adressen, Standorte und vollständige Cloud-Antworten gehören nicht in das öffentliche Repository.

@@ -1,0 +1,319 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Codec for received Worx protocol-0 weekly schedules.
+ *
+ * Only the known time, duration and border fields are editable. Unknown
+ * schedule keys and tuple values beyond index 2 are copied through unchanged.
+ */
+final class WorxScheduleCodec
+{
+    public const DAYS = [
+        'Sonntag',
+        'Montag',
+        'Dienstag',
+        'Mittwoch',
+        'Donnerstag',
+        'Freitag',
+        'Samstag',
+    ];
+
+    private const DISPLAY_DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+    private const SLOT_KEYS = [
+        0 => 'd',
+        1 => 'dd',
+    ];
+
+    public static function deviceConfiguration(array $device): array
+    {
+        $payloadConfig = $device['last_status']['payload']['cfg'] ?? null;
+        if (is_array($payloadConfig) && $payloadConfig !== []) {
+            return $payloadConfig;
+        }
+
+        $configuration = $device['cfg'] ?? [];
+        return is_array($configuration) ? $configuration : [];
+    }
+
+    /**
+     * Return a schedule only if protocol 0 and all received slots are valid.
+     */
+    public static function scheduleFromDevice(array $device): ?array
+    {
+        if ((int) ($device['protocol'] ?? -1) !== 0) {
+            return null;
+        }
+
+        $configuration = self::deviceConfiguration($device);
+        $schedule = $configuration['sc'] ?? null;
+        if (!is_array($schedule) || !self::hasValidSlots($schedule, 'd')) {
+            return null;
+        }
+        if (array_key_exists('dd', $schedule) && !self::hasValidSlots($schedule, 'dd')) {
+            return null;
+        }
+
+        return $schedule;
+    }
+
+    public static function supportsSchedule(array $device): bool
+    {
+        return self::scheduleFromDevice($device) !== null;
+    }
+
+    /**
+     * Return only the mower details needed for feature research, excluding device
+     * and account identifiers from the cached cloud object.
+     */
+    public static function sanitizedDeviceRecord(array $device): array
+    {
+        $configuration = self::deviceConfiguration($device);
+        $schedule = $configuration['sc'] ?? null;
+        $capabilities = $device['capabilities'] ?? [];
+
+        return [
+            'firmware_version' => isset($device['firmware_version']) ? (string) $device['firmware_version'] : null,
+            'protocol' => isset($device['protocol']) && is_numeric($device['protocol']) ? (int) $device['protocol'] : null,
+            'capabilities' => is_array($capabilities)
+                ? array_values(array_filter($capabilities, static function ($value): bool {
+                    return is_string($value);
+                }))
+                : [],
+            'cfg' => [
+                'sc' => is_array($schedule) ? self::removeSensitiveKeys($schedule) : null,
+            ],
+        ];
+    }
+
+    private static function removeSensitiveKeys(array $value): array
+    {
+        $result = [];
+        $sensitiveKeys = [
+            'serial', 'serialnumber', 'sn', 'uuid', 'mac', 'macaddress', 'userid',
+            'token', 'accesstoken', 'refreshtoken', 'authorization', 'mqttendpoint',
+            'mqtttopics', 'latitude', 'longitude', 'location', 'setuplocation', 'city',
+        ];
+
+        foreach ($value as $key => $item) {
+            $normalizedKey = strtolower((string) preg_replace('/[^a-z0-9]/i', '', (string) $key));
+            if (in_array($normalizedKey, $sensitiveKeys, true)) {
+                continue;
+            }
+            if (is_array($item)) {
+                $item = self::removeSensitiveKeys($item);
+            }
+            $result[$key] = $item;
+        }
+
+        return $result;
+    }
+
+    public static function hasSecondarySchedule(array $schedule): bool
+    {
+        return self::hasValidSlots($schedule, 'dd');
+    }
+
+    /**
+     * Convert received Sunday-to-Saturday slot arrays to editable List rows.
+     *
+     * @throws InvalidArgumentException
+     */
+    public static function toRows(array $schedule): array
+    {
+        if (!self::hasValidSlots($schedule, 'd')) {
+            throw new InvalidArgumentException('The confirmed primary schedule must contain seven valid protocol-0 entries.');
+        }
+        if (array_key_exists('dd', $schedule) && !self::hasValidSlots($schedule, 'dd')) {
+            throw new InvalidArgumentException('The received secondary schedule is incomplete or unsupported.');
+        }
+
+        $rows = [];
+        $keys = self::hasSecondarySchedule($schedule) ? self::SLOT_KEYS : [0 => 'd'];
+        foreach (self::DISPLAY_DAY_ORDER as $day) {
+            foreach ($keys as $slot => $key) {
+                $tuple = $schedule[$key][$day];
+                $rows[] = [
+                    'Day' => (int) $day,
+                    'DayName' => self::DAYS[$day],
+                    'Slot' => (int) $slot,
+                    'SlotName' => 'Einsatz ' . ((int) $slot + 1),
+                    'Enabled' => (int) $tuple[1] > 0,
+                    'Start' => (string) $tuple[0],
+                    'Minutes' => (int) $tuple[1],
+                    'Border' => (int) $tuple[2] > 0,
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Validate editable rows and merge their known values into the source.
+     *
+     * @throws InvalidArgumentException
+     */
+    public static function mergeRows(array $source, array $rows): array
+    {
+        if (!self::hasValidSlots($source, 'd')) {
+            throw new InvalidArgumentException('The confirmed primary schedule must contain seven protocol-0 entries.');
+        }
+        if (array_key_exists('dd', $source) && !self::hasValidSlots($source, 'dd')) {
+            throw new InvalidArgumentException('The received secondary schedule is incomplete or unsupported.');
+        }
+
+        $hasSecondary = self::hasSecondarySchedule($source);
+        $expectedRows = $hasSecondary ? 14 : 7;
+        if (count($rows) !== $expectedRows) {
+            throw new InvalidArgumentException(sprintf('Expected %d schedule rows, received %d.', $expectedRows, count($rows)));
+        }
+
+        $seen = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                throw new InvalidArgumentException('Each schedule row must be an object.');
+            }
+
+            $day = self::integerInRange($row['Day'] ?? null, 'Day', 0, 6);
+            $slot = self::integerInRange($row['Slot'] ?? null, 'Slot', 0, $hasSecondary ? 1 : 0);
+            $seenKey = $slot . ':' . $day;
+            if (isset($seen[$seenKey])) {
+                throw new InvalidArgumentException('The schedule contains a duplicate day/slot row.');
+            }
+            $seen[$seenKey] = true;
+
+            $start = self::validateTime((string) ($row['Start'] ?? ''));
+            $minutes = self::integerInRange($row['Minutes'] ?? null, 'Minutes', 0, 1440);
+            $enabled = self::toBoolean($row['Enabled'] ?? false);
+            $border = self::toBoolean($row['Border'] ?? false);
+            if ($enabled && $minutes === 0) {
+                throw new InvalidArgumentException(sprintf('%s, Einsatz %d: an active entry needs a duration greater than zero.', self::DAYS[$day], $slot + 1));
+            }
+
+            $scheduleKey = self::SLOT_KEYS[$slot];
+            $tuple = $source[$scheduleKey][$day];
+            $tuple[0] = $start;
+            $tuple[1] = $enabled ? $minutes : 0;
+            $tuple[2] = $border ? 1 : 0;
+            $source[$scheduleKey][$day] = $tuple;
+        }
+
+        if (count($seen) !== $expectedRows) {
+            throw new InvalidArgumentException('The schedule must contain exactly one row for each supported day/slot.');
+        }
+
+        return $source;
+    }
+
+    public static function describe(array $schedule): string
+    {
+        $byDay = [];
+        foreach (self::toRows($schedule) as $row) {
+            $day = $row['Day'];
+            if (!isset($byDay[$day])) {
+                $byDay[$day] = [];
+            }
+            if (!$row['Enabled']) {
+                continue;
+            }
+
+            $end = self::addMinutes($row['Start'], $row['Minutes']);
+            $description = sprintf('%s–%s (%d min)', $row['Start'], $end, $row['Minutes']);
+            if ($row['Border']) {
+                $description .= ', Kantenschnitt';
+            }
+            $byDay[$day][] = $description;
+        }
+
+        $parts = [];
+        foreach (self::DISPLAY_DAY_ORDER as $day) {
+            $entries = $byDay[$day] ?? [];
+            $parts[] = self::DAYS[$day] . ': ' . ($entries === [] ? 'kein Einsatz' : implode('; ', $entries));
+        }
+
+        return implode("\n", $parts);
+    }
+
+    public static function canonicalJson(array $value): string
+    {
+        return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private static function hasValidSlots(array $schedule, string $key): bool
+    {
+        if (!isset($schedule[$key]) || !is_array($schedule[$key]) || array_keys($schedule[$key]) !== range(0, 6)) {
+            return false;
+        }
+
+        foreach ($schedule[$key] as $tuple) {
+            if (!is_array($tuple) || !array_key_exists(0, $tuple) || !array_key_exists(1, $tuple) || !array_key_exists(2, $tuple)) {
+                return false;
+            }
+            if (!is_string($tuple[0]) || preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $tuple[0]) !== 1) {
+                return false;
+            }
+            if (!self::isIntegerLike($tuple[1]) || (int) $tuple[1] < 0 || (int) $tuple[1] > 1440) {
+                return false;
+            }
+            if (!is_numeric($tuple[2])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function isIntegerLike($value): bool
+    {
+        return is_int($value) || (is_string($value) && preg_match('/^-?\d+$/', $value) === 1);
+    }
+
+    private static function integerInRange($value, string $field, int $minimum, int $maximum): int
+    {
+        if (!self::isIntegerLike($value)) {
+            throw new InvalidArgumentException($field . ' must be an integer.');
+        }
+
+        $integer = (int) $value;
+        if ($integer < $minimum || $integer > $maximum) {
+            throw new InvalidArgumentException(sprintf('%s must be between %d and %d.', $field, $minimum, $maximum));
+        }
+
+        return $integer;
+    }
+
+    private static function validateTime(string $time): string
+    {
+        if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time) !== 1) {
+            throw new InvalidArgumentException('Start must use the 24-hour format HH:MM.');
+        }
+
+        return $time;
+    }
+
+    private static function toBoolean($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (in_array($value, [1, '1', 'true', 'on'], true)) {
+            return true;
+        }
+        if (in_array($value, [0, '0', 'false', 'off'], true)) {
+            return false;
+        }
+
+        throw new InvalidArgumentException('Boolean fields must be true/false or 1/0.');
+    }
+
+    private static function addMinutes(string $time, int $minutes): string
+    {
+        $total = ((int) substr($time, 0, 2) * 60) + (int) substr($time, 3, 2) + $minutes;
+        $total %= 1440;
+
+        return sprintf('%02d:%02d', intdiv($total, 60), $total % 60);
+    }
+}
