@@ -10,7 +10,7 @@ Start, Pause und Heimfahrt werden über MQTT gesendet. Die Variablen `LastComman
 
 Der Editor wird nur angezeigt, wenn der Mäher Protokoll 0 mit sieben gültigen `cfg.sc.d`-Einträgen meldet. Ein zweiter Einsatz pro Tag erscheint nur, wenn auch ein gültiger `cfg.sc.dd`-Block empfangen wird. Das Ereignis „Mähzeitplan“ ist der einzige Zeitplan und wird direkt bearbeitet. Änderungen werden automatisch an Worx übertragen; der zurückgemeldete `cfg.sc`-Plan bestätigt sie. Nach jeder Worx-Aktualisierung liest das Modul das native Ereignis zurück und vergleicht Start, Dauer, Aktivität und Kantenschnitt. Die Rückmeldung nennt eine App-Übernahme nur zusammen mit dem Zusatz „Symcon-Wochenplan geprüft“, wenn dieses Ereignis denselben Plan enthält. Es gibt keine Entwurfsvariable und keinen separaten Zeitplan-Editor.
 
-`ApplyChanges()` überträgt keinen Zeitplan. Die dritte Slot-Komponente ist anhand des redigierten WR105SI.1-Datensatzes als Kantenschnitt zugeordnet. Der Schreibweg sendet den erhaltenen Protokoll-0-`sc`-Block auf `commandIn`; als Bestätigung zählt ausschließlich das zurückgemeldete `cfg.sc`. Der Nutzer hat bestätigt, dass Symcon-Änderungen in der Worx-App ankommen und angenommen werden. Beim Rückweg aus der App meldete Symcon zwar eine Übernahme, das Ereignis blieb laut Nutzer aber unverändert; die neue Event-Rückprüfung soll diesen Fall sichtbar machen und wird im Docker-System erneut geprüft. „Ganzer Tag“ und Einsätze über Mitternacht bleiben offen.
+`ApplyChanges()` überträgt keinen Zeitplan. Die dritte Slot-Komponente ist anhand des redigierten WR105SI.1-Datensatzes als Kantenschnitt zugeordnet. Der Schreibweg sendet den erhaltenen Protokoll-0-`sc`-Block auf `commandIn`; als Bestätigung zählt ausschließlich das zurückgemeldete `cfg.sc`. Im Docker-Test wurden beide Richtungen bestätigt: Symcon-Änderungen erscheinen in der Worx-App und werden vom Mäher angenommen; Änderungen in der Worx-App erscheinen automatisch im Symcon-Ereignis, ohne manuellen Refresh. „Ganzer Tag“ und Einsätze über Mitternacht bleiben offen.
 
 
 
@@ -20,9 +20,9 @@ Die Variable „Gerätenachweis (redigiert)“ zeigt Modellfähigkeiten sowie au
 
 ## Weitere belegte Einstellungen
 
-`Zeiterweiterung setzen`, `Regenverzögerung setzen` und `Sperre setzen` sind getrennte Eingaben. Daneben zeigen `Zeiterweiterung (bestätigt)`, `Regenverzögerung (bestätigt)` und `Gesperrt (bestätigt)` den zuletzt vom Gerät gemeldeten Zustand. Die Befehle werden nur bei passender Capability und Protokoll 0 angeboten; `Einstellungsrückmeldung` meldet den Geräteecho oder einen Timeout. Diese Schreibwege sind im WR105SI.1-Docker-Test noch nicht vom Nutzer bestätigt.
+`Zeiterweiterung setzen`, `Regenverzögerung setzen` und `Sperre setzen` sind getrennte Eingaben. Daneben zeigen `Zeiterweiterung (bestätigt)`, `Regenverzögerung (bestätigt)` und `Gesperrt (bestätigt)` den zuletzt vom Gerät gemeldeten Zustand. Die Befehle werden nur bei passender Capability und Protokoll 0 angeboten; `Einstellungsrückmeldung` meldet den Geräteecho oder einen Timeout. Die Schreibwege sind implementiert, im WR105SI.1-Docker-Test aber noch nicht vom Nutzer bestätigt.
 
 
 ## Automatischer Zeitplan
 
-Die Variable „Automatischer Zeitplan (bestätigt)“ zeigt den Boolean aus dem Worx-Cloud-Gerätedatensatz. „Automatischen Zeitplan setzen“ wird nur eingeblendet, wenn dieser Boolean tatsächlich gemeldet wird. Der Sollwert wird per Worx-Cloud-API gesendet; als bestätigt gilt er erst, wenn eine anschließende Abfrage denselben Wert zurückliefert. Dieser Schreibweg ist im WR105SI.1-Docker-Test noch nicht vom Nutzer geprüft.
+Die Variable „Automatischer Zeitplan (bestätigt)“ zeigt den Boolean aus dem Worx-Cloud-Gerätedatensatz. „Automatischen Zeitplan setzen“ wird nur eingeblendet, wenn dieser Boolean tatsächlich gemeldet wird. Der Sollwert wird per Worx-Cloud-API gesendet; als bestätigt gilt er erst, wenn eine anschließende Abfrage denselben Wert zurückliefert. Der Schreibweg ist implementiert, im WR105SI.1-Docker-Test aber noch nicht vom Nutzer geprüft.
