@@ -54,7 +54,8 @@ class WorxCloud extends IPSModule
         // gesetzt werden, sonst fliegt die MQTT-Verbindung beim nächsten Reconnect raus.
         $this->RegisterTimer('WorxAuth', 0, 'WORX_RefreshTransport($_IPS[\'TARGET\']);');
 
-        $this->ConnectParent(self::GUID_MQTT);
+        // ConnectParent() würde sofort den normalen MQTT-Client mit Broker-Abfrage anlegen.
+        // Der Worx-Transport wird erst nach der Kontokonfiguration in ApplyChanges() aufgebaut.
     }
 
     public function ApplyChanges()

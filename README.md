@@ -24,7 +24,9 @@ Danach eine Instanz **Worx Cloud** anlegen, die Worx-Kontodaten eintragen und de
 
 - IP-Symcon 6.0 oder neuer
 - Ein Worx-Landroid-Konto und eine Worx-Cloud-Verbindung
-- Für Echtzeitstatus und Steuerung die Symcon WebSocket- und MQTT-Module
+- Für Echtzeitstatus und Steuerung die Symcon-Module „WebSocket Client“ und „MQTT Client“
+
+Ein eigener MQTT-Broker ist nicht erforderlich: Nach dem Eintragen der Worx-Kontodaten legt das Modul den MQTT-Client automatisch an und verbindet ihn über einen WebSocket direkt mit Worx/AWS IoT. Dafür wird kein lokaler Broker-Host und -Port konfiguriert.
 
 ## Gerätespezifische Funktionen
 
