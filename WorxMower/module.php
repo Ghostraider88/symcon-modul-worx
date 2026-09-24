@@ -212,10 +212,10 @@ class WorxMower extends IPSModule
             return false;
         }
         $response = $this->SendDataToParent(json_encode([
-            'DataID' => self::IF_CLOUD,
+            'DataID'  => self::IF_CLOUD,
             'Command' => 'SetLock',
-            'Serial' => $this->ReadPropertyString('Serial'),
-            'Locked' => $locked,
+            'Serial'  => $this->ReadPropertyString('Serial'),
+            'Locked'  => $locked,
         ]));
         if (!filter_var(json_decode((string) $response, true), FILTER_VALIDATE_BOOLEAN)) {
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.');
@@ -258,9 +258,9 @@ class WorxMower extends IPSModule
             return false;
         }
         $response = $this->SendDataToParent(json_encode([
-            'DataID' => self::IF_CLOUD,
+            'DataID'  => self::IF_CLOUD,
             'Command' => 'SetRainDelay',
-            'Serial' => $this->ReadPropertyString('Serial'),
+            'Serial'  => $this->ReadPropertyString('Serial'),
             'Minutes' => $minutes,
         ]));
         if (!filter_var(json_decode((string) $response, true), FILTER_VALIDATE_BOOLEAN)) {
@@ -308,24 +308,6 @@ class WorxMower extends IPSModule
         $this->SetValueSafe('ScheduleSyncStatus', 'Zeiterweiterung gesendet; Bestätigung durch Zurücklesen des Mähers steht aus.');
         $this->SetTimerInterval('ScheduleConfirmationTimeout', 120000);
         return true;
-    }
-
-    private function validatedInteger($value, int $minimum, int $maximum, string $label): int
-    {
-        if (!is_int($value) && !(is_string($value) && preg_match('/^-?\d+$/', $value))) {
-            throw new InvalidArgumentException($label . ' muss eine ganze Zahl sein.');
-        }
-        $integer = (int) $value;
-        if ($integer < $minimum || $integer > $maximum) {
-            throw new InvalidArgumentException(sprintf('%s muss zwischen %d und %d liegen.', $label, $minimum, $maximum));
-        }
-        return $integer;
-    }
-
-    private function GetValueForIdent(string $ident): int
-    {
-        $id = $this->GetIDForIdent($ident);
-        return $id === false || $id === 0 ? 0 : (int) GetValue($id);
     }
     public function Start(): bool
     {
@@ -541,6 +523,24 @@ class WorxMower extends IPSModule
             ],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
+
+    private function validatedInteger($value, int $minimum, int $maximum, string $label): int
+    {
+        if (!is_int($value) && !(is_string($value) && preg_match('/^-?\d+$/', $value))) {
+            throw new InvalidArgumentException($label . ' muss eine ganze Zahl sein.');
+        }
+        $integer = (int) $value;
+        if ($integer < $minimum || $integer > $maximum) {
+            throw new InvalidArgumentException(sprintf('%s muss zwischen %d und %d liegen.', $label, $minimum, $maximum));
+        }
+        return $integer;
+    }
+
+    private function GetValueForIdent(string $ident): int
+    {
+        $id = $this->GetIDForIdent($ident);
+        return $id === false || $id === 0 ? 0 : (int) GetValue($id);
+    }
     private function scheduleEventID(): int
     {
         foreach (IPS_GetChildrenIDs($this->InstanceID) as $childID) {
@@ -562,15 +562,16 @@ class WorxMower extends IPSModule
         try {
             $expected = WorxScheduleCodec::toRows($schedule);
             $actual = WorxScheduleCodec::rowsFromEvent(IPS_GetEvent($eventID), $schedule);
-            $normalize = static function (array $rows): array {
+            $normalize = static function (array $rows): array
+            {
                 $normalized = [];
                 foreach ($rows as $row) {
                     $key = (int) $row['Day'] . ':' . (int) $row['Slot'];
                     $normalized[$key] = [
                         'Enabled' => (bool) $row['Enabled'],
-                        'Start' => (string) $row['Start'],
+                        'Start'   => (string) $row['Start'],
                         'Minutes' => (int) $row['Minutes'],
-                        'Border' => (bool) $row['Border'],
+                        'Border'  => (bool) $row['Border'],
                     ];
                 }
                 ksort($normalized);
@@ -880,7 +881,7 @@ class WorxMower extends IPSModule
                 // is authoritative, including a change made in the Worx app.
                 $this->WriteAttributeString('PendingSchedule', '');
                 $this->WriteAttributeString('PendingScheduleSerial', '');
-        $this->WriteAttributeString('PendingSchedulePurpose', 'schedule');
+                $this->WriteAttributeString('PendingSchedulePurpose', 'schedule');
                 $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
                 $this->WriteAttributeString('FailedSchedule', '');
                 $this->WriteAttributeString('FailedScheduleSerial', '');
