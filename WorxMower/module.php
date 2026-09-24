@@ -71,6 +71,7 @@ class WorxMower extends IPSModule
         $this->RegisterVariableFloat('WorkTime', 'Mähzeit gesamt', 'WORX.Hours', $p++);
         $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', 'WORX.Hours', $p++);
         $this->RegisterVariableBoolean('Rain', 'Regen erkannt', '~Alert', $p++);
+        $this->RegisterVariableInteger('RainDelay', 'Regenverzögerung', 'WORX.Minutes', $p++);
         $this->RegisterVariableBoolean('Locked', 'Gesperrt', '~Lock', $p++);
         $this->RegisterVariableInteger('Zone', 'Aktuelle Zone', '', $p++);
         $this->RegisterVariableString('Firmware', 'Firmware', '', $p++);
@@ -476,6 +477,15 @@ class WorxMower extends IPSModule
         }
         if (isset($dat['rsi'])) $this->SetValueSafe('WifiSignal', (int) $dat['rsi']);
         if (isset($dat['rain']['s'])) $this->SetValueSafe('Rain', ((int) $dat['rain']['s']) > 0);
+        $configuration = WorxScheduleCodec::deviceConfiguration($device);
+        $supportsRainDelay = in_array('rain_delay', $device['capabilities'] ?? [], true)
+            && isset($configuration['rd']) && is_numeric($configuration['rd'])
+            && (int) $configuration['rd'] >= 0 && (int) $configuration['rd'] <= 1440;
+        $rainDelayID = $this->GetIDForIdent('RainDelay');
+        if ($rainDelayID !== false && $rainDelayID > 0) {
+            IPS_SetHidden($rainDelayID, !$supportsRainDelay);
+            if ($supportsRainDelay) $this->SetValueSafe('RainDelay', (int) $configuration['rd']);
+        }
         if (isset($dat['lk'])) $this->SetValueSafe('Locked', ((int) $dat['lk']) > 0);
         if (isset($dat['cut']['z'])) $this->SetValueSafe('Zone', (int) $dat['cut']['z']);
         if (isset($dat['tm'])) {
@@ -635,6 +645,12 @@ class WorxMower extends IPSModule
             IPS_SetVariableProfileText('WORX.Hours', '', ' h');
             IPS_SetVariableProfileDigits('WORX.Hours', 1);
             IPS_SetVariableProfileIcon('WORX.Hours', 'Clock');
+        }
+        if (!IPS_VariableProfileExists('WORX.Minutes')) {
+            IPS_CreateVariableProfile('WORX.Minutes', VARIABLETYPE_INTEGER);
+            IPS_SetVariableProfileText('WORX.Minutes', '', ' min');
+            IPS_SetVariableProfileValues('WORX.Minutes', 0, 1440, 1);
+            IPS_SetVariableProfileIcon('WORX.Minutes', 'Rain');
         }
         if (!IPS_VariableProfileExists('WORX.dBm')) {
             IPS_CreateVariableProfile('WORX.dBm', VARIABLETYPE_INTEGER);
