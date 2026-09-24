@@ -32,7 +32,7 @@ Falls Symcon beim Erstellen zunächst einen Client Socket anbietet, kann dieser 
 
 ## Gerätespezifische Funktionen
 
-Die Mower-Instanz stellt den bestätigten Zeitplan als natives Symcon-Wochenplanereignis „Mähzeitplan“ bereit. Das Ereignis ist der einzige Editor. Änderungen daran werden automatisch über MQTT an Worx gesendet; die Rückmeldung wird erst nach erneutem Lesen des passenden Gerätezeitplans als bestätigt angezeigt. `ApplyChanges()` selbst sendet keinen Zeitplan. Der Zeitplan-Sendeweg wurde in Docker ausgelöst; die eindeutige Mäher-Rückbestätigung für die konkrete Symcon-Änderung steht noch aus.
+Die Mower-Instanz stellt den bestätigten Zeitplan als natives Symcon-Wochenplanereignis „Mähzeitplan“ bereit. Das Ereignis ist der einzige Editor. Änderungen daran werden automatisch über MQTT an Worx gesendet; die Rückmeldung wird erst nach erneutem Lesen des passenden Gerätezeitplans als bestätigt angezeigt. `ApplyChanges()` selbst sendet keinen Zeitplan. Im Docker-Test wurden beide Richtungen bestätigt: Symcon-Änderungen erscheinen in der Worx-App und werden vom Mäher angenommen; Änderungen in der Worx-App erscheinen automatisch im Symcon-Ereignis, ohne manuellen Refresh. „Ganzer Tag“ und Mähfenster über Mitternacht benötigen noch eigene Datenbelege.
 
 Die bereitgestellten App-Bilder zeigen beim WR105SI.1 einen manuellen Wochenplan mit einem dargestellten Zeitfenster je Wochentag. In der Tagesansicht sind „Rasenkanten-Schnitt“, „Ganzer Tag“, Start, Ende und Löschen sichtbar. Außerdem ist „Automatischer Zeitplan“ ausgeschaltet und die Zeiterweiterung steht auf 0 %. Die individuelle Anzeige ist nicht in den Quellcode übernommen. Der vom Nutzer bereitgestellte Gerätedatensatz meldet Firmware 3.52.0+1.
 
