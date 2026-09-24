@@ -28,6 +28,8 @@ Danach eine Instanz **Worx Cloud** anlegen, die Worx-Kontodaten eintragen und de
 
 Ein eigener MQTT-Broker ist nicht erforderlich: Nach dem Eintragen der Worx-Kontodaten legt das Modul den MQTT-Client automatisch an und verbindet ihn über einen WebSocket direkt mit Worx/AWS IoT. Dafür wird kein lokaler Broker-Host und -Port konfiguriert.
 
+Falls Symcon beim Erstellen zunächst einen Client Socket anbietet, kann dieser inaktiv bleiben: Aktiv aus, Host leer, Port 0 und SSL aus. Nach Eingabe der Worx-Kontodaten ersetzt das Modul diese Standardverbindung automatisch durch den Worx-WebSocket.
+
 ## Gerätespezifische Funktionen
 
 Die Mower-Instanz zeigt Status und Funktionen auf Basis des empfangenen Geräteobjekts. Der Wochenplan wird für bestätigte Protokoll-0-Daten als lokaler Entwurf dargestellt. Das Anwenden der Instanzkonfiguration sendet keinen Zeitplan. Zurzeit gibt es keine Sende-Schaltfläche; auch ein direkter Aufruf wird abgewiesen. Die Übertragung bleibt deaktiviert, bis das konkrete WR105SI.1-Format samt Rückmeldung belegt ist.

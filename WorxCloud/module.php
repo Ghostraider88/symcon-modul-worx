@@ -94,26 +94,33 @@ class WorxCloud extends IPSModule
     }
 
     /**
-     * Stellt sicher, dass ein eigener MQTT Client als Übergeordnete existiert.
-     *
-     * Bewusst immer ein eigener: Der darunterliegende WS Client trägt Worx-spezifische
-     * Auth-Header, ein mit anderen Geräten geteilter MQTT Client wäre falsch. Nötig
-     * ist das vor allem beim Update einer Instanz, die früher ohne Übergeordnete lief.
+     * Stellt sicher, dass WorxCloud über einen MQTT Client und einen WebSocket
+     * verbunden ist. Symcon kann beim Anlegen zunächst einen Client Socket
+     * erzeugen; dieser wird hier durch den Worx-WebSocket ersetzt.
      */
     private function ensureParent(): void
     {
-        if ($this->getParent() !== 0) {
-            return;
+        $mqtt = $this->getParent();
+        if ($mqtt === 0) {
+            $mqtt = IPS_CreateInstance(self::GUID_MQTT);
+            IPS_SetName($mqtt, 'Worx MQTT');
+            IPS_ConnectInstance($this->InstanceID, $mqtt);
         }
-        $mqtt = IPS_CreateInstance(self::GUID_MQTT);
-        IPS_SetName($mqtt, 'Worx MQTT');
+
+        $connection = (int) (IPS_GetInstance($mqtt)['ConnectionID'] ?? 0);
+        if ($connection !== 0) {
+            $moduleID = IPS_GetInstance($connection)['ModuleInfo']['ModuleID'] ?? '';
+            if ($moduleID === self::GUID_WS) {
+                return;
+            }
+            IPS_DisconnectInstance($mqtt);
+        }
+
         $ws = IPS_CreateInstance(self::GUID_WS);
         IPS_SetName($ws, 'Worx WebSocket');
         IPS_ConnectInstance($mqtt, $ws);
-        IPS_ConnectInstance($this->InstanceID, $mqtt);
-        $this->SendDebug('MQTT', "Transportkette angelegt: WS $ws → MQTT $mqtt", 0);
+        $this->SendDebug('MQTT', "Worx-Transportkette angelegt: WS $ws → MQTT $mqtt", 0);
     }
-
     // ── REST ──────────────────────────────────────────────────────────────────
 
     /** Holt die Mäherliste und verteilt sie an die Kind-Instanzen. */
@@ -180,6 +187,7 @@ class WorxCloud extends IPSModule
         if ($token === '') {
             return false;
         }
+        $this->ensureParent();
         $mqtt = $this->getParent();
         if ($mqtt === 0) {
             $this->SendDebug('MQTT', 'Keine MQTT-Client-Instanz als Übergeordnete gefunden', 0);
