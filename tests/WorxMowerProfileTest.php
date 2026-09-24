@@ -78,10 +78,10 @@ final class WorxMowerProfileTest extends TestCase
         $method = new ReflectionMethod(WorxMower::class, 'applyDevice');
         $method->setAccessible(true);
         $method->invoke($module, [
-            'online' => true,
-            'protocol' => 0,
+            'online'       => true,
+            'protocol'     => 0,
             'capabilities' => ['unrestricted_mowing_time'],
-            'last_status' => [
+            'last_status'  => [
                 'payload' => [
                     'cfg' => ['sc' => ['p' => 30]],
                     'dat' => ['ls' => 0, 'le' => 0],
