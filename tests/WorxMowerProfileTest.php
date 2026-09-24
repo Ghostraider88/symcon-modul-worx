@@ -59,4 +59,36 @@ final class WorxMowerProfileTest extends TestCase
             self::assertSame('WORXMOWER.TimeExtension', IPS_GetVariable($variableID)['VariableCustomProfile']);
         }
     }
+
+    public function testMowerReportStoresNegativeAppScaleInConfirmedVariable(): void
+    {
+        IPS_CreateVariableProfile('WORXMOWER.TimeExtension', VARIABLETYPE_INTEGER);
+        IPS_SetVariableProfileValues('WORXMOWER.TimeExtension', -100, 100, 1);
+
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $variableID = IPS_CreateVariable(VARIABLETYPE_INTEGER);
+        IPS_SetParent($variableID, $instanceID);
+        IPS_SetIdent($variableID, 'TimeExtension');
+        IPS_SetVariableCustomProfile($variableID, 'WORXMOWER.TimeExtension');
+
+        $module = new WorxMower($instanceID);
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        $registerAttribute->invoke($module, 'PendingCommand', '');
+        $method = new ReflectionMethod(WorxMower::class, 'applyDevice');
+        $method->setAccessible(true);
+        $method->invoke($module, [
+            'online' => true,
+            'protocol' => 0,
+            'capabilities' => ['unrestricted_mowing_time'],
+            'last_status' => [
+                'payload' => [
+                    'cfg' => ['sc' => ['p' => 30]],
+                    'dat' => ['ls' => 0, 'le' => 0],
+                ],
+            ],
+        ]);
+
+        self::assertSame(-40, GetValue($variableID));
+    }
 }
