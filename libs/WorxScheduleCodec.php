@@ -248,7 +248,7 @@ final class WorxScheduleCodec
         $pointsByDay = [];
         foreach (self::toRows($schedule) as $row) {
             $eventDay = ($row['Day'] + 6) % 7; // Worx Sunday-first to Symcon Monday-first
-            if (!isset($pointsByDay[$eventDay])) $pointsByDay[$eventDay] = [0 => 0];
+            if (!isset($pointsByDay[$eventDay])) $pointsByDay[$eventDay] = [];
             if (!$row['Enabled']) continue;
             $start = self::timeToMinutes($row['Start']);
             $end = $start + $row['Minutes'];
@@ -260,6 +260,7 @@ final class WorxScheduleCodec
         }
         ksort($pointsByDay, SORT_NUMERIC);
         foreach ($pointsByDay as &$dayPoints) {
+            if (!isset($dayPoints[0])) $dayPoints[0] = 0;
             ksort($dayPoints, SORT_NUMERIC);
             $normalized = [];
             foreach ($dayPoints as $minute => $action) $normalized[] = ['Minute' => $minute, 'Action' => $action];

@@ -52,6 +52,7 @@ class WorxMower extends IPSModule
         $this->RegisterAttributeBoolean('ScheduleWritesSuppressed', false);
         $this->RegisterTimer('CommandConfirmationTimeout', 0, 'WORXMOWER_CommandConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('ScheduleConfirmationTimeout', 0, 'WORXMOWER_ScheduleConfirmationTimeout($_IPS[\'TARGET\']);');
+        $this->RegisterTimer('ScheduleEditDebounce', 0, 'WORXMOWER_ScheduleEditDebounce($_IPS[\'TARGET\']);');
 
         $this->registerProfiles();
 
@@ -225,7 +226,20 @@ class WorxMower extends IPSModule
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
         $eventID = $this->scheduleEventID();
-        if ((int) $SenderID !== $eventID || (int) $Message !== 10803 || $this->ReadAttributeBoolean('ScheduleEventSyncing') || $this->ReadAttributeBoolean('ScheduleWritesSuppressed')) {
+        $scheduleMessages = [10803, 10818, 10819, 10820, 10821, 10822, 10823];
+        if ((int) $SenderID !== $eventID || !in_array((int) $Message, $scheduleMessages, true) || $this->ReadAttributeBoolean('ScheduleEventSyncing') || $this->ReadAttributeBoolean('ScheduleWritesSuppressed')) {
+            return;
+        }
+        // Symcon emits several messages while rebuilding a week plan. Wait until
+        // the UI has completed the edit so only the final full schedule is sent.
+        $this->SetTimerInterval('ScheduleEditDebounce', 750);
+    }
+
+    public function ScheduleEditDebounce(): void
+    {
+        $this->SetTimerInterval('ScheduleEditDebounce', 0);
+        $eventID = $this->scheduleEventID();
+        if ($eventID === 0 || $this->ReadAttributeBoolean('ScheduleEventSyncing') || $this->ReadAttributeBoolean('ScheduleWritesSuppressed')) {
             return;
         }
         if ($this->scheduleEventFingerprint($eventID) === $this->ReadAttributeString('ScheduleEventSnapshot')) {
@@ -265,10 +279,14 @@ class WorxMower extends IPSModule
         $registeredEventID = $this->ReadAttributeInteger('ScheduleEventListener');
         if ($registeredEventID !== $eventID) {
             if ($registeredEventID > 0) {
-                $this->UnregisterMessage($registeredEventID, 10803);
+                foreach ([10803, 10818, 10819, 10820, 10821, 10822, 10823] as $message) {
+                    $this->UnregisterMessage($registeredEventID, $message);
+                }
             }
-            $this->RegisterMessage($eventID, 10803); // EM_UPDATE
             $this->WriteAttributeInteger('ScheduleEventListener', $eventID);
+        }
+        foreach ([10803, 10818, 10819, 10820, 10821, 10822, 10823] as $message) {
+            $this->RegisterMessage($eventID, $message);
         }
         $baseline = $this->ReadAttributeString('ScheduleEventSnapshot');
         if (!$force && $baseline !== '' && $this->scheduleEventFingerprint($eventID) !== $baseline) {
@@ -287,18 +305,29 @@ class WorxMower extends IPSModule
             foreach ($actions as $id => [$name, $color]) {
                 IPS_SetEventScheduleAction($eventID, $id, $name, $color, $noop);
             }
-            $existingGroups = [];
+            // Remove all old groups first. A user may have regrouped weekdays
+            // or created groups with IDs outside the canonical 0..6 range.
             foreach ((IPS_GetEvent($eventID)['ScheduleGroups'] ?? []) as $group) {
-                if (isset($group['ID'])) $existingGroups[(int) $group['ID']] = true;
-            }
-            foreach ($pointsByDay as $day => $points) {
-                if (isset($existingGroups[(int) $day])) IPS_SetEventScheduleGroup($eventID, (int) $day, 0);
-                IPS_SetEventScheduleGroup($eventID, (int) $day, 1 << (int) $day);
-                foreach ($points as $pointID => $point) {
-                    IPS_SetEventScheduleGroupPoint($eventID, (int) $day, (int) $pointID, intdiv($point['Minute'], 60), $point['Minute'] % 60, 0, $point['Action']);
+                if (isset($group['ID']) && !IPS_SetEventScheduleGroup($eventID, (int) $group['ID'], 0)) {
+                    throw new RuntimeException('Vorhandene Symcon-Wochenplangruppe konnte nicht entfernt werden.');
                 }
             }
-            IPS_SetEventActive($eventID, false);
+            foreach ($pointsByDay as $day => $points) {
+                if (!IPS_SetEventScheduleGroup($eventID, (int) $day, 1 << (int) $day)) {
+                    throw new RuntimeException('Symcon-Wochenplangruppe konnte nicht angelegt werden.');
+                }
+                foreach ($points as $pointID => $point) {
+                    if (!IPS_SetEventScheduleGroupPoint($eventID, (int) $day, (int) $pointID, intdiv($point['Minute'], 60), $point['Minute'] % 60, 0, $point['Action'])) {
+                        throw new RuntimeException('Symcon-Wochenplan-Schaltpunkt konnte nicht übernommen werden.');
+                    }
+                }
+            }
+            if (!IPS_SetEventActive($eventID, false)) {
+                throw new RuntimeException('Symcon-Wochenplan konnte nicht deaktiviert bleiben.');
+            }
+        } catch (Throwable $exception) {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Symcon-Wochenplan konnte nicht aktualisiert werden: ' . $exception->getMessage());
+            return;
         } finally {
             $this->WriteAttributeBoolean('ScheduleEventSyncing', false);
         }
