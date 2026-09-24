@@ -17,19 +17,19 @@ declare(strict_types=1);
  * Zwei Fallstricke, die es zu wissen lohnt:
  *   - AWS verlangt beim WebSocket-Handshake das Subprotokoll "mqtt". Fehlt der
  *     Header, antwortet es mit HTTP 426 und die Verbindung kommt nie zustande.
-
+ *
  */
 class WorxCloud extends IPSModule
 {
-    private const AUTH_URL  = 'https://id.worx.com/oauth/token';
+    private const AUTH_URL = 'https://id.worx.com/oauth/token';
     private const CLIENT_ID = '150da4d2-bb44-433b-9429-3773adc70a2a';
 
-    private const GUID_WS       = '{D68FD31F-0E90-7019-F16C-1949BD3079EF}'; // WS Client (I/O)
-    private const GUID_MQTT     = '{F7A0DD2E-7684-95C0-64C2-D2A9DC47577B}'; // MQTT Client (Splitter)
-    private const IF_MQTT_TX    = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}'; // an den MQTT Client senden
-    private const IF_MQTT_RX    = '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}'; // vom MQTT Client empfangen
-    private const IF_MOWER      = '{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}'; // zu den Mäher-Instanzen
-    private const IF_CONF       = '{F925090C-4AED-407D-8B80-F1730A55717E}'; // zum Konfigurator
+    private const GUID_WS = '{D68FD31F-0E90-7019-F16C-1949BD3079EF}'; // WS Client (I/O)
+    private const GUID_MQTT = '{F7A0DD2E-7684-95C0-64C2-D2A9DC47577B}'; // MQTT Client (Splitter)
+    private const IF_MQTT_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}'; // an den MQTT Client senden
+    private const IF_MQTT_RX = '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}'; // vom MQTT Client empfangen
+    private const IF_MOWER = '{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}'; // zu den Mäher-Instanzen
+    private const IF_CONF = '{F925090C-4AED-407D-8B80-F1730A55717E}'; // zum Konfigurator
 
     private const CLOUD_API = 'api.worxlandroid.com';
     private const CLOUD_PREFIX = 'WX';
@@ -91,35 +91,6 @@ class WorxCloud extends IPSModule
         if ($this->Poll() && $this->ReadPropertyBoolean('UseMQTT')) {
             $this->RefreshTransport();
         }
-    }
-
-    /**
-     * Stellt sicher, dass WorxCloud über einen MQTT Client und einen WebSocket
-     * verbunden ist. Symcon kann beim Anlegen zunächst einen Client Socket
-     * erzeugen; dieser wird hier durch den Worx-WebSocket ersetzt.
-     */
-    private function ensureParent(): void
-    {
-        $mqtt = $this->getParent();
-        if ($mqtt === 0) {
-            $mqtt = IPS_CreateInstance(self::GUID_MQTT);
-            IPS_SetName($mqtt, 'Worx MQTT');
-            IPS_ConnectInstance($this->InstanceID, $mqtt);
-        }
-
-        $connection = (int) (IPS_GetInstance($mqtt)['ConnectionID'] ?? 0);
-        if ($connection !== 0) {
-            $moduleID = IPS_GetInstance($connection)['ModuleInfo']['ModuleID'] ?? '';
-            if ($moduleID === self::GUID_WS) {
-                return;
-            }
-            IPS_DisconnectInstance($mqtt);
-        }
-
-        $ws = IPS_CreateInstance(self::GUID_WS);
-        IPS_SetName($ws, 'Worx WebSocket');
-        IPS_ConnectInstance($mqtt, $ws);
-        $this->SendDebug('MQTT', "Worx-Transportkette angelegt: WS $ws → MQTT $mqtt", 0);
     }
     // ── REST ──────────────────────────────────────────────────────────────────
 
@@ -205,9 +176,9 @@ class WorxCloud extends IPSModule
             return false;
         }
         $endpoint = $devices[0]['mqtt_endpoint'] ?? 'iot.eu-west-1.worxlandroid.com';
-        $userId   = $devices[0]['user_id'] ?? 0;
-        $uuid     = $devices[0]['uuid'] ?? '';
-        $prefix   = self::CLOUD_PREFIX;
+        $userId = $devices[0]['user_id'] ?? 0;
+        $uuid = $devices[0]['uuid'] ?? '';
+        $prefix = self::CLOUD_PREFIX;
 
         // Der Zugangs-Token ist ein JWT in base64url. AWS erwartet ihn zerlegt:
         // Signatur separat, Kopf und Nutzlast zusammen im Header "jwt".
@@ -276,27 +247,6 @@ class WorxCloud extends IPSModule
         return false;
     }
 
-    private function publish(string $topic, string $payload): bool
-    {
-        $parent = $this->getParent();
-        // Nicht nur "verknüpft", sondern auch "verbunden" prüfen — sonst quittiert
-        // Symcon jeden Sendeversuch während des Verbindungsaufbaus mit einer Warnung.
-        if ($parent === 0 || IPS_GetInstance($parent)['InstanceStatus'] !== IS_ACTIVE) {
-            $this->SendDebug('Publish', 'MQTT-Verbindung nicht bereit — verworfen', 0);
-            return false;
-        }
-        $this->SendDebug('Publish', 'MQTT-Nachricht gesendet; Topic und Nutzdaten werden nicht protokolliert.', 0);
-        $this->SendDataToParent(json_encode([
-            'DataID'           => self::IF_MQTT_TX,
-            'PacketType'       => 3,   // PUBLISH
-            'QualityOfService' => 0,
-            'Retain'           => false,
-            'Topic'            => $topic,
-            'Payload'          => $payload,
-        ]));
-        return true;
-    }
-
     /**
      * Patch the protocol-0 schedule over the mower's commandIn topic.
      * The mower's next commandOut payload remains the confirmation source.
@@ -335,7 +285,7 @@ class WorxCloud extends IPSModule
     public function ReceiveData($JSONString)
     {
         $data = json_decode($JSONString, true);
-        $topic   = $data['Topic'] ?? '';
+        $topic = $data['Topic'] ?? '';
         $payload = $data['Payload'] ?? '';
         if ($topic === '' || $payload === '') {
             return '';
@@ -403,6 +353,83 @@ class WorxCloud extends IPSModule
                 return json_encode($this->Poll());
         }
         return json_encode(false);
+    }
+
+    public function GetConfigurationForm()
+    {
+        return json_encode([
+            'elements' => [
+                ['type' => 'Select', 'name' => 'Cloud', 'caption' => 'Cloud', 'options' => [
+                    ['caption' => 'Worx Landroid', 'value' => 'worx'],
+                ]],
+                ['type' => 'ValidationTextBox', 'name' => 'Email', 'caption' => 'E-Mail'],
+                ['type' => 'PasswordTextBox', 'name' => 'Password', 'caption' => 'Passwort'],
+                ['type' => 'CheckBox', 'name' => 'UseMQTT', 'caption' => 'Echtzeit und Steuerung über MQTT'],
+                ['type' => 'NumberSpinner', 'name' => 'Interval', 'caption' => 'Abfrageintervall (Sekunden)', 'minimum' => 30],
+                ['type' => 'Label', 'caption' => 'Mit MQTT genügt ein großes Abfrageintervall — der Zustand kommt dann von selbst. Worx begrenzt auf 2880 Abfragen pro Tag.'],
+            ],
+            'actions' => [
+                ['type' => 'Button', 'caption' => 'Jetzt abfragen', 'onClick' => 'WORX_Poll($id);'],
+                ['type' => 'Button', 'caption' => 'Verbindung erneuern', 'onClick' => 'WORX_RefreshTransport($id);'],
+            ],
+            'status' => [
+                ['code' => 102, 'icon' => 'active',   'caption' => 'Verbunden'],
+                ['code' => 104, 'icon' => 'inactive', 'caption' => 'Zugangsdaten fehlen'],
+                ['code' => 201, 'icon' => 'error',    'caption' => 'Anmeldung fehlgeschlagen — E-Mail/Passwort prüfen'],
+                ['code' => 202, 'icon' => 'error',    'caption' => 'Cloud nicht erreichbar'],
+                ['code' => 203, 'icon' => 'error',    'caption' => 'Nicht unterstützter Cloud-Eintrag aus der Altinstallation — Worx auswählen'],
+            ],
+        ]);
+    }
+
+    /**
+     * Stellt sicher, dass WorxCloud über einen MQTT Client und einen WebSocket
+     * verbunden ist. Symcon kann beim Anlegen zunächst einen Client Socket
+     * erzeugen; dieser wird hier durch den Worx-WebSocket ersetzt.
+     */
+    private function ensureParent(): void
+    {
+        $mqtt = $this->getParent();
+        if ($mqtt === 0) {
+            $mqtt = IPS_CreateInstance(self::GUID_MQTT);
+            IPS_SetName($mqtt, 'Worx MQTT');
+            IPS_ConnectInstance($this->InstanceID, $mqtt);
+        }
+
+        $connection = (int) (IPS_GetInstance($mqtt)['ConnectionID'] ?? 0);
+        if ($connection !== 0) {
+            $moduleID = IPS_GetInstance($connection)['ModuleInfo']['ModuleID'] ?? '';
+            if ($moduleID === self::GUID_WS) {
+                return;
+            }
+            IPS_DisconnectInstance($mqtt);
+        }
+
+        $ws = IPS_CreateInstance(self::GUID_WS);
+        IPS_SetName($ws, 'Worx WebSocket');
+        IPS_ConnectInstance($mqtt, $ws);
+        $this->SendDebug('MQTT', "Worx-Transportkette angelegt: WS $ws → MQTT $mqtt", 0);
+    }
+
+    private function publish(string $topic, string $payload): bool
+    {
+        $parent = $this->getParent();
+        // Nicht nur "verknüpft", sondern auch "verbunden" prüfen — sonst quittiert
+        // Symcon jeden Sendeversuch während des Verbindungsaufbaus mit einer Warnung.
+        if ($parent === 0 || IPS_GetInstance($parent)['InstanceStatus'] !== IS_ACTIVE) {
+            $this->SendDebug('Publish', 'MQTT-Verbindung nicht bereit — verworfen', 0);
+            return false;
+        }
+        $this->SendDebug('Publish', 'MQTT-Nachricht gesendet; Topic und Nutzdaten werden nicht protokolliert.', 0);
+        $this->SendDataToParent(json_encode([
+            'DataID'           => self::IF_MQTT_TX,
+            'PacketType'       => 3,   // PUBLISH
+            'QualityOfService' => 0,
+            'Retain'           => false,
+            'Topic'            => $topic,
+            'Payload'          => $payload,
+        ]));
+        return true;
     }
 
     // ── Hilfsmittel ───────────────────────────────────────────────────────────
@@ -533,32 +560,5 @@ class WorxCloud extends IPSModule
             'user-agent: IPSymconWorx/2.0',
             'accept-language: de-de',
         ];
-    }
-
-    public function GetConfigurationForm()
-    {
-        return json_encode([
-            'elements' => [
-                ['type' => 'Select', 'name' => 'Cloud', 'caption' => 'Cloud', 'options' => [
-                    ['caption' => 'Worx Landroid', 'value' => 'worx'],
-                ]],
-                ['type' => 'ValidationTextBox', 'name' => 'Email', 'caption' => 'E-Mail'],
-                ['type' => 'PasswordTextBox', 'name' => 'Password', 'caption' => 'Passwort'],
-                ['type' => 'CheckBox', 'name' => 'UseMQTT', 'caption' => 'Echtzeit und Steuerung über MQTT'],
-                ['type' => 'NumberSpinner', 'name' => 'Interval', 'caption' => 'Abfrageintervall (Sekunden)', 'minimum' => 30],
-                ['type' => 'Label', 'caption' => 'Mit MQTT genügt ein großes Abfrageintervall — der Zustand kommt dann von selbst. Worx begrenzt auf 2880 Abfragen pro Tag.'],
-            ],
-            'actions' => [
-                ['type' => 'Button', 'caption' => 'Jetzt abfragen', 'onClick' => 'WORX_Poll($id);'],
-                ['type' => 'Button', 'caption' => 'Verbindung erneuern', 'onClick' => 'WORX_RefreshTransport($id);'],
-            ],
-            'status' => [
-                ['code' => 102, 'icon' => 'active',   'caption' => 'Verbunden'],
-                ['code' => 104, 'icon' => 'inactive', 'caption' => 'Zugangsdaten fehlen'],
-                ['code' => 201, 'icon' => 'error',    'caption' => 'Anmeldung fehlgeschlagen — E-Mail/Passwort prüfen'],
-                ['code' => 202, 'icon' => 'error',    'caption' => 'Cloud nicht erreichbar'],
-                ['code' => 203, 'icon' => 'error',    'caption' => 'Nicht unterstützter Cloud-Eintrag aus der Altinstallation — Worx auswählen'],
-            ],
-        ]);
     }
 }

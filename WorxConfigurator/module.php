@@ -47,13 +47,13 @@ class WorxConfigurator extends IPSModule
         return json_encode([
             'actions' => [
                 [
-                    'type'    => 'Configurator',
-                    'name'    => 'Mowers',
-                    'caption' => 'Mähroboter',
+                    'type'     => 'Configurator',
+                    'name'     => 'Mowers',
+                    'caption'  => 'Mähroboter',
                     'rowCount' => 10,
-                    'add'     => false,
-                    'delete'  => true,
-                    'columns' => [
+                    'add'      => false,
+                    'delete'   => true,
+                    'columns'  => [
                         ['caption' => 'Name',         'name' => 'name',     'width' => 'auto'],
                         ['caption' => 'Seriennummer', 'name' => 'serial',   'width' => '220px'],
                         ['caption' => 'Firmware',     'name' => 'firmware', 'width' => '120px'],

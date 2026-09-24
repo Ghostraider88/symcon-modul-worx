@@ -6,6 +6,7 @@ Stand: 2026-09-24. Zielgerät: Worx Landroid WR105SI.1.
 
 - Modell: im vom Nutzer bereitgestellten Worx-App-Screenshot als WR105SI.1 angezeigt.
 - Firmware: Der redigierte, vom Nutzer bereitgestellte Gerätedatensatz meldet die installierte Version 3.52.0+1.
+- Der konkrete Gerätedatensatz nennt außerdem `follow_border`, `lock`, `mqtt`, `multi_zone_percentage`, `multi_zone`, `ota_upgrade`, `pairing_smartlink`, `rain_delay` und `unrestricted_mowing_time`. Diese Capability-Namen belegen die Geräteausstattung, allein aber weder ein Cloud-Feld noch eine bestätigte Schreibaktion.
 - IP-Symcon: Kernel 9.1, read-only abgefragt.
 - Docker-Testinstallation: Worx Cloud und Mower sind aktiv; das native Ereignis „Mähzeitplan“ ist Typ 2, deaktiviert und enthält sieben Tagesgruppen mit je drei Schaltpunkten. Der gelesene Status meldet eine aus der Worx-App übernommene Änderung im Ereignis. Der neue Branch mit automatischem Versand nach manueller Ereignisbearbeitung ist noch nicht in dieser Installation geladen.
 - App-Zeitplan: manueller Wochenplan mit einem Zeitfenster pro Wochentag. Die App bietet je Eintrag „Rasenkanten-Schnitt“, „Ganzer Tag“, Start, Ende und Löschen. „Automatischer Zeitplan“ ist ausgeschaltet; die Zeiterweiterung wird mit 0 % angezeigt und lässt sich über Plus/Minus bedienen. Individuelle Uhrzeiten werden nicht veröffentlicht.
@@ -31,6 +32,9 @@ Stand: 2026-09-24. Zielgerät: Worx Landroid WR105SI.1.
 | Firmware / Wartungswerte | Firmware, Laufzeiten, Ladezyklen | Im Cloud-Modell vorhanden; App zeigt Modell-Firmwareseite | Read-only-Variablen | Vorhanden |
 | Einmalmähen, Party-Modus, Drehmoment, Fern-Schnitthöhe, ACS, Off Limits | Nicht vorhanden | Für das konkrete Gerät bisher kein belastbarer API-Beleg; Schnitthöhe beim WR105SI.1 mechanisch einstellbar | Keine Bedienelemente ohne Beleg | Nicht belegt |
 | Nächster Einsatz / Tagesfortschritt | Nicht vorhanden | Aus bestätigtem Wochenplan und aktuellem Gerätestatus ableitbar | Read-only-Berechnung erst bei aktuellem Zeitplan | Offen |
+| OTA-Firmwareupdate | Nicht vorhanden | WR105SI.1-Capability `ota_upgrade` gemeldet; kein konkreter Updateauftrag oder bestätigter Ablauf im Gerätedatensatz | Updatebedienung erst mit modellbezogenem Transport-, Versions- und Rückmeldungsbeleg | Capability vorhanden; Bedienweg offen |
+| Smartlink-Pairing | Nicht vorhanden | WR105SI.1-Capability `pairing_smartlink` gemeldet; konkreter Pairingzustand oder Folgefelder fehlen | Kein Pairing-Bedienelement bis Ablauf und Sicherheitsfolgen für dieses Modell geklärt sind | Capability vorhanden; Funktion offen |
+| Uneingeschränkte Mähzeit | Nicht vorhanden | WR105SI.1-Capability `unrestricted_mowing_time` und `cfg.sc.p=0` gemeldet; App zeigt Zeiterweiterung 0 % | Wert read-only anzeigen; Änderungssteuerung erst nach Modellgrenzen und Mäher-Echo | Capability/Feldbezug teilweise belegt; Schreiben offen |
 
 ## Recherchequellen
 

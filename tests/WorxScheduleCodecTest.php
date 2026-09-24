@@ -8,38 +8,6 @@ require_once __DIR__ . '/../libs/WorxScheduleCodec.php';
 
 final class WorxScheduleCodecTest extends TestCase
 {
-    private function makeSchedule(bool $secondary = false): array
-    {
-        $schedule = [
-            'd' => [],
-            'metadata' => ['keep' => true],
-        ];
-        if ($secondary) {
-            $schedule['dd'] = [];
-        }
-
-        for ($day = 0; $day < 7; $day++) {
-            $schedule['d'][] = ['08:00', 60, 0, 'unknown-slot-field'];
-            if ($secondary) {
-                $schedule['dd'][] = ['18:00', 30, 1, 'unknown-secondary-field'];
-            }
-        }
-
-        return $schedule;
-    }
-
-    private function makeDevice(array $schedule, int $protocol = 0): array
-    {
-        return [
-            'protocol' => $protocol,
-            'last_status' => [
-                'payload' => [
-                    'cfg' => ['sc' => $schedule],
-                ],
-            ],
-        ];
-    }
-
     public function testReadsSundayFirstWireSlotsInAppWeekdayOrder(): void
     {
         $schedule = $this->makeSchedule();
@@ -63,8 +31,8 @@ final class WorxScheduleCodecTest extends TestCase
 
         $updated = WorxScheduleCodec::mergeRows($source, $rows);
 
-        self::assertSame(['08:00', 60, 0, 'unknown-slot-field'], $updated['d'][0]);
-        self::assertSame(['09:15', 75, 1, 'unknown-slot-field'], $updated['d'][1]);
+        self::assertSame(['08:00', 60, 0, 'unknown-slot-field'], $updated['d'][1]);
+        self::assertSame(['09:15', 75, 1, 'unknown-slot-field'], $updated['d'][2]);
         self::assertSame($source['metadata'], $updated['metadata']);
     }
 
@@ -77,8 +45,8 @@ final class WorxScheduleCodecTest extends TestCase
         $rows[1]['Minutes'] = 45;
         $updated = WorxScheduleCodec::mergeRows($schedule, $rows);
 
-        self::assertSame(45, $updated['dd'][0][1]);
-        self::assertSame('unknown-secondary-field', $updated['dd'][0][3]);
+        self::assertSame(45, $updated['dd'][1][1]);
+        self::assertSame('unknown-secondary-field', $updated['dd'][1][3]);
     }
 
     public function testSanitizedDeviceRecordKeepsRequiredFieldsAndRemovesIdentifiers(): void
@@ -97,7 +65,7 @@ final class WorxScheduleCodecTest extends TestCase
         $device['last_status']['payload']['cfg']['sc']['sn'] = 'must-not-be-exported';
         $device['last_status']['payload']['dat'] = ['tq' => -10, 'lz' => 2, 'mac' => 'must-not-be-exported'];
         $device['last_status']['payload']['cfg']['sc']['extension'] = [
-            'location' => 'must-not-be-exported',
+            'location'  => 'must-not-be-exported',
             'preserved' => true,
         ];
 
@@ -132,11 +100,12 @@ final class WorxScheduleCodecTest extends TestCase
         $groups = [];
         foreach ($eventPoints as $day => $points) {
             $groups[] = [
-                'Days' => 1 << $day,
-                'Points' => array_map(static function (array $point): array {
+                'Days'   => 1 << $day,
+                'Points' => array_map(static function (array $point): array
+                {
                     return [
                         'Start' => [
-                            'Hour' => intdiv($point['Minute'], 60),
+                            'Hour'   => intdiv($point['Minute'], 60),
                             'Minute' => $point['Minute'] % 60,
                         ],
                         'ActionID' => $point['Action'],
@@ -146,14 +115,15 @@ final class WorxScheduleCodecTest extends TestCase
         }
 
         $decodedRows = WorxScheduleCodec::rowsFromEvent(['EventType' => 2, 'ScheduleGroups' => $groups], $schedule);
-        $expectedRows = array_map(static function (array $row): array {
+        $expectedRows = array_map(static function (array $row): array
+        {
             return [
-                'Day' => $row['Day'],
-                'Slot' => $row['Slot'],
+                'Day'     => $row['Day'],
+                'Slot'    => $row['Slot'],
                 'Enabled' => $row['Enabled'],
-                'Start' => $row['Start'],
+                'Start'   => $row['Start'],
                 'Minutes' => $row['Minutes'],
-                'Border' => $row['Border'],
+                'Border'  => $row['Border'],
             ];
         }, $rows);
         self::assertSame($expectedRows, $decodedRows);
@@ -194,5 +164,36 @@ final class WorxScheduleCodecTest extends TestCase
         $rows[0]['Enabled'] = true;
         $this->expectException(InvalidArgumentException::class);
         WorxScheduleCodec::mergeRows($schedule, $rows);
+    }
+    private function makeSchedule(bool $secondary = false): array
+    {
+        $schedule = [
+            'd'        => [],
+            'metadata' => ['keep' => true],
+        ];
+        if ($secondary) {
+            $schedule['dd'] = [];
+        }
+
+        for ($day = 0; $day < 7; $day++) {
+            $schedule['d'][] = ['08:00', 60, 0, 'unknown-slot-field'];
+            if ($secondary) {
+                $schedule['dd'][] = ['18:00', 30, 1, 'unknown-secondary-field'];
+            }
+        }
+
+        return $schedule;
+    }
+
+    private function makeDevice(array $schedule, int $protocol = 0): array
+    {
+        return [
+            'protocol'    => $protocol,
+            'last_status' => [
+                'payload' => [
+                    'cfg' => ['sc' => $schedule],
+                ],
+            ],
+        ];
     }
 }

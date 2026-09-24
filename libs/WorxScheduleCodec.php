@@ -103,48 +103,27 @@ final class WorxScheduleCodec
         }
 
         return [
-            'firmware_version' => isset($device['firmware_version']) ? (string) $device['firmware_version'] : null,
+            'firmware_version'      => isset($device['firmware_version']) ? (string) $device['firmware_version'] : null,
             'firmware_auto_upgrade' => isset($device['firmware_auto_upgrade']) ? (bool) $device['firmware_auto_upgrade'] : null,
-            'protocol' => isset($device['protocol']) && is_numeric($device['protocol']) ? (int) $device['protocol'] : null,
-            'capabilities' => is_array($capabilities)
-                ? array_values(array_filter($capabilities, static function ($value): bool {
+            'protocol'              => isset($device['protocol']) && is_numeric($device['protocol']) ? (int) $device['protocol'] : null,
+            'capabilities'          => is_array($capabilities)
+                ? array_values(array_filter($capabilities, static function ($value): bool
+                {
                     return is_string($value);
                 }))
                 : [],
             'capabilities_available' => is_array($available)
-                ? array_values(array_filter($available, static function ($value): bool {
+                ? array_values(array_filter($available, static function ($value): bool
+                {
                     return is_string($value);
                 }))
                 : [],
-            'features' => $safeFeatures,
+            'features'      => $safeFeatures,
             'auto_schedule' => isset($device['auto_schedule']) ? (bool) $device['auto_schedule'] : null,
-            'locked' => isset($device['locked']) ? (bool) $device['locked'] : null,
-            'cfg' => $safeConfiguration,
-            'dat' => $safeDat,
+            'locked'        => isset($device['locked']) ? (bool) $device['locked'] : null,
+            'cfg'           => $safeConfiguration,
+            'dat'           => $safeDat,
         ];
-    }
-
-    private static function removeSensitiveKeys(array $value): array
-    {
-        $result = [];
-        $sensitiveKeys = [
-            'serial', 'serialnumber', 'sn', 'uuid', 'mac', 'macaddress', 'userid',
-            'token', 'accesstoken', 'refreshtoken', 'authorization', 'mqttendpoint',
-            'mqtttopics', 'latitude', 'longitude', 'location', 'setuplocation', 'city',
-        ];
-
-        foreach ($value as $key => $item) {
-            $normalizedKey = strtolower((string) preg_replace('/[^a-z0-9]/i', '', (string) $key));
-            if (in_array($normalizedKey, $sensitiveKeys, true)) {
-                continue;
-            }
-            if (is_array($item)) {
-                $item = self::removeSensitiveKeys($item);
-            }
-            $result[$key] = $item;
-        }
-
-        return $result;
     }
 
     public static function hasSecondarySchedule(array $schedule): bool
@@ -172,14 +151,14 @@ final class WorxScheduleCodec
             foreach ($keys as $slot => $key) {
                 $tuple = $schedule[$key][$day];
                 $rows[] = [
-                    'Day' => (int) $day,
-                    'DayName' => self::DAYS[$day],
-                    'Slot' => (int) $slot,
+                    'Day'      => (int) $day,
+                    'DayName'  => self::DAYS[$day],
+                    'Slot'     => (int) $slot,
                     'SlotName' => 'Einsatz ' . ((int) $slot + 1),
-                    'Enabled' => (int) $tuple[1] > 0,
-                    'Start' => (string) $tuple[0],
-                    'Minutes' => (int) $tuple[1],
-                    'Border' => (int) $tuple[2] > 0,
+                    'Enabled'  => (int) $tuple[1] > 0,
+                    'Start'    => (string) $tuple[0],
+                    'Minutes'  => (int) $tuple[1],
+                    'Border'   => (int) $tuple[2] > 0,
                 ];
             }
         }
@@ -356,6 +335,29 @@ final class WorxScheduleCodec
             $rows[] = $active[$key] ?? ['Day' => $day, 'Slot' => $slot, 'Enabled' => false, 'Start' => '00:00', 'Minutes' => 0, 'Border' => false];
         }
         return $rows;
+    }
+
+    private static function removeSensitiveKeys(array $value): array
+    {
+        $result = [];
+        $sensitiveKeys = [
+            'serial', 'serialnumber', 'sn', 'uuid', 'mac', 'macaddress', 'userid',
+            'token', 'accesstoken', 'refreshtoken', 'authorization', 'mqttendpoint',
+            'mqtttopics', 'latitude', 'longitude', 'location', 'setuplocation', 'city',
+        ];
+
+        foreach ($value as $key => $item) {
+            $normalizedKey = strtolower((string) preg_replace('/[^a-z0-9]/i', '', (string) $key));
+            if (in_array($normalizedKey, $sensitiveKeys, true)) {
+                continue;
+            }
+            if (is_array($item)) {
+                $item = self::removeSensitiveKeys($item);
+            }
+            $result[$key] = $item;
+        }
+
+        return $result;
     }
 
     private static function timeToMinutes(string $time): int

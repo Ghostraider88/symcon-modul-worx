@@ -1,6 +1,6 @@
 # Worx Landroid für IP-Symcon
 
-Ein MIT-lizenziertes IP-Symcon-Modul für Worx Landroid Mähroboter. Die Codebasis stammt aus [c-tomic/IPSymconWorx](https://github.com/c-tomic/IPSymconWorx); bestehende Modulkennungen und Variablen-Idents bleiben für Updates erhalten.
+Ein MIT-lizenziertes IP-Symcon-Modul für Worx Landroid Mähroboter. Die Codebasis stammt aus [c-tomic/IPSymconWorx](https://github.com/c-tomic/IPSymconWorx). Die Library- und Modul-GUIDs dieses Forks sind eigenständig und unterscheiden sich absichtlich von Catomic. Die vorhandenen Worx-Funktionspräfixe und Variablen-Idents bleiben innerhalb des Forks stabil; Catomic-Instanzen werden dadurch nicht automatisch zu Fork-Instanzen.
 
 Dieses Repository unterstützt ausschließlich **Worx**. Kress, Landxcape und Ferrex werden nicht als kompatible Hersteller angeboten.
 
@@ -18,7 +18,7 @@ In IP-Symcon unter **Kerninstanz → Module Control → Repository hinzufügen**
 
 https://github.com/Ghostraider88/symcon-modul-worx
 
-Danach eine Instanz **Worx Cloud** anlegen, die Worx-Kontodaten eintragen und den **Worx Configurator** verwenden.
+Für den aktuellen Teststand nach dem Hinzufügen über das Zahnrad in Module Control den Zweig `codex/worx-wr105si` auswählen; `main` ist noch nicht der freigegebene Stand. Danach eine Instanz **Worx Cloud** anlegen, die Worx-Kontodaten eintragen und den **Worx Configurator** verwenden. Erst nach Abschluss der Geräte- und Release-Prüfungen wird der freigegebene Stand über `main` installiert.
 
 ## Voraussetzungen
 

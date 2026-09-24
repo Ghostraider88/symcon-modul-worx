@@ -1,0 +1,23 @@
+{
+    "translations": {
+        "en": {
+            "Seriennummer": "Serial number",
+            "Der redigierte Gerätebeleg steht in der Mower-Variable „Gerätenachweis (redigiert)“.": "Redacted device evidence is available in the Mower variable “Redacted device evidence”.",
+            "Kein Mähfenster": "No mowing interval",
+            "Mähen": "Mow",
+            "Mähen mit Kantenschnitt": "Mow with edge cutting",
+            "Einsatz 2": "Mowing interval 2",
+            "Einsatz 2 mit Kantenschnitt": "Mowing interval 2 with edge cutting",
+            "Start": "Start",
+            "Pause": "Pause",
+            "Ladestation": "Return to charging station",
+            "Jetzt aktualisieren": "Refresh now",
+            "Kein unterstützter Zeitplan empfangen. Der Editor benötigt Protokoll 0 und sieben empfangene Tagesfelder.": "No supported schedule received. The editor requires protocol 0 and seven received daily entries.",
+            "Der bestätigte Mäherplan wird als natives, deaktiviertes Symcon-Wochenplan-Ereignis „Mähzeitplan“ angezeigt. Änderungen am Ereignis werden an Worx übertragen; der zurückgemeldete Mäherplan bestätigt die Übertragung.": "The confirmed mower schedule is shown in the native Symcon weekly event “Mowing schedule”. Event edits are sent to Worx and confirmed by the schedule returned by the mower.",
+            "Die Worx-App zeigt außerdem „Ganzer Tag“. Die Cloud-Zuordnung dieses Schalters ist noch offen.": "The Worx app also shows “All day”. The corresponding cloud field has not been established yet.",
+            "Befehlsstatus und bestätigter Mäherzustand sind getrennt. MQTT-Publish ist keine Gerätebestätigung.": "Command status and confirmed mower state are shown separately. An MQTT publish is not device confirmation.",
+            "Aktiv": "Active",
+            "Seriennummer fehlt": "Serial number missing"
+        }
+    }
+}

@@ -13,17 +13,17 @@ class WorxMower extends IPSModule
     private const IF_CLOUD = '{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}';
 
     private const STATES = [
-        0 => 'Bereit', 1 => 'In der Ladestation', 2 => 'Startsequenz', 3 => 'Verlässt Ladestation',
-        4 => 'Folgt Begrenzung', 5 => 'Sucht Ladestation', 6 => 'Sucht Begrenzung', 7 => 'Mäht',
-        8 => 'Angehoben', 9 => 'Eingeklemmt', 10 => 'Messer blockiert', 11 => 'Debug',
+        0  => 'Bereit', 1 => 'In der Ladestation', 2 => 'Startsequenz', 3 => 'Verlässt Ladestation',
+        4  => 'Folgt Begrenzung', 5 => 'Sucht Ladestation', 6 => 'Sucht Begrenzung', 7 => 'Mäht',
+        8  => 'Angehoben', 9 => 'Eingeklemmt', 10 => 'Messer blockiert', 11 => 'Debug',
         12 => 'Fernsteuerung', 30 => 'Fährt zur Ladestation', 31 => 'Zonentraining',
         32 => 'Kantenschnitt', 33 => 'Sucht Zone', 34 => 'Pausiert',
     ];
 
     private const ERRORS = [
-        0 => 'Kein Fehler', 1 => 'Eingeklemmt', 2 => 'Angehoben', 3 => 'Begrenzungsdraht fehlt',
-        4 => 'Außerhalb der Begrenzung', 5 => 'Regen', 6 => 'Klappe schließen zum Mähen',
-        7 => 'Klappe schließen zur Rückkehr', 8 => 'Messermotor blockiert', 9 => 'Radmotor blockiert',
+        0  => 'Kein Fehler', 1 => 'Eingeklemmt', 2 => 'Angehoben', 3 => 'Begrenzungsdraht fehlt',
+        4  => 'Außerhalb der Begrenzung', 5 => 'Regen', 6 => 'Klappe schließen zum Mähen',
+        7  => 'Klappe schließen zur Rückkehr', 8 => 'Messermotor blockiert', 9 => 'Radmotor blockiert',
         10 => 'Eingeklemmt (Zeitüberschreitung)', 11 => 'Umgedreht', 12 => 'Batterie leer',
         13 => 'Begrenzungsdraht vertauscht', 14 => 'Ladefehler', 15 => 'Ladestation nicht gefunden',
         16 => 'Mäher gesperrt', 17 => 'Batterietemperatur zu hoch/niedrig', 18 => 'Fehler Lagesensor',
@@ -151,9 +151,18 @@ class WorxMower extends IPSModule
         return true;
     }
 
-    public function Start(): bool { return $this->Command(1); }
-    public function Pause(): bool { return $this->Command(2); }
-    public function Home(): bool { return $this->Command(3); }
+    public function Start(): bool
+    {
+        return $this->Command(1);
+    }
+    public function Pause(): bool
+    {
+        return $this->Command(2);
+    }
+    public function Home(): bool
+    {
+        return $this->Command(3);
+    }
 
     /** Read cached device state from WorxCloud. */
     public function Update(): bool
@@ -247,6 +256,76 @@ class WorxMower extends IPSModule
         }
         $this->SendSchedule();
     }
+    public function CommandConfirmationTimeout(): void
+    {
+        if ($this->ReadAttributeString('PendingCommand') === '') {
+            return;
+        }
+        $this->WriteAttributeString('PendingCommand', '');
+        $this->WriteAttributeString('PendingCommandSerial', '');
+        $this->SetTimerInterval('CommandConfirmationTimeout', 0);
+        $this->SetValueSafe('CommandStatus', 'Keine Bestätigung des Mähers innerhalb von 90 Sekunden.');
+    }
+
+    public function ScheduleConfirmationTimeout(): void
+    {
+        if ($this->ReadAttributeString('PendingSchedule') === '') {
+            return;
+        }
+        $this->WriteAttributeString('FailedSchedule', $this->ReadAttributeString('PendingSchedule'));
+        $this->WriteAttributeString('FailedScheduleSerial', $this->ReadAttributeString('PendingScheduleSerial'));
+        $this->WriteAttributeString('PendingSchedule', '');
+        $this->WriteAttributeString('PendingScheduleSerial', '');
+        $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
+        $this->SetValueSafe('ScheduleSyncStatus', 'Keine passende Mäher-Rückmeldung innerhalb von 120 Sekunden; prüfe den zuletzt empfangenen Stand.');
+        $this->Update();
+    }
+
+    public function GetConfigurationForm()
+    {
+        $device = $this->getDevice();
+        $schedule = $device === null ? null : WorxScheduleCodec::scheduleFromDevice($device);
+        $elements = [
+            ['type' => 'ValidationTextBox', 'name' => 'Serial', 'caption' => 'Seriennummer'],
+            ['type' => 'Label', 'caption' => 'Der redigierte Gerätebeleg steht in der Mower-Variable „Gerätenachweis (redigiert)“.'],
+        ];
+        $configuration = $device === null ? [] : WorxScheduleCodec::deviceConfiguration($device);
+        $reportedSchedule = $configuration['sc'] ?? [];
+        $scheduleMode = is_array($reportedSchedule) ? ($reportedSchedule['m'] ?? null) : null;
+        if (is_numeric($scheduleMode)) {
+            $elements[] = ['type' => 'Label', 'caption' => 'Zeitplanmodus (m, Rohwert): ' . (int) $scheduleMode . ' (Bedeutung noch nicht belegt)'];
+        }
+        $timeExtension = is_array($reportedSchedule) ? ($reportedSchedule['p'] ?? null) : null;
+        if (is_numeric($timeExtension) && (float) $timeExtension >= 0 && (float) $timeExtension <= 100) {
+            $extensionText = rtrim(rtrim(sprintf('%.1f', (float) $timeExtension), '0'), '.');
+            $elements[] = ['type' => 'Label', 'caption' => 'Vom Mäher gemeldete Zeiterweiterung: ' . str_replace('.', ',', $extensionText) . ' %'];
+        }
+        $actions = [
+            ['type' => 'RowLayout', 'items' => [
+                ['type' => 'Button', 'caption' => 'Start', 'onClick' => 'WORXMOWER_Start($id);'],
+                ['type' => 'Button', 'caption' => 'Pause', 'onClick' => 'WORXMOWER_Pause($id);'],
+                ['type' => 'Button', 'caption' => 'Ladestation', 'onClick' => 'WORXMOWER_Home($id);'],
+            ]],
+            ['type' => 'Button', 'caption' => 'Jetzt aktualisieren', 'onClick' => 'WORXMOWER_Update($id);'],
+        ];
+
+        if ($schedule === null) {
+            $elements[] = ['type' => 'Label', 'caption' => 'Kein unterstützter Zeitplan empfangen. Der Editor benötigt Protokoll 0 und sieben empfangene Tagesfelder.'];
+        } else {
+            $elements[] = ['type' => 'Label', 'caption' => 'Der bestätigte Mäherplan wird als natives, deaktiviertes Symcon-Wochenplan-Ereignis „Mähzeitplan“ angezeigt. Änderungen am Ereignis werden an Worx übertragen; der zurückgemeldete Mäherplan bestätigt die Übertragung.'];
+            $elements[] = ['type' => 'Label', 'caption' => 'Die Worx-App zeigt außerdem „Ganzer Tag“. Die Cloud-Zuordnung dieses Schalters ist noch offen.'];
+        }
+
+        $elements[] = ['type' => 'Label', 'caption' => 'Befehlsstatus und bestätigter Mäherzustand sind getrennt. MQTT-Publish ist keine Gerätebestätigung.'];
+        return json_encode([
+            'elements' => $elements,
+            'actions'  => $actions,
+            'status'   => [
+                ['code' => 102, 'icon' => 'active', 'caption' => 'Aktiv'],
+                ['code' => 104, 'icon' => 'inactive', 'caption' => 'Seriennummer fehlt'],
+            ],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
     private function scheduleEventID(): int
     {
         foreach (IPS_GetChildrenIDs($this->InstanceID) as $childID) {
@@ -299,7 +378,7 @@ class WorxMower extends IPSModule
             return;
         }
         $noop = '// Das Wochenplan-Ereignis dient als Zeitplaneditor; es startet keine Mähaktion.';
-        $actions = [0 => ['Kein Mähfenster', 0xB0B0B0], 1 => ['Mähen', 0x66AA33], 2 => ['Mähen mit Kantenschnitt', 0xE87922], 3 => ['Einsatz 2', 0x6688CC], 4 => ['Einsatz 2 mit Kantenschnitt', 0x9966CC]];
+        $actions = [0 => [$this->Translate('Kein Mähfenster'), 0xB0B0B0], 1 => [$this->Translate('Mähen'), 0x66AA33], 2 => [$this->Translate('Mähen mit Kantenschnitt'), 0xE87922], 3 => [$this->Translate('Einsatz 2'), 0x6688CC], 4 => [$this->Translate('Einsatz 2 mit Kantenschnitt'), 0x9966CC]];
         $this->WriteAttributeBoolean('ScheduleEventSyncing', true);
         try {
             foreach ($actions as $id => [$name, $color]) {
@@ -332,30 +411,6 @@ class WorxMower extends IPSModule
             $this->WriteAttributeBoolean('ScheduleEventSyncing', false);
         }
         $this->WriteAttributeString('ScheduleEventSnapshot', $this->scheduleEventFingerprint($eventID));
-    }
-    public function CommandConfirmationTimeout(): void
-    {
-        if ($this->ReadAttributeString('PendingCommand') === '') {
-            return;
-        }
-        $this->WriteAttributeString('PendingCommand', '');
-        $this->WriteAttributeString('PendingCommandSerial', '');
-        $this->SetTimerInterval('CommandConfirmationTimeout', 0);
-        $this->SetValueSafe('CommandStatus', 'Keine Bestätigung des Mähers innerhalb von 90 Sekunden.');
-    }
-
-    public function ScheduleConfirmationTimeout(): void
-    {
-        if ($this->ReadAttributeString('PendingSchedule') === '') {
-            return;
-        }
-        $this->WriteAttributeString('FailedSchedule', $this->ReadAttributeString('PendingSchedule'));
-        $this->WriteAttributeString('FailedScheduleSerial', $this->ReadAttributeString('PendingScheduleSerial'));
-        $this->WriteAttributeString('PendingSchedule', '');
-        $this->WriteAttributeString('PendingScheduleSerial', '');
-        $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
-        $this->SetValueSafe('ScheduleSyncStatus', 'Keine passende Mäher-Rückmeldung innerhalb von 120 Sekunden; prüfe den zuletzt empfangenen Stand.');
-        $this->Update();
     }
     private function clearPendingForDifferentMower(): void
     {
@@ -514,9 +569,9 @@ class WorxMower extends IPSModule
         $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
         if ($parent === 0 || $this->ReadPropertyString('Serial') === '') return null;
         $result = $this->SendDataToParent(json_encode([
-            'DataID' => self::IF_CLOUD,
+            'DataID'  => self::IF_CLOUD,
             'Command' => 'GetDevice',
-            'Serial' => $this->ReadPropertyString('Serial'),
+            'Serial'  => $this->ReadPropertyString('Serial'),
         ]));
         $device = json_decode((string) $result, true);
         return is_array($device) ? $device : null;
@@ -561,52 +616,6 @@ class WorxMower extends IPSModule
             IPS_SetVariableProfileValues('WORX.dBm', -100, 0, 1);
             IPS_SetVariableProfileIcon('WORX.dBm', 'Network');
         }
-    }
-
-    public function GetConfigurationForm()
-    {
-        $device = $this->getDevice();
-        $schedule = $device === null ? null : WorxScheduleCodec::scheduleFromDevice($device);
-        $elements = [
-            ['type' => 'ValidationTextBox', 'name' => 'Serial', 'caption' => 'Seriennummer'],
-            ['type' => 'Label', 'caption' => 'Der redigierte Gerätebeleg steht in der Mower-Variable „Gerätenachweis (redigiert)“.'],
-        ];
-        $configuration = $device === null ? [] : WorxScheduleCodec::deviceConfiguration($device);
-        $reportedSchedule = $configuration['sc'] ?? [];
-        $scheduleMode = is_array($reportedSchedule) ? ($reportedSchedule['m'] ?? null) : null;
-        if (is_numeric($scheduleMode)) {
-            $elements[] = ['type' => 'Label', 'caption' => 'Zeitplanmodus (m, Rohwert): ' . (int) $scheduleMode . ' (Bedeutung noch nicht belegt)'];
-        }
-        $timeExtension = is_array($reportedSchedule) ? ($reportedSchedule['p'] ?? null) : null;
-        if (is_numeric($timeExtension) && (float) $timeExtension >= 0 && (float) $timeExtension <= 100) {
-            $extensionText = rtrim(rtrim(sprintf('%.1f', (float) $timeExtension), '0'), '.');
-            $elements[] = ['type' => 'Label', 'caption' => 'Vom Mäher gemeldete Zeiterweiterung: ' . str_replace('.', ',', $extensionText) . ' %'];
-        }
-        $actions = [
-            ['type' => 'RowLayout', 'items' => [
-                ['type' => 'Button', 'caption' => 'Start', 'onClick' => 'WORXMOWER_Start($id);'],
-                ['type' => 'Button', 'caption' => 'Pause', 'onClick' => 'WORXMOWER_Pause($id);'],
-                ['type' => 'Button', 'caption' => 'Ladestation', 'onClick' => 'WORXMOWER_Home($id);'],
-            ]],
-            ['type' => 'Button', 'caption' => 'Jetzt aktualisieren', 'onClick' => 'WORXMOWER_Update($id);'],
-        ];
-
-        if ($schedule === null) {
-            $elements[] = ['type' => 'Label', 'caption' => 'Kein unterstützter Zeitplan empfangen. Der Editor benötigt Protokoll 0 und sieben empfangene Tagesfelder.'];
-        } else {
-            $elements[] = ['type' => 'Label', 'caption' => 'Der bestätigte Mäherplan wird als natives, deaktiviertes Symcon-Wochenplan-Ereignis „Mähzeitplan“ angezeigt. Änderungen am Ereignis werden an Worx übertragen; der zurückgemeldete Mäherplan bestätigt die Übertragung.'];
-            $elements[] = ['type' => 'Label', 'caption' => 'Die Worx-App zeigt außerdem „Ganzer Tag“. Die Cloud-Zuordnung dieses Schalters ist noch offen.'];
-        }
-
-        $elements[] = ['type' => 'Label', 'caption' => 'Befehlsstatus und bestätigter Mäherzustand sind getrennt. MQTT-Publish ist keine Gerätebestätigung.'];
-        return json_encode([
-            'elements' => $elements,
-            'actions' => $actions,
-            'status' => [
-                ['code' => 102, 'icon' => 'active', 'caption' => 'Aktiv'],
-                ['code' => 104, 'icon' => 'inactive', 'caption' => 'Seriennummer fehlt'],
-            ],
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     private function SetValueSafe(string $ident, $value): void
