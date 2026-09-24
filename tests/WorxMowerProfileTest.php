@@ -10,7 +10,7 @@ final class WorxMowerProfileTest extends TestCase
 {
     protected function setUp(): void
     {
-        IPS\ProfileManager::reset();
+        IPS\Kernel::reset();
     }
 
     public function testTimeExtensionProfileIsDedicatedAndUsesTheAppRange(): void
@@ -32,5 +32,31 @@ final class WorxMowerProfileTest extends TestCase
         self::assertSame(-100.0, $timeExtensionProfile['MinValue']);
         self::assertSame(100.0, $timeExtensionProfile['MaxValue']);
         self::assertSame(1.0, $timeExtensionProfile['StepSize']);
+    }
+
+    public function testExistingVariablesReceiveTheUpdatedNegativeRangeProfile(): void
+    {
+        IPS_CreateVariableProfile('WORX.Percent', VARIABLETYPE_INTEGER);
+        IPS_SetVariableProfileValues('WORX.Percent', 0, 100, 1);
+        IPS_CreateVariableProfile('WORXMOWER.TimeExtension', VARIABLETYPE_INTEGER);
+        IPS_SetVariableProfileValues('WORXMOWER.TimeExtension', -100, 100, 1);
+
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        foreach (['TimeExtension', 'TimeExtensionSet'] as $ident) {
+            $variableID = IPS_CreateVariable(VARIABLETYPE_INTEGER);
+            IPS_SetParent($variableID, $instanceID);
+            IPS_SetIdent($variableID, $ident);
+            IPS_SetVariableCustomProfile($variableID, 'WORX.Percent');
+        }
+
+        $module = new WorxMower($instanceID);
+        $method = new ReflectionMethod(WorxMower::class, 'applyTimeExtensionProfiles');
+        $method->setAccessible(true);
+        $method->invoke($module);
+
+        foreach (['TimeExtension', 'TimeExtensionSet'] as $ident) {
+            $variableID = IPS_GetObjectIDByIdent($ident, $instanceID);
+            self::assertSame('WORXMOWER.TimeExtension', IPS_GetVariable($variableID)['VariableCustomProfile']);
+        }
     }
 }
