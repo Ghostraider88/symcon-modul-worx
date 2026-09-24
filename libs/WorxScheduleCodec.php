@@ -242,6 +242,89 @@ final class WorxScheduleCodec
         return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
+    /** Convert the supported daily mowing slots to Symcon weekly-event points. */
+    public static function toEventPoints(array $schedule): array
+    {
+        $pointsByDay = [];
+        foreach (self::toRows($schedule) as $row) {
+            $eventDay = ($row['Day'] + 6) % 7; // Worx Sunday-first to Symcon Monday-first
+            if (!isset($pointsByDay[$eventDay])) $pointsByDay[$eventDay] = [0 => 0];
+            if (!$row['Enabled']) continue;
+            $start = self::timeToMinutes($row['Start']);
+            $end = $start + $row['Minutes'];
+            if ($end >= 1440) throw new InvalidArgumentException('Mähfenster über Mitternacht kann der Symcon-Wochenplan nicht verlustfrei darstellen.');
+            $action = 1 + ($row['Slot'] * 2) + ($row['Border'] ? 1 : 0);
+            if (isset($pointsByDay[$eventDay][$start]) || isset($pointsByDay[$eventDay][$end])) throw new InvalidArgumentException('Doppelte Schaltzeit im Wochenplan.');
+            $pointsByDay[$eventDay][$start] = $action;
+            $pointsByDay[$eventDay][$end] = 0;
+        }
+        ksort($pointsByDay, SORT_NUMERIC);
+        foreach ($pointsByDay as &$dayPoints) {
+            ksort($dayPoints, SORT_NUMERIC);
+            $normalized = [];
+            foreach ($dayPoints as $minute => $action) $normalized[] = ['Minute' => $minute, 'Action' => $action];
+            $dayPoints = $normalized;
+        }
+        unset($dayPoints);
+        return $pointsByDay;
+    }
+
+    /** Read Symcon's event representation back into the Worx schedule rows. */
+    public static function rowsFromEvent(array $event, array $source): array
+    {
+        if (($event['EventType'] ?? null) !== 2 || !isset($event['ScheduleGroups']) || !is_array($event['ScheduleGroups'])) throw new InvalidArgumentException('Das Wochenplan-Ereignis ist nicht lesbar.');
+        $slotCount = self::hasSecondarySchedule($source) ? 2 : 1;
+        $days = array_fill(0, 7, []);
+        foreach ($event['ScheduleGroups'] as $group) {
+            if (!isset($group['Days'], $group['Points']) || !is_array($group['Points'])) throw new InvalidArgumentException('Eine Ereignisgruppe ist unvollständig.');
+            for ($day = 0; $day < 7; $day++) {
+                if (((int) $group['Days'] & (1 << $day)) === 0) continue;
+                foreach ($group['Points'] as $point) {
+                    if (!isset($point['Start']['Hour'], $point['Start']['Minute'], $point['ActionID'])) throw new InvalidArgumentException('Ein Schaltpunkt ist unvollständig.');
+                    $minute = (int) $point['Start']['Hour'] * 60 + (int) $point['Start']['Minute'];
+                    $action = (int) $point['ActionID'];
+                    if ($action < 0 || $action > 4 || ($action > 0 && intdiv($action - 1, 2) >= $slotCount)) throw new InvalidArgumentException('Dieser Wochenplan-Zustand wird vom Mäherformat nicht unterstützt.');
+                    if (isset($days[$day][$minute])) throw new InvalidArgumentException('Doppelte Schaltzeit im Wochenplan.');
+                    $days[$day][$minute] = $action;
+                }
+            }
+        }
+        $active = [];
+        foreach (self::DISPLAY_DAY_ORDER as $wireDay) {
+            $eventDay = ($wireDay + 6) % 7;
+            if ($days[$eventDay] === []) throw new InvalidArgumentException('Der Wochenplan enthält nicht alle sieben Tage.');
+            ksort($days[$eventDay], SORT_NUMERIC);
+            $previous = 0;
+            foreach ($days[$eventDay] as $minute => $action) {
+                if ($action === $previous) continue;
+                if ($action > 0) {
+                    $slot = intdiv($action - 1, 2);
+                    $active[$slot . ':' . $wireDay] = ['Day' => $wireDay, 'Slot' => $slot, 'Enabled' => true, 'Start' => sprintf('%02d:%02d', intdiv($minute, 60), $minute % 60), 'Minutes' => 0, 'Border' => (($action - 1) % 2) === 1];
+                } elseif ($previous > 0) {
+                    $slot = intdiv($previous - 1, 2);
+                    $key = $slot . ':' . $wireDay;
+                    if (!isset($active[$key]) || $active[$key]['Minutes'] !== 0) throw new InvalidArgumentException('Mehrere Einsätze desselben Typs pro Tag sind nicht unterstützt.');
+                    $active[$key]['Minutes'] = $minute - self::timeToMinutes($active[$key]['Start']);
+                    if ($active[$key]['Minutes'] < 1) throw new InvalidArgumentException('Ein Mähfenster hat keine positive Dauer.');
+                    $previous = 0;
+                    continue;
+                }
+                $previous = $action;
+            }
+            if ($previous > 0) throw new InvalidArgumentException('Mähfenster über Mitternacht sind nicht unterstützt.');
+        }
+        $rows = [];
+        foreach (self::DISPLAY_DAY_ORDER as $day) for ($slot = 0; $slot < $slotCount; $slot++) {
+            $key = $slot . ':' . $day;
+            $rows[] = $active[$key] ?? ['Day' => $day, 'Slot' => $slot, 'Enabled' => false, 'Start' => '00:00', 'Minutes' => 0, 'Border' => false];
+        }
+        return $rows;
+    }
+
+    private static function timeToMinutes(string $time): int
+    {
+        return (int) substr($time, 0, 2) * 60 + (int) substr($time, 3, 2);
+    }
     private static function hasValidSlots(array $schedule, string $key): bool
     {
         if (!isset($schedule[$key]) || !is_array($schedule[$key]) || array_keys($schedule[$key]) !== range(0, 6)) {
