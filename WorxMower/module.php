@@ -267,8 +267,12 @@ class WorxMower extends IPSModule
         $noop = '// Anzeige- und Entwurfsereignis; absichtlich keine Mäheraktion.';
         $actions = [0 => ['Kein Mähfenster', 0xB0B0B0], 1 => ['Mähen', 0x66AA33], 2 => ['Mähen mit Kantenschnitt', 0xE87922], 3 => ['Einsatz 2', 0x6688CC], 4 => ['Einsatz 2 mit Kantenschnitt', 0x9966CC]];
         foreach ($actions as $id => [$name, $color]) IPS_SetEventScheduleAction($eventID, $id, $name, $color, $noop);
+        $existingGroups = [];
+        foreach ((IPS_GetEvent($eventID)['ScheduleGroups'] ?? []) as $group) {
+            if (isset($group['ID'])) $existingGroups[(int) $group['ID']] = true;
+        }
         foreach ($pointsByDay as $day => $points) {
-            IPS_SetEventScheduleGroup($eventID, (int) $day, 0);
+            if (isset($existingGroups[(int) $day])) IPS_SetEventScheduleGroup($eventID, (int) $day, 0);
             IPS_SetEventScheduleGroup($eventID, (int) $day, 1 << (int) $day);
             foreach ($points as $pointID => $point) IPS_SetEventScheduleGroupPoint($eventID, (int) $day, (int) $pointID, intdiv($point['Minute'], 60), $point['Minute'] % 60, 0, $point['Action']);
         }
