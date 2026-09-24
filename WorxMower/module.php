@@ -109,6 +109,8 @@ class WorxMower extends IPSModule
     public function ApplyChanges()
     {
         parent::ApplyChanges();
+        // Repair profile bounds for instances created before the app-scale mapping.
+        $this->registerProfiles();
         $this->clearPendingForDifferentMower();
         foreach (['Schedule', 'SchedulePreview'] as $obsoleteIdent) {
             $obsoleteID = $this->GetIDForIdent($obsoleteIdent);
