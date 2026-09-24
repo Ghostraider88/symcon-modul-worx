@@ -42,7 +42,47 @@ final class WorxScheduleCodecTest extends TestCase
         self::assertTrue(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
         $reported['p'] = 10;
         self::assertFalse(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
+
+        $expected['p'] = 95.5;
+        $reported = $expected;
+        self::assertTrue(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
+        $reported['p'] = 95;
+        self::assertFalse(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
     }
+
+    public function testMapsDailyWorkPercentageBetweenAppAndProtocolScales(): void
+    {
+        $cases = [
+            [-100, 0],
+            [-40, 30],
+            [0, 50],
+            [30, 65],
+            [60, 80],
+            [100, 100],
+        ];
+
+        foreach ($cases as [$appPercent, $protocolValue]) {
+            self::assertSame($appPercent, WorxScheduleCodec::timeExtensionFromProtocol($protocolValue));
+            self::assertEquals($protocolValue, WorxScheduleCodec::timeExtensionToProtocol($appPercent));
+        }
+
+        self::assertSame(91, WorxScheduleCodec::timeExtensionFromProtocol(95.5));
+        self::assertSame(95.5, WorxScheduleCodec::timeExtensionToProtocol(91));
+    }
+
+    public function testRejectsTimeExtensionValuesOutsideProtocolRange(): void
+    {
+        self::assertNull(WorxScheduleCodec::timeExtensionFromProtocol(-0.1));
+        self::assertNull(WorxScheduleCodec::timeExtensionFromProtocol(100.1));
+
+        try {
+            WorxScheduleCodec::timeExtensionToProtocol(101);
+            self::fail('Expected out-of-range app percentage to be rejected.');
+        } catch (InvalidArgumentException $exception) {
+            self::assertStringContainsString('-100 and 100', $exception->getMessage());
+        }
+    }
+
     public function testPreservesUnknownScheduleAndTupleFields(): void
     {
         $source = $this->makeSchedule();

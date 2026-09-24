@@ -169,7 +169,7 @@ class WorxMower extends IPSModule
             return;
         }
         if ($Ident === 'TimeExtensionSet') {
-            $percent = $this->validatedInteger($Value, -100, 100, 'Zeiterweiterung');
+            $percent = $this->validatedInteger($Value, -100, 100, 'Tägliche Arbeitszeit');
             $this->SetValueSafe('TimeExtensionSet', $percent);
             $this->SetTimeExtension($percent);
             return;
@@ -379,7 +379,7 @@ class WorxMower extends IPSModule
         $schedule = $device === null ? null : WorxScheduleCodec::scheduleFromDevice($device);
         if ($device === null || (int) ($device['protocol'] ?? -1) !== 0
             || !in_array('unrestricted_mowing_time', $device['capabilities'] ?? [], true) || $schedule === null) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Zeiterweiterung wird für dieses Gerät nicht unterstützt.');
+            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Einstellung der täglichen Arbeitszeit wird für dieses Gerät nicht unterstützt.');
             return false;
         }
         if (empty($device['online'])) {
@@ -563,7 +563,7 @@ class WorxMower extends IPSModule
         $this->WriteAttributeString('PendingSchedulePurpose', 'schedule');
         $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
         $timeoutStatus = $purpose === 'time_extension'
-            ? 'Keine Bestätigung der Zeiterweiterung innerhalb von 120 Sekunden.'
+            ? 'Keine Bestätigung der täglichen Arbeitszeitänderung innerhalb von 120 Sekunden.'
             : 'Keine passende Mäher-Rückmeldung innerhalb von 120 Sekunden; prüfe den zuletzt empfangenen Stand.';
         $this->SetValueSafe('ScheduleSyncStatus', $timeoutStatus);
         $this->Update();
@@ -586,7 +586,7 @@ class WorxMower extends IPSModule
         $timeExtension = is_array($reportedSchedule) ? ($reportedSchedule['p'] ?? null) : null;
         if (is_numeric($timeExtension) && (float) $timeExtension >= 0 && (float) $timeExtension <= 100) {
             $extensionText = rtrim(rtrim(sprintf('%.1f', (float) $timeExtension), '0'), '.');
-            $elements[] = ['type' => 'Label', 'caption' => 'Vom Mäher gemeldete Zeiterweiterung: ' . str_replace('.', ',', $extensionText) . ' %'];
+            $elements[] = ['type' => 'Label', 'caption' => 'Vom Mäher gemeldete tägliche Arbeitszeitänderung: ' . str_replace('.', ',', $extensionText) . ' %'];
         }
         $actions = [
             ['type' => 'RowLayout', 'items' => [
@@ -1003,7 +1003,7 @@ class WorxMower extends IPSModule
                 $this->WriteAttributeString('FailedScheduleSerial', '');
                 $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
                 $confirmedStatus = $purpose === 'time_extension'
-                    ? 'Zeiterweiterung vom Mäher zurückgelesen und bestätigt.'
+                    ? 'Tägliche Arbeitszeit vom Mäher zurückgelesen und bestätigt.'
                     : 'Vom Mäher zurückgelesen und bestätigt.';
                 $this->SetValueSafe('ScheduleSyncStatus', $confirmedStatus);
             } elseif ($previous === $current) {

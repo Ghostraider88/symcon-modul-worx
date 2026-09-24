@@ -35,7 +35,7 @@ Stand: 2026-09-24. Zielgerät: Worx Landroid WR105SI.1.
 | Nächster Einsatz / Tagesfortschritt | Nicht vorhanden | Aus bestätigtem Wochenplan und aktuellem Gerätestatus ableitbar | Read-only-Berechnung erst bei aktuellem Zeitplan | Offen |
 | OTA-Firmwareupdate | Nicht vorhanden | WR105SI.1-Capability `ota_upgrade` gemeldet; kein konkreter Updateauftrag oder bestätigter Ablauf im Gerätedatensatz | Updatebedienung erst mit modellbezogenem Transport-, Versions- und Rückmeldungsbeleg | Capability vorhanden; Bedienweg offen |
 | Smartlink-Pairing | Nicht vorhanden | WR105SI.1-Capability `pairing_smartlink` gemeldet; konkreter Pairingzustand oder Folgefelder fehlen | Kein Pairing-Bedienelement bis Ablauf und Sicherheitsfolgen für dieses Modell geklärt sind | Capability vorhanden; Funktion offen |
-| Uneingeschränkte Mähzeit | Nicht vorhanden | Identische Worx-Capability und dasselbe Protokollfeld `cfg.sc.p` wie „Zeiterweiterung“; kein separates Gerätefeld belegt | Wird über „Zeiterweiterung setzen“ abgebildet; kein zweites Bedienelement | Über denselben bestätigten `cfg.sc.p`-Pfad abgebildet; Echo siehe tägliche Arbeitszeit |
+| Uneingeschränkte Mähzeit | Nicht vorhanden | Identische Worx-Capability und dasselbe Protokollfeld `cfg.sc.p` wie die tägliche Arbeitszeitänderung; kein separates Gerätefeld belegt | Über dieselbe Einstellung abgebildet; kein zweites Bedienelement | Echo siehe tägliche Arbeitszeit |
 
 ## Recherchequellen
 

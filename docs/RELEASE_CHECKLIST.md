@@ -26,7 +26,7 @@ Diese Checkliste gilt für `Ghostraider88/symcon-modul-worx`. Der Branch `codex/
 | Symcon-Wochenplan → Worx-App/Mäher | Vom Nutzer bestätigt |
 | Worx-App → Symcon-Wochenplan ohne manuellen Refresh | Vom Nutzer bestätigt |
 | „Ganzer Tag“ und Zeitfenster über Mitternacht | Offen; Format und verlustfreie Symcon-Abbildung belegen |
-| Automatischer Zeitplan, Regenverzögerung, Zeiterweiterung und Sperre | Schreibweg implementiert; Geräteecho je Funktion noch nicht bestätigt |
+| Automatischer Zeitplan, Regenverzögerung, tägliche Arbeitszeitänderung und Sperre | Schreibweg implementiert; Zeit-Skala korrigiert, Echo nach Korrektur noch zu bestätigen; übrige Geräteechos je Funktion offen |
 | Start, Pause und Heimfahrt | Implementiert; am echten Mäher noch nicht bestätigt |
 | Neuinstallation, Update, wiederholte Konfiguration und Wiederanlauf | Noch vollständig abzunehmen |
 | Fehlerfälle (falsche Zugangsdaten, Cloud-/MQTT-Ausfall, leere Antwort) | Noch vollständig abzunehmen |
