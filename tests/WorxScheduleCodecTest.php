@@ -79,7 +79,7 @@ final class WorxScheduleCodecTest extends TestCase
             WorxScheduleCodec::timeExtensionToProtocol(101);
             self::fail('Expected out-of-range app percentage to be rejected.');
         } catch (InvalidArgumentException $exception) {
-            self::assertStringContainsString('-100 and 100', $exception->getMessage());
+            self::assertStringContainsString('zwischen -100 und 100', $exception->getMessage());
         }
     }
 
