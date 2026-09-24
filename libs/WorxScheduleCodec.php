@@ -64,6 +64,32 @@ final class WorxScheduleCodec
         return self::scheduleFromDevice($device) !== null;
     }
 
+    /** Convert the protocol-0 raw schedule percentage (0..100) to app percentage (-100..100). */
+    public static function timeExtensionFromProtocol($value): ?int
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        $raw = (float) $value;
+        if ($raw < 0 || $raw > 100) {
+            return null;
+        }
+
+        return (int) round(($raw * 2) - 100);
+    }
+
+    /** Convert the app percentage (-100..100) to protocol-0 raw schedule value (0..100). */
+    public static function timeExtensionToProtocol(int $percent)
+    {
+        if ($percent < -100 || $percent > 100) {
+            throw new InvalidArgumentException('Tägliche Arbeitszeit muss zwischen -100 und 100 Prozent liegen.');
+        }
+
+        $raw = $percent + 100;
+        return $raw % 2 === 0 ? intdiv($raw, 2) : $raw / 2;
+    }
+
     /**
      * Return only the mower details needed for feature research, excluding device
      * and account identifiers from the cached cloud object.
@@ -267,7 +293,7 @@ final class WorxScheduleCodec
         if (array_key_exists('p', $expected) || array_key_exists('p', $reported)) {
             if (!array_key_exists('p', $expected) || !array_key_exists('p', $reported)
                 || !is_numeric($expected['p']) || !is_numeric($reported['p'])
-                || (int) $expected['p'] !== (int) $reported['p']) {
+                || abs((float) $expected['p'] - (float) $reported['p']) > 0.001) {
                 return false;
             }
         }

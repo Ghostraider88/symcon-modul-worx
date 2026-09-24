@@ -83,8 +83,8 @@ class WorxMower extends IPSModule
         $this->RegisterVariableFloat('WorkTime', 'Mähzeit gesamt', 'WORX.Hours', $p++);
         $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', 'WORX.Hours', $p++);
         $this->RegisterVariableBoolean('Rain', 'Regen erkannt', '~Alert', $p++);
-        $this->RegisterVariableInteger('TimeExtension', 'Zeiterweiterung (bestätigt)', 'WORX.Percent', $p++);
-        $this->RegisterVariableInteger('TimeExtensionSet', 'Zeiterweiterung setzen', 'WORX.Percent', $p++);
+        $this->RegisterVariableInteger('TimeExtension', 'Tägliche Arbeitszeit (bestätigt)', 'WORX.Percent', $p++);
+        $this->RegisterVariableInteger('TimeExtensionSet', 'Tägliche Arbeitszeit setzen', 'WORX.Percent', $p++);
         $this->RegisterVariableInteger('RainDelay', 'Regenverzögerung (bestätigt)', 'WORX.Minutes', $p++);
         $this->RegisterVariableInteger('RainDelaySet', 'Regenverzögerung setzen', 'WORX.Minutes', $p++);
         $this->RegisterVariableString('SettingStatus', 'Einstellungsrückmeldung', '', $p++);
@@ -369,7 +369,7 @@ class WorxMower extends IPSModule
     public function SetTimeExtension(int $percent): bool
     {
         if ($percent < -100 || $percent > 100) {
-            throw new InvalidArgumentException('Zeiterweiterung muss zwischen -100 und 100 Prozent liegen.');
+            throw new InvalidArgumentException('Tägliche Arbeitszeit muss zwischen -100 und 100 Prozent liegen.');
         }
         if ($this->ReadAttributeString('PendingSchedule') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingAutoSchedule') !== '') {
             $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
@@ -386,17 +386,17 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Der Mäher ist offline.');
             return false;
         }
-        $schedule['p'] = $percent;
+        $schedule['p'] = WorxScheduleCodec::timeExtensionToProtocol($percent);
         $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
         if ($parent === 0 || !WORX_SetSchedule($parent, $this->ReadPropertyString('Serial'), WorxScheduleCodec::canonicalJson($schedule))) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Zeiterweiterung nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.');
+            $this->SetValueSafe('ScheduleSyncStatus', 'Tägliche Arbeitszeitänderung nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.');
             return false;
         }
         $this->WriteAttributeString('PendingSchedule', WorxScheduleCodec::canonicalJson($schedule));
         $this->WriteAttributeString('PendingScheduleSerial', $this->ReadPropertyString('Serial'));
         $this->WriteAttributeString('PendingSchedulePurpose', 'time_extension');
         $this->WriteAttributeString('ScheduleEventSnapshot', $this->scheduleEventFingerprint($this->scheduleEventID()));
-        $this->SetValueSafe('ScheduleSyncStatus', 'Zeiterweiterung gesendet; Bestätigung durch Zurücklesen des Mähers steht aus.');
+        $this->SetValueSafe('ScheduleSyncStatus', 'Tägliche Arbeitszeitänderung gesendet; Bestätigung durch Zurücklesen des Mähers steht aus.');
         $this->SetTimerInterval('ScheduleConfirmationTimeout', 120000);
         return true;
     }
@@ -836,12 +836,11 @@ class WorxMower extends IPSModule
         $reportedSchedule = $configuration['sc'] ?? null;
         $supportsTimeExtension = in_array('unrestricted_mowing_time', $device['capabilities'] ?? [], true)
             && is_array($reportedSchedule) && isset($reportedSchedule['p'])
-            && is_numeric($reportedSchedule['p']) && (float) $reportedSchedule['p'] >= -100
-            && (float) $reportedSchedule['p'] <= 100;
+            && WorxScheduleCodec::timeExtensionFromProtocol($reportedSchedule['p']) !== null;
         $timeExtensionID = $this->GetIDForIdent('TimeExtension');
         if ($timeExtensionID !== false && $timeExtensionID > 0) {
             IPS_SetHidden($timeExtensionID, !$supportsTimeExtension);
-            if ($supportsTimeExtension) $this->SetValueSafe('TimeExtension', (int) $reportedSchedule['p']);
+            if ($supportsTimeExtension) $this->SetValueSafe('TimeExtension', WorxScheduleCodec::timeExtensionFromProtocol($reportedSchedule['p']));
         }
         $timeExtensionSetID = $this->GetIDForIdent('TimeExtensionSet');
         if ($timeExtensionSetID !== false && $timeExtensionSetID > 0) IPS_SetHidden($timeExtensionSetID, !$supportsTimeExtension);

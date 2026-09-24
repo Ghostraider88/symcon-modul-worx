@@ -2,6 +2,8 @@
 
 ## Unveröffentlicht
 
+- Die Zeitangabe „Erhöhen/Verringern der täglichen Arbeitszeit“ wird auf die Worx-App-Skala −100 bis +100 % abgebildet; `cfg.sc.p` verwendet dafür die gemessene Skala 0 bis 100.
+
 - Start/Pause/Heimfahrt, Sperre und Regenverzögerung registrieren die ausstehende Gerätebestätigung vor dem Sendeaufruf, damit schnelle Geräteechos nicht verpasst werden; abgelehnte Sendungen räumen den Wartezustand auf.
 
 
