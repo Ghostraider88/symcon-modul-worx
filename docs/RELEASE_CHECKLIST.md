@@ -33,6 +33,15 @@ Diese Checkliste gilt für `Ghostraider88/symcon-modul-worx`. Der Branch `codex/
 
 Gerätesteuerungen nur einzeln und mit sichtbarer Sollwert-/Rückmeldungsprüfung ausprobieren. Ein MQTT-Publish oder HTTP-Erfolg allein gilt nicht als Gerätebestätigung. Keine Aktionen im Rahmen statischer Codeprüfungen ausführen.
 
+## Prüfschritt: tägliche Arbeitszeit −100…+100 %
+
+Nach Aktualisierung des Testbranches und erneutem Anwenden der Mower-Konfiguration:
+
+1. In der Worx-App −40 % einstellen. Symcon muss in „Tägliche Arbeitszeit (bestätigt)“ −40 % anzeigen; im redigierten Gerätenachweis muss `cfg.sc.p` den Rohwert 30 enthalten.
+2. In Symcon „Tägliche Arbeitszeit setzen“ auf −40 % stellen. Die Worx-App und die bestätigte Symcon-Variable müssen nach dem Geräteecho beide −40 % anzeigen; der zurückgelesene Rohwert muss wieder 30 sein.
+3. Danach den ursprünglichen Wert in der App wiederherstellen.
+
+Die Werte müssen jeweils aus demselben Rückmeldezeitpunkt stammen. Eine bloße Publish-Meldung zählt nicht als Gerätebestätigung.
 ## Veröffentlichung
 
 `main` erst aktualisieren, wenn die offenen Punkte der [Feature-Matrix](FEATURE_MATRIX.md) und obigen Abnahme geschlossen oder nachvollziehbar als nicht unterstützte Modellfunktion gekennzeichnet sind, GitHub Style- und Testprüfungen erfolgreich sind und README, Modulformulare und Updatepfad den tatsächlich bestätigten Stand beschreiben.
