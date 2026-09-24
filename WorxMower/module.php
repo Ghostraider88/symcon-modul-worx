@@ -71,6 +71,7 @@ class WorxMower extends IPSModule
         $this->RegisterVariableFloat('WorkTime', 'Mähzeit gesamt', 'WORX.Hours', $p++);
         $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', 'WORX.Hours', $p++);
         $this->RegisterVariableBoolean('Rain', 'Regen erkannt', '~Alert', $p++);
+        $this->RegisterVariableInteger('TimeExtension', 'Zeiterweiterung', 'WORX.Percent', $p++);
         $this->RegisterVariableInteger('RainDelay', 'Regenverzögerung', 'WORX.Minutes', $p++);
         $this->RegisterVariableBoolean('Locked', 'Gesperrt', '~Lock', $p++);
         $this->RegisterVariableInteger('Zone', 'Aktuelle Zone', '', $p++);
@@ -478,6 +479,17 @@ class WorxMower extends IPSModule
         if (isset($dat['rsi'])) $this->SetValueSafe('WifiSignal', (int) $dat['rsi']);
         if (isset($dat['rain']['s'])) $this->SetValueSafe('Rain', ((int) $dat['rain']['s']) > 0);
         $configuration = WorxScheduleCodec::deviceConfiguration($device);
+        $reportedSchedule = $configuration['sc'] ?? null;
+        $supportsTimeExtension = in_array('unrestricted_mowing_time', $device['capabilities'] ?? [], true)
+            && is_array($reportedSchedule) && isset($reportedSchedule['p'])
+            && is_numeric($reportedSchedule['p']) && (float) $reportedSchedule['p'] >= -100
+            && (float) $reportedSchedule['p'] <= 100;
+        $timeExtensionID = $this->GetIDForIdent('TimeExtension');
+        if ($timeExtensionID !== false && $timeExtensionID > 0) {
+            IPS_SetHidden($timeExtensionID, !$supportsTimeExtension);
+            if ($supportsTimeExtension) $this->SetValueSafe('TimeExtension', (int) $reportedSchedule['p']);
+        }
+        $configuration = WorxScheduleCodec::deviceConfiguration($device);
         $supportsRainDelay = in_array('rain_delay', $device['capabilities'] ?? [], true)
             && isset($configuration['rd']) && is_numeric($configuration['rd'])
             && (int) $configuration['rd'] >= 0 && (int) $configuration['rd'] <= 1440;
@@ -645,6 +657,11 @@ class WorxMower extends IPSModule
             IPS_SetVariableProfileText('WORX.Hours', '', ' h');
             IPS_SetVariableProfileDigits('WORX.Hours', 1);
             IPS_SetVariableProfileIcon('WORX.Hours', 'Clock');
+        }
+        if (!IPS_VariableProfileExists('WORX.Percent')) {
+            IPS_CreateVariableProfile('WORX.Percent', VARIABLETYPE_INTEGER);
+            IPS_SetVariableProfileText('WORX.Percent', '', ' %');
+            IPS_SetVariableProfileIcon('WORX.Percent', 'Clock');
         }
         if (!IPS_VariableProfileExists('WORX.Minutes')) {
             IPS_CreateVariableProfile('WORX.Minutes', VARIABLETYPE_INTEGER);
