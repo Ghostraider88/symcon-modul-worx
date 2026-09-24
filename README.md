@@ -36,7 +36,7 @@ Die Mower-Instanz stellt den bestätigten Zeitplan als natives Symcon-Wochenplan
 
 Die bereitgestellten App-Bilder zeigen beim WR105SI.1 einen manuellen Wochenplan mit einem dargestellten Zeitfenster je Wochentag. In der Tagesansicht sind „Rasenkanten-Schnitt“, „Ganzer Tag“, Start, Ende und Löschen sichtbar. Außerdem ist „Automatischer Zeitplan“ ausgeschaltet und die Zeiterweiterung steht auf 0 %. Die individuelle Anzeige ist nicht in den Quellcode übernommen. Der vom Nutzer bereitgestellte Gerätedatensatz meldet Firmware 3.52.0+1.
 
-Siehe [Worx-Feature-Matrix](docs/FEATURE_MATRIX.md), [Architektur und Updatepfad](docs/ARCHITECTURE.md) und [Worx Mower](WorxMower/README.md).
+Siehe [Worx-Feature-Matrix](docs/FEATURE_MATRIX.md), [Architektur und Updatepfad](docs/ARCHITECTURE.md), [Release-Abnahme](docs/RELEASE_CHECKLIST.md) und [Worx Mower](WorxMower/README.md).
 
 ## Entwicklung
 
