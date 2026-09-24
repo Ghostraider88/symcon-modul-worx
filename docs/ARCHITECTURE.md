@@ -37,9 +37,9 @@ Der derzeit bekannte Worx-Kandidat ist Protokoll 0 mit `sc.d` (sieben Tage). `sc
 ## Update vorhandener Installationen
 
 - Die drei Modul-GUIDs, Library-GUID, Funktionspräfixe, DataFlow-GUIDs und bestehenden Variablen-Idents werden nicht geändert.
-- Bestehende Catomic-Instanzen erhalten sichere Standardwerte für neue Eigenschaften. Die früheren fork-eigenen Zusatzvariablen `Schedule` und `SchedulePreview` werden in bestehenden Installationen ausgeblendet statt gelöscht.
+- Bestehende Instanzen dieses Worx-Forks erhalten sichere Standardwerte für neue Eigenschaften. Die früheren fork-eigenen Zusatzvariablen `Schedule` und `SchedulePreview` werden in Fork-Installationen ausgeblendet statt gelöscht; der native Wochenplan ist die einzige Zeitplanoberfläche.
 - Der bisherige Cloud-Wert bleibt lesbar. Nicht-Worx-Werte werden mit einem verständlichen Status abgewiesen; dadurch werden Altinstanzen nicht still an einen anderen Anbieter umgeleitet.
-- Bei Wechsel des Module-Control-Repositorys auf die neue URL kann Symcon bestehende Instanzen anhand ihrer GUIDs aktualisieren.
+- Nur Instanzen, die bereits mit den GUIDs dieses Worx-Forks angelegt wurden, erhalten Updates über Module Control. Catomic-Instanzen haben absichtlich andere GUIDs und werden nicht in-place aktualisiert; eine Migration ist manuell und nicht Teil dieses Moduls.
 - ApplyChanges() darf Geräteinformationen lesend aktualisieren, aber keine Mäh- oder Zeitplanbefehle senden.
 
 ## Noch benötigte Laufzeitbelege
