@@ -1111,7 +1111,7 @@ class WorxMower extends IPSModule
             if ($variableID === false || $variableID === 0) {
                 continue;
             }
-            if (!IPS_SetVariableCustomProfile($variableID, 'WORXMOWER.TimeExtension')) {
+            if (IPS_SetVariableCustomProfile($variableID, 'WORXMOWER.TimeExtension') === false) {
                 throw new RuntimeException('Das Arbeitszeitprofil konnte Variable ' . $ident . ' nicht zugeordnet werden.');
             }
         }
