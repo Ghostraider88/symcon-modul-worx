@@ -12,3 +12,8 @@ Der Editor wird nur angezeigt, wenn der Mäher Protokoll 0 mit sieben gültigen 
 
 `ApplyChanges()` überträgt keinen Zeitplan. Die dritte Slot-Komponente ist anhand des redigierten WR105SI.1-Datensatzes als Kantenschnitt zugeordnet. Der Schreibweg sendet den erhaltenen Protokoll-0-`sc`-Block auf `commandIn`; als Bestätigung zählt ausschließlich das zurückgemeldete `cfg.sc`. Der Schreibbefehl und die Symcon-Ereignisbenachrichtigung sind im Docker-System noch live zu prüfen. „Ganzer Tag“ und Einsätze über Mitternacht bleiben offen.
 
+
+
+## Redigierter Gerätenachweis
+
+Die Variable „Gerätenachweis (redigiert)“ zeigt Modellfähigkeiten sowie ausschließlich ausgewählte, für die Feature-Prüfung nötige Felder. Dazu gehören empfangene Zeitplan-, Regenverzögerungs- und Zonendaten sowie Drehmoment, Zone und Regenstatus. Seriennummer, UUID, MAC-Adresse, Standort und Zugangsdaten werden nicht angezeigt. Der angezeigte Datensatz kann bei der Prüfung weiterer Gerätefunktionen weitergegeben werden.

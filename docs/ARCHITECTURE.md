@@ -17,7 +17,7 @@ Wegen der neuen Modul-GUIDs ist der Fork kein Update der Catomic-Instanzen. Best
 
 Worx REST / AWS IoT MQTT → WorxCloud → WorxMower
 
-WorxCloud übernimmt Anmeldung, Token, Inventar, Statusverteilung und MQTT. WorxMower zeigt bestätigte Statuswerte, nimmt Nutzeraktionen entgegen und enthält genau einen bearbeitbaren Zeitplan: das native Symcon-Wochenplanereignis „Mähzeitplan“. Es gibt keinen Entwurf und keinen separaten Scheduler-Splitter.
+WorxCloud übernimmt Anmeldung, Token, Inventar, Statusverteilung und MQTT. WorxMower zeigt bestätigte Statuswerte, nimmt Nutzeraktionen entgegen und enthält genau einen bearbeitbaren Zeitplan: das native Symcon-Wochenplanereignis „Mähzeitplan“. Es gibt keinen Entwurf und keinen separaten Scheduler-Splitter. Die lokale Variable „Gerätenachweis (redigiert)“ enthält ausschließlich eine Feld-Whitelist für Capability-/Feature-Metadaten, `cfg.sc`, `cfg.rd`, `cfg.mz`/`mzv`/`mzk` sowie ausgewählte Statusfelder für Sperre, Drehmoment, Zone und Regen. Gerätekennungen, Standort und Authentifizierung werden nicht übernommen.
 
 ## Direkte Synchronisierung des nativen Wochenplanereignisses
 

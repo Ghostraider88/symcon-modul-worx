@@ -71,20 +71,56 @@ final class WorxScheduleCodec
     public static function sanitizedDeviceRecord(array $device): array
     {
         $configuration = self::deviceConfiguration($device);
-        $schedule = $configuration['sc'] ?? null;
+        $safeConfiguration = [];
+        foreach (['sc', 'rd', 'mz', 'mzv', 'mzk', 'al', 'modules'] as $key) {
+            if (array_key_exists($key, $configuration)) {
+                $value = $configuration[$key];
+                $safeConfiguration[$key] = is_array($value) ? self::removeSensitiveKeys($value) : $value;
+            }
+        }
+
+        $statusPayload = $device['last_status']['payload'] ?? [];
+        $reportedDat = is_array($statusPayload) && is_array($statusPayload['dat'] ?? null) ? $statusPayload['dat'] : [];
+        $safeDat = [];
+        foreach (['fw', 'fwb', 'ls', 'le', 'tq', 'lz', 'rain', 'modules'] as $key) {
+            if (array_key_exists($key, $reportedDat)) {
+                $value = $reportedDat[$key];
+                $safeDat[$key] = is_array($value) ? self::removeSensitiveKeys($value) : $value;
+            }
+        }
+
         $capabilities = $device['capabilities'] ?? [];
+        $available = $device['capabilities_available'] ?? [];
+        $features = $device['features'] ?? [];
+        $safeFeatureKeys = ['auto_lock', 'lock', 'multi_zone', 'multi_zone_percentage', 'multi_zone_zones', 'one_time_scheduler', 'ota_upgrade', 'rain_delay', 'rain_delay_start', 'scheduler_two_slots', 'unrestricted_mowing_time'];
+        $safeFeatures = [];
+        if (is_array($features)) {
+            foreach ($safeFeatureKeys as $key) {
+                if (array_key_exists($key, $features) && (is_scalar($features[$key]) || $features[$key] === null)) {
+                    $safeFeatures[$key] = $features[$key];
+                }
+            }
+        }
 
         return [
             'firmware_version' => isset($device['firmware_version']) ? (string) $device['firmware_version'] : null,
+            'firmware_auto_upgrade' => isset($device['firmware_auto_upgrade']) ? (bool) $device['firmware_auto_upgrade'] : null,
             'protocol' => isset($device['protocol']) && is_numeric($device['protocol']) ? (int) $device['protocol'] : null,
             'capabilities' => is_array($capabilities)
                 ? array_values(array_filter($capabilities, static function ($value): bool {
                     return is_string($value);
                 }))
                 : [],
-            'cfg' => [
-                'sc' => is_array($schedule) ? self::removeSensitiveKeys($schedule) : null,
-            ],
+            'capabilities_available' => is_array($available)
+                ? array_values(array_filter($available, static function ($value): bool {
+                    return is_string($value);
+                }))
+                : [],
+            'features' => $safeFeatures,
+            'auto_schedule' => isset($device['auto_schedule']) ? (bool) $device['auto_schedule'] : null,
+            'locked' => isset($device['locked']) ? (bool) $device['locked'] : null,
+            'cfg' => $safeConfiguration,
+            'dat' => $safeDat,
         ];
     }
 

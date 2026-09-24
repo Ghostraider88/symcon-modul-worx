@@ -85,9 +85,17 @@ final class WorxScheduleCodecTest extends TestCase
     {
         $device = $this->makeDevice($this->makeSchedule());
         $device['firmware_version'] = '3.52.0+1';
-        $device['capabilities'] = ['mqtt', 'rain_delay'];
+        $device['capabilities'] = ['mqtt', 'rain_delay', 'multi_zone', 'lock'];
+        $device['capabilities_available'] = ['display_pairing_shortcut'];
+        $device['features'] = ['rain_delay' => true, 'multi_zone_zones' => 4, 'private_location' => 'must-not-be-exported'];
+        $device['auto_schedule'] = false;
+        $device['locked'] = false;
         $device['serial_number'] = 'must-not-be-exported';
+        $device['setup_location'] = ['latitude' => 1.23, 'longitude' => 4.56];
+        $device['last_status']['payload']['cfg']['rd'] = 120;
+        $device['last_status']['payload']['cfg']['mz'] = [1, 2, 3, 4];
         $device['last_status']['payload']['cfg']['sc']['sn'] = 'must-not-be-exported';
+        $device['last_status']['payload']['dat'] = ['tq' => -10, 'lz' => 2, 'mac' => 'must-not-be-exported'];
         $device['last_status']['payload']['cfg']['sc']['extension'] = [
             'location' => 'must-not-be-exported',
             'preserved' => true,
@@ -97,9 +105,18 @@ final class WorxScheduleCodecTest extends TestCase
 
         self::assertSame('3.52.0+1', $record['firmware_version']);
         self::assertSame(0, $record['protocol']);
-        self::assertSame(['mqtt', 'rain_delay'], $record['capabilities']);
+        self::assertSame(['mqtt', 'rain_delay', 'multi_zone', 'lock'], $record['capabilities']);
+        self::assertSame(['display_pairing_shortcut'], $record['capabilities_available']);
+        self::assertSame(['multi_zone_zones' => 4, 'rain_delay' => true], $record['features']);
+        self::assertSame(120, $record['cfg']['rd']);
+        self::assertSame([1, 2, 3, 4], $record['cfg']['mz']);
+        self::assertSame(['tq' => -10, 'lz' => 2], $record['dat']);
+        self::assertFalse($record['auto_schedule']);
+        self::assertFalse($record['locked']);
         self::assertArrayNotHasKey('serial_number', $record);
+        self::assertArrayNotHasKey('setup_location', $record);
         self::assertArrayNotHasKey('sn', $record['cfg']['sc']);
+        self::assertArrayNotHasKey('mac', $record['dat']);
         self::assertSame(['preserved' => true], $record['cfg']['sc']['extension']);
     }
     public function testMapsMidnightStartAndRoundTripsNativeEventPoints(): void
