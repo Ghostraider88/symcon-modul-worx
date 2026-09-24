@@ -5,26 +5,26 @@ Stand: 2026-09-24. Zielgerät: Worx Landroid WR105SI.1.
 ## Anlagenstand und Belege
 
 - Modell: im vom Nutzer bereitgestellten Worx-App-Screenshot als WR105SI.1 angezeigt.
-- Firmware: die Modellseite zeigt „3.52.0+1“ mit dem Hinweis „Latest“. Das belegt die neueste dort angezeigte Version, nicht sicher die aktuell installierte Firmware.
+- Firmware: Der redigierte, vom Nutzer bereitgestellte Gerätedatensatz meldet die installierte Version 3.52.0+1.
 - IP-Symcon: Kernel 9.1, read-only abgefragt.
 - Vorhandene Symcon-Verbindung: ältere Worx-MQTT-Bridge mit den sichtbaren Verbindungsvariablen „MQTT-Bridge“ und „Mähroboter“ auf „false“. Es wurde kein Gerätebefehl ausgelöst.
 - App-Zeitplan: manueller Wochenplan mit einem Zeitfenster pro Wochentag. Die App bietet je Eintrag „Rasenkanten-Schnitt“, „Ganzer Tag“, Start, Ende und Löschen. „Automatischer Zeitplan“ ist ausgeschaltet; die Zeiterweiterung wird mit 0 % angezeigt und lässt sich über Plus/Minus bedienen. Individuelle Uhrzeiten werden nicht veröffentlicht.
-- Transportbeleg: kein eigener Worx-Cloud- oder MQTT-Datensatz des Nutzers liegt vor. Deshalb ist die App-Darstellung ein Funktionsbeleg, aber kein Nachweis der Wire-Feldzuordnung oder Bestätigung eines Schreibbefehls.
+- Transportbeleg: Ein redigierter Gerätedatensatz mit Protokoll 0 und Wochenplan wurde aus der Docker-Testinstallation empfangen; dafür war kein eigener lokaler MQTT-Broker nötig. Der Live-Lesepfad ist damit belegt. sc.p=0 stimmt mit den 0 % Zeiterweiterung in der App überein. Es wurde kein Gerätebefehl ausgelöst.
 - Catomic-Basis: Commit 1ec15909b3d1f5b10ac566dd84e149ea2256d831.
 - Ziel: [Ghostraider88/symcon-modul-worx](https://github.com/Ghostraider88/symcon-modul-worx).
 
 | Funktion | Catomic-Ausgang | Beleg für WR105SI.1 | Transport / Bedienelement | Stand |
 |---|---|---|---|---|
 | Anmeldung und Gerätesuche | REST-Token, Inventar | Worx-App ist für das Gerät eingerichtet; Catomic-Transportbestandteil | WorxCloud, bestehende Instanz-GUID | Übernommen; Live-Anmeldung hier nicht ausgeführt |
-| Status und Telemetrie | MQTT-Push plus REST-Abfrage; Status, Fehler, Akku, Laufzeit, Regen, Sperre, Zone, Firmware | Catomic-Worx-Pfad und bestehende App-/Geräteansicht | Bestehende WorxMower-Variablen | IDs bleiben; Live-Empfang offen |
+| Status und Telemetrie | MQTT-Push plus REST-Abfrage; Status, Fehler, Akku, Laufzeit, Regen, Sperre, Zone, Firmware | Der redigierte Gerätebeleg und die gemeldete Datenübertragung bestätigen Live-Empfang | Bestehende WorxMower-Variablen | Live-Lesepfad in der Docker-Testinstallation bestätigt |
 | Start, Pause, Heimfahrt | MQTT-Befehle cmd 1/2/3 | Bestehender Catomic-Worx-Pfad | Control bleibt Aktion; State bleibt bestätigter Istzustand; zusätzlicher Befehlsstatus | Übernommen; keine Geräteaktion im Test |
 | Manueller Wochenplan | Catomic hatte keinen Scheduler | App zeigt einen Wochenplan mit einem Zeitfenster je Tag; Tages-/Eintragsansicht vorhanden | Symcon-Listeneditor in der Mower-Instanz; bestätigter Plan und lokaler Entwurf getrennt | Anzeige/Entwurf implementiert; Geräteschreibweg gesperrt |
-| Zweiter Einsatz je Tag | Nicht vorhanden | In den Bildern ist je Wochentag ein Zeitfenster dargestellt; kein Nachweis weiterer Slots | Nur bei empfangenem dd-Block / Gerätefähigkeit anbieten | Nicht belegt |
+| Zweiter Einsatz je Tag | Nicht vorhanden | Der redigierte Gerätedatensatz enthält keinen dd-Block; der Nutzer bestätigt ein Zeitfenster pro Tag in der App | Nur bei empfangenem dd-Block / Gerätefähigkeit anbieten | Für WR105SI.1 derzeit nicht vorhanden |
 | Tagesaktivierung und Löschen | Nicht vorhanden | App bietet „Löschen“ je Zeitplaneintrag | Aktivieren/deaktivieren des vorhandenen Tagesslots im Editor | UI belegt; Wire-Format offen |
-| Kantenschnitt | Nicht vorhanden | App zeigt je Zeitplan-Eintrag den Schalter „Rasenkanten-Schnitt“; öffentliche Protokoll-0-Beispiele führen eine dritte Slotkomponente | Der lokale Entwurf zeigt diese Komponente vorläufig als Kantenschnitt-Kandidat; Schreiben bleibt gesperrt | App-Funktion belegt; Zuordnung beim Nutzergerät offen |
+| Kantenschnitt | Nicht vorhanden | App zeigt je Zeitplan-Eintrag den Schalter „Rasenkanten-Schnitt“; der Nutzerabgleich des redigierten Protokoll-0-Datensatzes bestätigt die dritte Slotkomponente als Kantenschnitt | Der lokale Entwurf zeigt die bestätigte Komponente; Schreiben bleibt gesperrt | Anzeige und Feldzuordnung am WR105SI.1 bestätigt |
 | Ganzer Tag | Nicht vorhanden | App zeigt den Schalter „Ganzer Tag“ | Editorfeld erst nach Datenbeleg für die entsprechende Repräsentation | UI belegt; Wire-Zuordnung offen |
 | Automatischer Zeitplan | Nicht vorhanden | App zeigt die Funktion; im Screenshot ist sie ausgeschaltet | Status nur aus Geräte-/Cloud-Daten; keine voreilige Fernsteuerung | Verfügbarkeit belegt; Transport offen |
-| Zeiterweiterung | Nicht vorhanden | App zeigt 0 % und +/- Bedienung | Read-only-Anzeige eines empfangenen Werts 0–100; Einstellung bleibt bis zur Feld- und Grenzbestätigung deaktiviert | Bedienung belegt; Datensatz und Schreibweg offen |
+| Zeiterweiterung | Nicht vorhanden | App zeigt 0 %; sc.p=0 im redigierten Gerätedatensatz stimmt damit überein | Read-only-Anzeige eines empfangenen Werts 0–100; Einstellung bleibt bis zur Feld- und Grenzbestätigung deaktiviert | Read-only-Feldzuordnung bestätigt; Schreibweg offen |
 | Regenverzögerung | Regenstatus vorhanden | Öffentliche Metadaten gleicher Protokollgeneration nennen rain_delay; kein Nutzer-Datensatz | Status/Bedienung nur bei Capability- und Feldbeleg | Kandidat |
 | Zonen | Aktuelle Zone vorhanden | Öffentliche Metadaten nennen multi_zone; Modellhandbuch behandelt Multi-Zone | Aktuelle Zone bleibt sichtbar; Auswahl erst mit Live-Formatprüfung | Status übernommen; Bedienung offen |
 | Sperre | Sperrstatus vorhanden | Öffentliche Metadaten nennen lock | Locked bleibt Istzustand; Befehl separat und capability-gesteuert | Status übernommen |
