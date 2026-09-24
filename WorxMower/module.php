@@ -193,14 +193,21 @@ class WorxMower extends IPSModule
             return false;
         }
         $payload = json_encode(['cmd' => $Command]);
-        if (!WORX_SendCommand($parent, $this->ReadPropertyString('Serial'), (string) $payload)) {
-            $this->SetValueSafe('CommandStatus', 'Nicht gesendet: MQTT-Verbindung nicht bereit.');
-            return false;
-        }
+        $serial = $this->ReadPropertyString('Serial');
         $this->WriteAttributeString('PendingCommand', (string) $Command);
-        $this->WriteAttributeString('PendingCommandSerial', $this->ReadPropertyString('Serial'));
+        $this->WriteAttributeString('PendingCommandSerial', $serial);
         $this->SetValueSafe('CommandStatus', 'MQTT-Publish gesendet; Bestätigung des Mähers steht aus.');
         $this->SetTimerInterval('CommandConfirmationTimeout', 90000);
+        if (!WORX_SendCommand($parent, $serial, (string) $payload)) {
+            if ($this->ReadAttributeString('PendingCommand') === (string) $Command
+                && $this->ReadAttributeString('PendingCommandSerial') === $serial) {
+                $this->WriteAttributeString('PendingCommand', '');
+                $this->WriteAttributeString('PendingCommandSerial', '');
+                $this->SetTimerInterval('CommandConfirmationTimeout', 0);
+                $this->SetValueSafe('CommandStatus', 'Nicht gesendet: MQTT-Verbindung nicht bereit.');
+            }
+            return false;
+        }
         return true;
     }
 
@@ -282,24 +289,30 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Worx-Cloud-Verbindung fehlt.');
             return false;
         }
-        $response = $this->SendDataToParent(json_encode([
-            'DataID'  => self::IF_CLOUD,
-            'Command' => 'SetLock',
-            'Serial'  => $this->ReadPropertyString('Serial'),
-            'Locked'  => $locked,
-        ]));
-        if (!filter_var(json_decode((string) $response, true), FILTER_VALIDATE_BOOLEAN)) {
-            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.');
-            return false;
-        }
         $currentID = $this->GetIDForIdent('Locked');
         $current = $currentID === false || $currentID === 0 ? false : (bool) GetValue($currentID);
+        $serial = $this->ReadPropertyString('Serial');
         $this->WriteAttributeString('PendingLock', json_encode(['desired' => $locked, 'previous' => $current]));
-        $this->WriteAttributeString('PendingLockSerial', $this->ReadPropertyString('Serial'));
+        $this->WriteAttributeString('PendingLockSerial', $serial);
         $this->SetValueSafe('SettingStatus', $locked
             ? 'Sperrbefehl gesendet; Rückmeldung des Mähers steht aus.'
             : 'Entsperrbefehl gesendet; Rückmeldung des Mähers steht aus.');
         $this->SetTimerInterval('LockConfirmationTimeout', 120000);
+        $response = $this->SendDataToParent(json_encode([
+            'DataID'  => self::IF_CLOUD,
+            'Command' => 'SetLock',
+            'Serial'  => $serial,
+            'Locked'  => $locked,
+        ]));
+        if (!filter_var(json_decode((string) $response, true), FILTER_VALIDATE_BOOLEAN)) {
+            if ($this->ReadAttributeString('PendingLock') !== '') {
+                $this->WriteAttributeString('PendingLock', '');
+                $this->WriteAttributeString('PendingLockSerial', '');
+                $this->SetTimerInterval('LockConfirmationTimeout', 0);
+                $this->SetValueSafe('SettingStatus', 'Nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.');
+            }
+            return false;
+        }
         return true;
     }
     /** Send the requested rain delay and keep the reported value as confirmed state. */
@@ -328,20 +341,26 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Worx-Cloud-Verbindung fehlt.');
             return false;
         }
+        $serial = $this->ReadPropertyString('Serial');
+        $this->WriteAttributeString('PendingRainDelay', json_encode(['desired' => $minutes, 'previous' => $current]));
+        $this->WriteAttributeString('PendingRainDelaySerial', $serial);
+        $this->SetValueSafe('SettingStatus', 'Regenverzögerung gesendet; Rückmeldung des Mähers steht aus.');
+        $this->SetTimerInterval('RainDelayConfirmationTimeout', 120000);
         $response = $this->SendDataToParent(json_encode([
             'DataID'  => self::IF_CLOUD,
             'Command' => 'SetRainDelay',
-            'Serial'  => $this->ReadPropertyString('Serial'),
+            'Serial'  => $serial,
             'Minutes' => $minutes,
         ]));
         if (!filter_var(json_decode((string) $response, true), FILTER_VALIDATE_BOOLEAN)) {
-            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.');
+            if ($this->ReadAttributeString('PendingRainDelay') !== '') {
+                $this->WriteAttributeString('PendingRainDelay', '');
+                $this->WriteAttributeString('PendingRainDelaySerial', '');
+                $this->SetTimerInterval('RainDelayConfirmationTimeout', 0);
+                $this->SetValueSafe('SettingStatus', 'Nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.');
+            }
             return false;
         }
-        $this->WriteAttributeString('PendingRainDelay', json_encode(['desired' => $minutes, 'previous' => $current]));
-        $this->WriteAttributeString('PendingRainDelaySerial', $this->ReadPropertyString('Serial'));
-        $this->SetValueSafe('SettingStatus', 'Regenverzögerung gesendet; Rückmeldung des Mähers steht aus.');
-        $this->SetTimerInterval('RainDelayConfirmationTimeout', 120000);
         return true;
     }
 

@@ -2,6 +2,9 @@
 
 ## Unveröffentlicht
 
+- Start/Pause/Heimfahrt, Sperre und Regenverzögerung registrieren die ausstehende Gerätebestätigung vor dem Sendeaufruf, damit schnelle Geräteechos nicht verpasst werden; abgelehnte Sendungen räumen den Wartezustand auf.
+
+
 - Catomic-Module als Codebasis in das Worx-Zielrepository übernommen; eigenständige Fork-GUIDs erstellt, Worx-Funktionspräfixe und bestehende Variablen-Idents beibehalten.
 - Repository auf Worx Landroid begrenzt; Kress-, Landxcape- und Ferrex-Endpunkte entfernt.
 - Worx-Feature-Matrix, Schnittstellen, Updatepfad und WR105SI.1-App-Belege dokumentiert.
