@@ -9,7 +9,7 @@
 | WorxMower | Status, Bedienaktionen, bestätigte Rückmeldungen und den nativen Wochenplan | {39CA7807-D252-4375-8D05-1C5F918552C0}, Prefix WORXMOWER |
 | WorxScheduleCodec | Protokoll-0-Zeitplan zwischen Worx-Slots und Symcon-Wochenplan abbilden; unbekannte Felder erhalten | PHP-Hilfsklasse in libs/, kein Symcon-Modul |
 
-Library-, Modul- und Worx-interne DataFlow-GUIDs sind für diesen Fork eigenständig neu vergeben. Die Catomic-Präfixe und vorhandenen Variablen-Idents bleiben stabil. Die MQTT-Sende- und Empfangs-DataIDs sind Symcon-Standardschnittstellen und müssen für die MQTT-Client-Kompatibilität unverändert bleiben.
+Library-, Modul- und modulinterne DataFlow-GUIDs sind für diesen Fork eigenständig neu vergeben und wurden gegen den Catomic-Quellcommit `1ec15909b3d1f5b10ac566dd84e149ea2256d831` verglichen. Die Catomic-Library-/Modul-GUIDs sowie die internen Schnittstellen `{01E8C2C0-BB9C-4615-AD25-A78E12D842F0}` und `{5279818E-0317-46AB-A451-0683BEBC6E90}` werden nicht verwendet. Geteilt bleiben nur die Symcon-MQTT-Standardschnittstellen `{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}` (Senden) und `{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}` (Empfangen), die mit dem MQTT-Client kompatibel bleiben müssen. Catomic-Funktionspräfixe und vorhandene Variablen-Idents bleiben innerhalb dieses Forks stabil.
 
 Wegen der neuen Modul-GUIDs ist der Fork kein Update der Catomic-Instanzen. Bestehende Catomic-Instanzen werden nicht automatisch aktualisiert. Da beide Versionen das Funktionspräfix WORX verwenden, zuerst in einem separaten Symcon-Testsystem testen und erst nach geklärter Präfix-Kollision im selben Kernel installieren.
 
