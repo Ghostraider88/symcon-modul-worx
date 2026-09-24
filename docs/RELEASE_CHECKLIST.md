@@ -37,7 +37,7 @@ Gerätesteuerungen nur einzeln und mit sichtbarer Sollwert-/Rückmeldungsprüfun
 
 Nach Aktualisierung des Testbranches und erneutem Anwenden der Mower-Konfiguration:
 
-1. In der Worx-App −40 % einstellen. Symcon muss in „Tägliche Arbeitszeit (bestätigt)“ −40 % anzeigen; im redigierten Gerätenachweis muss `cfg.sc.p` den Rohwert 30 enthalten.
+1. In der Worx-App −40 % einstellen. Die Konfiguration der Mower-Instanz muss unter „Vom Mäher gemeldete tägliche Arbeitszeitänderung“ −40 % zeigen, und „Tägliche Arbeitszeit (bestätigt)“ muss ebenfalls −40 % anzeigen; im redigierten Gerätenachweis muss `cfg.sc.p` den Rohwert 30 enthalten. Falls die beiden Symcon-Anzeigen abweichen, beide Werte samt `cfg.sc.p` notieren.
 2. In Symcon „Tägliche Arbeitszeit setzen“ auf −40 % stellen. Die Worx-App und die bestätigte Symcon-Variable müssen nach dem Geräteecho beide −40 % anzeigen; der zurückgelesene Rohwert muss wieder 30 sein.
 3. Danach den ursprünglichen Wert in der App wiederherstellen.
 
