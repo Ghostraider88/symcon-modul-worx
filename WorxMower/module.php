@@ -12,9 +12,6 @@ class WorxMower extends IPSModule
 {
     private const IF_CLOUD = '{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}';
 
-    // Enable only after checking the actual WR105SI.1 wire format and readback.
-    private const SCHEDULE_WRITE_VALIDATED = false;
-
     private const STATES = [
         0 => 'Bereit', 1 => 'In der Ladestation', 2 => 'Startsequenz', 3 => 'Verlässt Ladestation',
         4 => 'Folgt Begrenzung', 5 => 'Sucht Ladestation', 6 => 'Sucht Begrenzung', 7 => 'Mäht',
@@ -40,16 +37,19 @@ class WorxMower extends IPSModule
     {
         parent::Create();
         $this->RegisterPropertyString('Serial', '');
-        $this->RegisterPropertyString('ScheduleDraft', '');
         $this->ConnectParent('{2A3889B6-AD03-4B1E-8782-BEB0E6CABCC1}');
 
         $this->RegisterAttributeString('ReportedSchedule', '');
         $this->RegisterAttributeString('PendingSchedule', '');
+        $this->RegisterAttributeString('FailedSchedule', '');
+        $this->RegisterAttributeString('FailedScheduleSerial', '');
         $this->RegisterAttributeString('PendingCommand', '');
         $this->RegisterAttributeString('PendingCommandSerial', '');
         $this->RegisterAttributeString('PendingScheduleSerial', '');
-        $this->RegisterAttributeBoolean('ScheduleConflict', false);
         $this->RegisterAttributeString('ScheduleEventSnapshot', '');
+        $this->RegisterAttributeBoolean('ScheduleEventSyncing', false);
+        $this->RegisterAttributeInteger('ScheduleEventListener', 0);
+        $this->RegisterAttributeBoolean('ScheduleWritesSuppressed', false);
         $this->RegisterTimer('CommandConfirmationTimeout', 0, 'WORXMOWER_CommandConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('ScheduleConfirmationTimeout', 0, 'WORXMOWER_ScheduleConfirmationTimeout($_IPS[\'TARGET\']);');
 
@@ -76,8 +76,6 @@ class WorxMower extends IPSModule
         $this->RegisterVariableInteger('LastUpdate', 'Letzte Meldung', '~UnixTimestamp', $p++);
         $this->RegisterVariableString('LastCommand', 'Letzter Befehl', '', $p++);
         $this->RegisterVariableString('CommandStatus', 'Befehlsrückmeldung', '', $p++);
-        $this->RegisterVariableString('Schedule', 'Wochenplan (Mäher)', '', $p++);
-        $this->RegisterVariableString('SchedulePreview', 'Geplanter Wochenplan', '', $p++);
         $this->RegisterVariableString('ScheduleSyncStatus', 'Zeitplanrückmeldung', '', $p++);
         $this->RegisterVariableString('DeviceDiagnostics', 'Gerätenachweis (redigiert)', '', $p++);
         $this->EnableAction('Control');
@@ -87,6 +85,12 @@ class WorxMower extends IPSModule
     {
         parent::ApplyChanges();
         $this->clearPendingForDifferentMower();
+        foreach (['Schedule', 'SchedulePreview'] as $obsoleteIdent) {
+            $obsoleteID = $this->GetIDForIdent($obsoleteIdent);
+            if ($obsoleteID !== false && $obsoleteID !== 0 && IPS_VariableExists($obsoleteID)) {
+                IPS_SetHidden($obsoleteID, true);
+            }
+        }
         if ($this->ReadPropertyString('Serial') === '') {
             $this->SetTimerInterval('CommandConfirmationTimeout', 0);
             $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
@@ -96,11 +100,12 @@ class WorxMower extends IPSModule
         $this->SetStatus(102);
         $this->SetValueSafe('Control', 0);
         if (IPS_GetKernelRunlevel() === KR_READY) {
-            $this->Update();
-        }
-        $schedule = $this->currentSchedule();
-        if ($schedule !== null) {
-            $this->refreshPreview($schedule);
+            $this->WriteAttributeBoolean('ScheduleWritesSuppressed', true);
+            try {
+                $this->Update();
+            } finally {
+                $this->WriteAttributeBoolean('ScheduleWritesSuppressed', false);
+            }
         }
     }
 
@@ -172,62 +177,62 @@ class WorxMower extends IPSModule
         return '';
     }
 
-    /** Explicit schedule transfer. It is locked pending real WR105SI.1 verification. */
+    /** Send the current native Symcon weekly event to Worx. */
     public function SendSchedule(): bool
     {
-        if (!self::SCHEDULE_WRITE_VALIDATED) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Gesperrt: Wire-Felder und Rückmeldung des WR105SI.1 sind noch nicht geprüft.');
+        $eventID = $this->scheduleEventID();
+        $sourceJson = $this->ReadAttributeString('ReportedSchedule');
+        $source = $sourceJson === '' ? null : json_decode($sourceJson, true);
+        if ($eventID === 0 || !is_array($source)) {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Mähzeitplan-Ereignis oder bestätigter Worx-Plan fehlt.');
             return false;
         }
-        $device = $this->getDevice();
-        $schedule = $device === null ? null : WorxScheduleCodec::scheduleFromDevice($device);
-        if ($schedule === null || $this->ReadAttributeBoolean('ScheduleConflict')) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Zeitplan fehlt, ist unvollständig oder es besteht ein Konflikt.');
+        if ($this->ReadAttributeString('PendingSchedule') !== '') {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Eine Zeitplanübertragung wartet noch auf Rückmeldung.');
             return false;
         }
         try {
-            $desired = WorxScheduleCodec::mergeRows($schedule, $this->draftRows($schedule));
-        } catch (InvalidArgumentException $exception) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Ungültiger Entwurf: ' . $exception->getMessage());
+            $event = IPS_GetEvent($eventID);
+            $rows = WorxScheduleCodec::rowsFromEvent($event, $source);
+            $desired = WorxScheduleCodec::mergeRows($source, $rows);
+        } catch (Throwable $exception) {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Ereignisänderung nicht übertragen: ' . $exception->getMessage());
             return false;
         }
-        if (WorxScheduleCodec::canonicalJson($desired) === WorxScheduleCodec::canonicalJson($schedule)) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Keine Änderung zum bestätigten Gerätezeitplan.');
+        $desiredJson = WorxScheduleCodec::canonicalJson($desired);
+        if ($desiredJson === WorxScheduleCodec::canonicalJson($source)) {
+            $this->WriteAttributeString('ScheduleEventSnapshot', $this->scheduleEventFingerprint($eventID));
+            return true;
+        }
+        if ($this->ReadAttributeString('FailedSchedule') === $desiredJson) {
+            $this->WriteAttributeString('ScheduleEventSnapshot', $this->scheduleEventFingerprint($eventID));
             return false;
         }
+        $this->WriteAttributeString('FailedSchedule', '');
         $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
         if ($parent === 0 || !WORX_SetSchedule($parent, $this->ReadPropertyString('Serial'), WorxScheduleCodec::canonicalJson($desired))) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Worx-Cloud oder MQTT ist nicht bereit.');
+            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht übertragen: Worx-Cloud/MQTT ist nicht bereit oder hat den Befehl abgelehnt.');
             return false;
         }
-        $this->WriteAttributeString('PendingSchedule', WorxScheduleCodec::canonicalJson($desired));
+        $this->WriteAttributeString('PendingSchedule', $desiredJson);
         $this->WriteAttributeString('PendingScheduleSerial', $this->ReadPropertyString('Serial'));
-        $this->SetValueSafe('ScheduleSyncStatus', 'MQTT-Publish gesendet; Rückmeldung des Mähers steht aus.');
+        $this->WriteAttributeString('ScheduleEventSnapshot', $this->scheduleEventFingerprint($eventID));
+        $this->SetValueSafe('ScheduleSyncStatus', 'Zeitplan gesendet; Bestätigung durch Zurücklesen des Mähers steht aus.');
         $this->SetTimerInterval('ScheduleConfirmationTimeout', 120000);
         return true;
     }
 
-    /** Copy the editable native event into the explicit, unsent draft. */
-    public function ImportScheduleEvent(): bool
+    public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
-        $schedule = $this->currentSchedule();
         $eventID = $this->scheduleEventID();
-        if ($schedule === null || $eventID === 0) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Kein bestätigter Zeitplan oder Wochenplan-Ereignis verfügbar.');
-            return false;
+        if ((int) $SenderID !== $eventID || (int) $Message !== 10803 || $this->ReadAttributeBoolean('ScheduleEventSyncing') || $this->ReadAttributeBoolean('ScheduleWritesSuppressed')) {
+            return;
         }
-        try {
-            $rows = WorxScheduleCodec::rowsFromEvent(IPS_GetEvent($eventID), $schedule);
-            IPS_SetProperty($this->InstanceID, 'ScheduleDraft', json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
-            $this->ReloadForm();
-            $this->refreshPreview($schedule);
-            return true;
-        } catch (Throwable $exception) {
-            $this->SetValueSafe('SchedulePreview', 'Wochenplan kann nicht übernommen werden: ' . $exception->getMessage());
-            return false;
+        if ($this->scheduleEventFingerprint($eventID) === $this->ReadAttributeString('ScheduleEventSnapshot')) {
+            return;
         }
+        $this->SendSchedule();
     }
-
     private function scheduleEventID(): int
     {
         foreach (IPS_GetChildrenIDs($this->InstanceID) as $childID) {
@@ -243,8 +248,8 @@ class WorxMower extends IPSModule
         return WorxScheduleCodec::canonicalJson(['Type' => $event['EventType'] ?? null, 'Actions' => $event['ScheduleActions'] ?? [], 'Groups' => $event['ScheduleGroups'] ?? []]);
     }
 
-    /** Maintain a disabled native event with no-op actions as an editing surface. */
-    private function syncScheduleEvent(array $schedule): void
+    /** Keep the single native weekly event aligned with the confirmed mower plan. */
+    private function syncScheduleEvent(array $schedule, bool $force = false): void
     {
         $eventID = $this->scheduleEventID();
         if ($eventID !== 0 && IPS_GetEvent($eventID)['EventType'] !== 2) {
@@ -257,42 +262,47 @@ class WorxMower extends IPSModule
             IPS_SetIdent($eventID, 'WorxWeeklySchedule');
             IPS_SetName($eventID, 'Mähzeitplan');
         }
+        $registeredEventID = $this->ReadAttributeInteger('ScheduleEventListener');
+        if ($registeredEventID !== $eventID) {
+            if ($registeredEventID > 0) {
+                $this->UnregisterMessage($registeredEventID, 10803);
+            }
+            $this->RegisterMessage($eventID, 10803); // EM_UPDATE
+            $this->WriteAttributeInteger('ScheduleEventListener', $eventID);
+        }
         $baseline = $this->ReadAttributeString('ScheduleEventSnapshot');
-        if ($baseline !== '' && $this->scheduleEventFingerprint($eventID) !== $baseline) return;
-        try { $pointsByDay = WorxScheduleCodec::toEventPoints($schedule); }
-        catch (InvalidArgumentException $exception) {
+        if (!$force && $baseline !== '' && $this->scheduleEventFingerprint($eventID) !== $baseline) {
+            return;
+        }
+        try {
+            $pointsByDay = WorxScheduleCodec::toEventPoints($schedule);
+        } catch (InvalidArgumentException $exception) {
             $this->SetValueSafe('ScheduleSyncStatus', 'Mäherplan im Wochenplan nicht darstellbar: ' . $exception->getMessage());
             return;
         }
-        $noop = '// Anzeige- und Entwurfsereignis; absichtlich keine Mäheraktion.';
+        $noop = '// Das Wochenplan-Ereignis dient als Zeitplaneditor; es startet keine Mähaktion.';
         $actions = [0 => ['Kein Mähfenster', 0xB0B0B0], 1 => ['Mähen', 0x66AA33], 2 => ['Mähen mit Kantenschnitt', 0xE87922], 3 => ['Einsatz 2', 0x6688CC], 4 => ['Einsatz 2 mit Kantenschnitt', 0x9966CC]];
-        foreach ($actions as $id => [$name, $color]) IPS_SetEventScheduleAction($eventID, $id, $name, $color, $noop);
-        $existingGroups = [];
-        foreach ((IPS_GetEvent($eventID)['ScheduleGroups'] ?? []) as $group) {
-            if (isset($group['ID'])) $existingGroups[(int) $group['ID']] = true;
+        $this->WriteAttributeBoolean('ScheduleEventSyncing', true);
+        try {
+            foreach ($actions as $id => [$name, $color]) {
+                IPS_SetEventScheduleAction($eventID, $id, $name, $color, $noop);
+            }
+            $existingGroups = [];
+            foreach ((IPS_GetEvent($eventID)['ScheduleGroups'] ?? []) as $group) {
+                if (isset($group['ID'])) $existingGroups[(int) $group['ID']] = true;
+            }
+            foreach ($pointsByDay as $day => $points) {
+                if (isset($existingGroups[(int) $day])) IPS_SetEventScheduleGroup($eventID, (int) $day, 0);
+                IPS_SetEventScheduleGroup($eventID, (int) $day, 1 << (int) $day);
+                foreach ($points as $pointID => $point) {
+                    IPS_SetEventScheduleGroupPoint($eventID, (int) $day, (int) $pointID, intdiv($point['Minute'], 60), $point['Minute'] % 60, 0, $point['Action']);
+                }
+            }
+            IPS_SetEventActive($eventID, false);
+        } finally {
+            $this->WriteAttributeBoolean('ScheduleEventSyncing', false);
         }
-        foreach ($pointsByDay as $day => $points) {
-            if (isset($existingGroups[(int) $day])) IPS_SetEventScheduleGroup($eventID, (int) $day, 0);
-            IPS_SetEventScheduleGroup($eventID, (int) $day, 1 << (int) $day);
-            foreach ($points as $pointID => $point) IPS_SetEventScheduleGroupPoint($eventID, (int) $day, (int) $pointID, intdiv($point['Minute'], 60), $point['Minute'] % 60, 0, $point['Action']);
-        }
-        IPS_SetEventActive($eventID, false);
         $this->WriteAttributeString('ScheduleEventSnapshot', $this->scheduleEventFingerprint($eventID));
-    }
-    /** Discard only the local draft and conflict flag; the device schedule is untouched. */
-    public function DiscardSchedule(): bool
-    {
-        $this->clearDraft();
-        $schedule = $this->currentSchedule();
-        if ($schedule !== null) {
-            $eventID = $this->scheduleEventID();
-            if ($eventID !== 0) $this->WriteAttributeString('ScheduleEventSnapshot', $this->scheduleEventFingerprint($eventID));
-            $this->syncScheduleEvent($schedule);
-            $this->SetValueSafe('Schedule', WorxScheduleCodec::describe($schedule));
-        }
-        $this->SetValueSafe('SchedulePreview', 'Keine geplante Änderung.');
-        $this->SetValueSafe('ScheduleSyncStatus', 'Lokaler Entwurf verworfen; der bestätigte Mäherplan bleibt unverändert.');
-        return true;
     }
     public function CommandConfirmationTimeout(): void
     {
@@ -310,12 +320,14 @@ class WorxMower extends IPSModule
         if ($this->ReadAttributeString('PendingSchedule') === '') {
             return;
         }
+        $this->WriteAttributeString('FailedSchedule', $this->ReadAttributeString('PendingSchedule'));
+        $this->WriteAttributeString('FailedScheduleSerial', $this->ReadAttributeString('PendingScheduleSerial'));
         $this->WriteAttributeString('PendingSchedule', '');
         $this->WriteAttributeString('PendingScheduleSerial', '');
         $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
-        $this->SetValueSafe('ScheduleSyncStatus', 'Keine passende Zeitplanrückmeldung innerhalb von 120 Sekunden.');
+        $this->SetValueSafe('ScheduleSyncStatus', 'Keine passende Mäher-Rückmeldung innerhalb von 120 Sekunden; prüfe den zuletzt empfangenen Stand.');
+        $this->Update();
     }
-
     private function clearPendingForDifferentMower(): void
     {
         $serial = $this->ReadPropertyString('Serial');
@@ -330,6 +342,10 @@ class WorxMower extends IPSModule
             $this->WriteAttributeString('PendingScheduleSerial', '');
             $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
             $this->SetValueSafe('ScheduleSyncStatus', 'Rückmeldung verworfen: Seriennummer der Instanz wurde geändert.');
+        }
+        if ($this->ReadAttributeString('FailedSchedule') !== '' && $this->ReadAttributeString('FailedScheduleSerial') !== $serial) {
+            $this->WriteAttributeString('FailedSchedule', '');
+            $this->WriteAttributeString('FailedScheduleSerial', '');
         }
     }
 
@@ -380,8 +396,6 @@ class WorxMower extends IPSModule
         if ($schedule !== null) {
             $this->updateSchedule($schedule);
         } else {
-            $this->SetValueSafe('Schedule', 'Kein unterstützter bestätigter Zeitplan empfangen.');
-            $this->SetValueSafe('SchedulePreview', 'Zeitplanformat nicht verfügbar.');
             $this->SetValueSafe('ScheduleSyncStatus', 'Zeitplanformat des Geräts wird nicht unterstützt oder ist unvollständig.');
         }
 
@@ -417,89 +431,49 @@ class WorxMower extends IPSModule
         $current = WorxScheduleCodec::canonicalJson($schedule);
         $previous = $this->ReadAttributeString('ReportedSchedule');
         $pending = $this->ReadAttributeString('PendingSchedule');
+        $forceEventUpdate = false;
 
-        if ($pending !== '' && $this->ReadAttributeString('PendingScheduleSerial') === $this->ReadPropertyString('Serial') && $pending === $current) {
-            $this->WriteAttributeString('PendingSchedule', '');
-            $this->WriteAttributeString('PendingScheduleSerial', '');
-            $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
-            $this->SetValueSafe('ScheduleSyncStatus', 'Vom Mäher zurückgelesen und bestätigt.');
-            $this->clearDraft();
-        } elseif ($pending === '' && $previous !== '' && $previous !== $current) {
-            $old = json_decode($previous, true);
-            if (is_array($old) && $this->draftDiffersFrom($old)) {
-                $this->WriteAttributeBoolean('ScheduleConflict', true);
-                $this->SetValueSafe('ScheduleSyncStatus', 'Der Mäherplan hat sich geändert. Bitte Entwurf prüfen.');
+        if ($pending !== '' && $this->ReadAttributeString('PendingScheduleSerial') === $this->ReadPropertyString('Serial')) {
+            if ($pending === $current) {
+                $this->WriteAttributeString('PendingSchedule', '');
+                $this->WriteAttributeString('PendingScheduleSerial', '');
+                $this->WriteAttributeString('FailedSchedule', '');
+                $this->WriteAttributeString('FailedScheduleSerial', '');
+                $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
+                $this->SetValueSafe('ScheduleSyncStatus', 'Vom Mäher zurückgelesen und bestätigt.');
             } else {
-                $this->clearDraft();
-                $this->SetValueSafe('ScheduleSyncStatus', 'Änderung aus der Worx-App übernommen.');
+                $this->SetValueSafe('ScheduleSyncStatus', 'Zeitplan gesendet; warte auf die passende Rückmeldung des Mähers.');
+                return;
             }
+        } elseif ($this->ReadAttributeString('FailedSchedule') !== ''
+            && $this->ReadAttributeString('FailedScheduleSerial') === $this->ReadPropertyString('Serial')
+            && $this->ReadAttributeString('FailedSchedule') === $current) {
+            $this->WriteAttributeString('FailedSchedule', '');
+            $this->WriteAttributeString('FailedScheduleSerial', '');
+            $this->SetValueSafe('ScheduleSyncStatus', 'Zeitplan nach Verzögerung vom Mäher zurückgelesen und bestätigt.');
+        } elseif ($this->ReadAttributeString('FailedSchedule') !== ''
+            && $this->ReadAttributeString('FailedScheduleSerial') === $this->ReadPropertyString('Serial')
+            && $previous === $current) {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Keine passende Mäher-Rückmeldung; die bearbeitete Symcon-Zeit bleibt erhalten.');
+            return;
+        } elseif ($previous !== '' && $previous !== $current) {
+            $this->WriteAttributeString('FailedSchedule', '');
+            $this->WriteAttributeString('FailedScheduleSerial', '');
+            $forceEventUpdate = true;
+            $this->SetValueSafe('ScheduleSyncStatus', 'Änderung aus der Worx-App übernommen.');
         } elseif ($previous === '') {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Zeitplan gelesen; Schreiben wartet auf Geräteprüfung.');
+            $this->SetValueSafe('ScheduleSyncStatus', 'Bestätigter Worx-Zeitplan empfangen.');
         }
 
         $this->WriteAttributeString('ReportedSchedule', $current);
-        $this->SetValueSafe('Schedule', WorxScheduleCodec::describe($schedule));
-        $this->syncScheduleEvent($schedule);
-        $this->refreshPreview($schedule);
-    }
+        $this->syncScheduleEvent($schedule, $forceEventUpdate);
 
-    private function refreshPreview(array $schedule): void
-    {
-        if ($this->ReadPropertyString('ScheduleDraft') === '') {
-            $this->SetValueSafe('SchedulePreview', 'Keine geplante Änderung.');
-            return;
-        }
-        try {
-            $desired = WorxScheduleCodec::mergeRows($schedule, $this->draftRows($schedule));
-        } catch (InvalidArgumentException $exception) {
-            $this->SetValueSafe('SchedulePreview', 'Entwurf prüfen: ' . $exception->getMessage());
-            return;
-        }
-        if (WorxScheduleCodec::canonicalJson($desired) === WorxScheduleCodec::canonicalJson($schedule)) {
-            $this->SetValueSafe('SchedulePreview', 'Keine geplante Änderung.');
-            return;
-        }
-        $this->SetValueSafe('SchedulePreview', "Entwurf (noch nicht gesendet):\n" . WorxScheduleCodec::describe($desired));
-        if (!$this->ReadAttributeBoolean('ScheduleConflict')) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Entwurf geändert; noch nicht an den Mäher gesendet.');
+        $eventID = $this->scheduleEventID();
+        if (!$forceEventUpdate && !$this->ReadAttributeBoolean('ScheduleWritesSuppressed') && $eventID !== 0 && $this->ReadAttributeString('ScheduleEventSnapshot') !== ''
+            && $this->scheduleEventFingerprint($eventID) !== $this->ReadAttributeString('ScheduleEventSnapshot')) {
+            $this->SendSchedule();
         }
     }
-
-    private function draftDiffersFrom(array $schedule): bool
-    {
-        if ($this->ReadPropertyString('ScheduleDraft') === '') {
-            $eventID = $this->scheduleEventID();
-            $snapshot = $this->ReadAttributeString('ScheduleEventSnapshot');
-            return $eventID !== 0 && $snapshot !== '' && $this->scheduleEventFingerprint($eventID) !== $snapshot;
-        }
-        try {
-            $desired = WorxScheduleCodec::mergeRows($schedule, $this->draftRows($schedule));
-            return WorxScheduleCodec::canonicalJson($desired) !== WorxScheduleCodec::canonicalJson($schedule);
-        } catch (InvalidArgumentException $exception) {
-            return true;
-        }
-    }
-
-    private function draftRows(array $schedule): array
-    {
-        $baseline = WorxScheduleCodec::toRows($schedule);
-        $raw = $this->ReadPropertyString('ScheduleDraft');
-        if ($raw === '') return $baseline;
-
-        $saved = json_decode($raw, true);
-        if (!is_array($saved) || count($saved) !== count($baseline)) {
-            throw new InvalidArgumentException('Der Entwurf enthält nicht dieselben Tageseinsätze wie der bestätigte Geräteplan.');
-        }
-        $rows = [];
-        foreach ($baseline as $index => $baseRow) {
-            if (!isset($saved[$index]) || !is_array($saved[$index])) {
-                throw new InvalidArgumentException('ScheduleDraft enthält eine ungültige Zeile.');
-            }
-            $rows[] = array_merge($baseRow, $saved[$index]);
-        }
-        return $rows;
-    }
-
     private function currentSchedule(): ?array
     {
         $device = $this->getDevice();
@@ -517,15 +491,6 @@ class WorxMower extends IPSModule
         ]));
         $device = json_decode((string) $result, true);
         return is_array($device) ? $device : null;
-    }
-
-    private function clearDraft(): void
-    {
-        if ($this->ReadPropertyString('ScheduleDraft') !== '') {
-            IPS_SetProperty($this->InstanceID, 'ScheduleDraft', '');
-            $this->ReloadForm();
-        }
-        $this->WriteAttributeBoolean('ScheduleConflict', false);
     }
 
     private function registerProfiles(): void
@@ -600,15 +565,8 @@ class WorxMower extends IPSModule
         if ($schedule === null) {
             $elements[] = ['type' => 'Label', 'caption' => 'Kein unterstützter Zeitplan empfangen. Der Editor benötigt Protokoll 0 und sieben empfangene Tagesfelder.'];
         } else {
-            $elements[] = ['type' => 'Label', 'caption' => 'Der bestätigte Mäherplan wird als natives, deaktiviertes Symcon-Wochenplan-Ereignis unter dieser Instanz angezeigt. Dort lässt er sich in der Teilübersicht bearbeiten. Änderungen senden keinen Mähbefehl.'];
-            $actions[] = ['type' => 'Button', 'caption' => 'Entwurf aus Wochenplan übernehmen', 'onClick' => 'WORXMOWER_ImportScheduleEvent($id);'];
-            $actions[] = ['type' => 'Button', 'caption' => 'Entwurf verwerfen', 'onClick' => 'WORXMOWER_DiscardSchedule($id);'];
+            $elements[] = ['type' => 'Label', 'caption' => 'Der bestätigte Mäherplan wird als natives, deaktiviertes Symcon-Wochenplan-Ereignis „Mähzeitplan“ angezeigt. Änderungen am Ereignis werden an Worx übertragen; der zurückgemeldete Mäherplan bestätigt die Übertragung.'];
             $elements[] = ['type' => 'Label', 'caption' => 'Die Worx-App zeigt außerdem „Ganzer Tag“. Die Cloud-Zuordnung dieses Schalters ist noch offen.'];
-            if (self::SCHEDULE_WRITE_VALIDATED) {
-                $actions[] = ['type' => 'Button', 'caption' => 'Zeitplan übertragen', 'onClick' => 'WORXMOWER_SendSchedule($id);'];
-            } else {
-                $elements[] = ['type' => 'Label', 'caption' => 'Übertragung gesperrt, bis WR105SI.1-Felder und Mäher-Rückmeldung geprüft wurden.'];
-            }
         }
 
         $elements[] = ['type' => 'Label', 'caption' => 'Befehlsstatus und bestätigter Mäherzustand sind getrennt. MQTT-Publish ist keine Gerätebestätigung.'];

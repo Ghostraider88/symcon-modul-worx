@@ -8,7 +8,7 @@ Start, Pause und Heimfahrt werden über MQTT gesendet. Die Variablen `LastComman
 
 ## Wochenplan
 
-Der Editor wird nur angezeigt, wenn der Mäher Protokoll 0 mit sieben gültigen `cfg.sc.d`-Einträgen meldet. Ein zweiter Einsatz pro Tag erscheint nur, wenn auch ein gültiger `cfg.sc.dd`-Block empfangen wird. Die Werte bleiben im Editor als lokaler Entwurf sichtbar; der bestätigte Plan steht separat in `Schedule`.
+Der Editor wird nur angezeigt, wenn der Mäher Protokoll 0 mit sieben gültigen `cfg.sc.d`-Einträgen meldet. Ein zweiter Einsatz pro Tag erscheint nur, wenn auch ein gültiger `cfg.sc.dd`-Block empfangen wird. Das Ereignis „Mähzeitplan“ ist der einzige Zeitplan und wird direkt bearbeitet. Änderungen werden automatisch an Worx übertragen; der zurückgemeldete `cfg.sc`-Plan bestätigt sie. Es gibt keine Entwurfsvariable und keinen separaten Zeitplan-Editor.
 
-`ApplyChanges()` überträgt keinen Zeitplan. Die dritte Slot-Komponente wird vorläufig als Kantenschnitt-Kandidat dargestellt; die Zuordnung beim WR105SI.1 muss noch am Gerätedatensatz bestätigt werden. Der Sendeweg bleibt gesperrt, bis ein redigierter Datensatz des konkreten WR105SI.1 und eine passende Mäher-Rückmeldung den vollständigen Feldaufbau, „Ganzer Tag“, Feldgrenzen und Bestätigung belegen. Die Screenshots belegen die App-Bedienung, aber keine Cloud-Feldzuordnung.
+`ApplyChanges()` überträgt keinen Zeitplan. Die dritte Slot-Komponente ist anhand des redigierten WR105SI.1-Datensatzes als Kantenschnitt zugeordnet. Der Schreibweg sendet den erhaltenen Protokoll-0-`sc`-Block auf `commandIn`; als Bestätigung zählt ausschließlich das zurückgemeldete `cfg.sc`. Der Schreibbefehl und die Symcon-Ereignisbenachrichtigung sind im Docker-System noch live zu prüfen. „Ganzer Tag“ und Einsätze über Mitternacht bleiben offen.
 

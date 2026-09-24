@@ -298,12 +298,37 @@ class WorxCloud extends IPSModule
     }
 
     /**
-     * Schedule transmission stays disabled until the device wire schema is verified.
-     * This stable entry point must not guess a command shape.
+     * Patch the protocol-0 schedule over the mower's commandIn topic.
+     * The mower's next commandOut payload remains the confirmation source.
      */
     public function SetSchedule(string $serial, string $scheduleJson): bool
     {
-        $this->SendDebug('Schedule', 'Übertragung gesperrt: Worx-Zeitplanformat und Rückmeldung nicht verifiziert.', 0);
+        $schedule = json_decode($scheduleJson, true);
+        if (!is_array($schedule) || !isset($schedule['d']) || !is_array($schedule['d']) || count($schedule['d']) !== 7) {
+            $this->SendDebug('Schedule', 'Zeitplan verworfen: Protokoll-0-Feld d muss sieben Tageswerte enthalten.', 0);
+            return false;
+        }
+        if (isset($schedule['dd']) && (!is_array($schedule['dd']) || count($schedule['dd']) !== 7)) {
+            $this->SendDebug('Schedule', 'Zeitplan verworfen: Protokoll-0-Feld dd muss sieben Tageswerte enthalten.', 0);
+            return false;
+        }
+        foreach ($schedule['d'] as $entry) {
+            if (!is_array($entry) || count($entry) < 3 || !is_string($entry[0] ?? null) || !is_numeric($entry[1] ?? null) || !is_numeric($entry[2] ?? null)) {
+                $this->SendDebug('Schedule', 'Zeitplan verworfen: Ein Tageswert hat nicht das erwartete Format.', 0);
+                return false;
+            }
+        }
+        foreach (json_decode($this->ReadAttributeString('Devices'), true) ?: [] as $device) {
+            if (($device['serial_number'] ?? '') !== $serial) {
+                continue;
+            }
+            if ((int) ($device['protocol'] ?? -1) !== 0 || !isset($device['mqtt_topics']['command_in'])) {
+                $this->SendDebug('Schedule', 'Zeitplan verworfen: Gerät oder MQTT-Thema unterstützt Protokoll 0 nicht.', 0);
+                return false;
+            }
+            $payload = json_encode(['sc' => $schedule], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return $this->publish((string) $device['mqtt_topics']['command_in'], $payload);
+        }
         return false;
     }
     /** Nachrichten vom MQTT Client — der Mäher meldet seinen Zustand. */

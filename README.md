@@ -32,9 +32,9 @@ Falls Symcon beim Erstellen zunächst einen Client Socket anbietet, kann dieser 
 
 ## Gerätespezifische Funktionen
 
-Die Mower-Instanz zeigt Status und Funktionen auf Basis des empfangenen Geräteobjekts. Der Wochenplan wird für bestätigte Protokoll-0-Daten als lokaler Entwurf dargestellt. Das Anwenden der Instanzkonfiguration sendet keinen Zeitplan. Zurzeit gibt es keine Sende-Schaltfläche; auch ein direkter Aufruf wird abgewiesen. Die Übertragung bleibt deaktiviert, bis das konkrete WR105SI.1-Format samt Rückmeldung belegt ist.
+Die Mower-Instanz stellt den bestätigten Zeitplan als natives Symcon-Wochenplanereignis „Mähzeitplan“ bereit. Das Ereignis ist der einzige Editor. Änderungen daran werden automatisch über MQTT an Worx gesendet; die Rückmeldung wird erst nach erneutem Lesen des passenden Gerätezeitplans als bestätigt angezeigt. `ApplyChanges()` selbst sendet keinen Zeitplan. Der WR105SI.1-Schreibweg ist implementiert, aber im Docker-System noch nicht live geprüft.
 
-Die bereitgestellten App-Bilder zeigen beim WR105SI.1 einen manuellen Wochenplan mit einem dargestellten Zeitfenster je Wochentag. In der Tagesansicht sind „Rasenkanten-Schnitt“, „Ganzer Tag“, Start, Ende und Löschen sichtbar. Außerdem ist „Automatischer Zeitplan“ ausgeschaltet und die Zeiterweiterung steht auf 0 %. Die individuelle Anzeige ist nicht in den Quellcode übernommen. Die auf der Modellseite als „Latest“ gezeigte Firmware 3.52.0+1 ist nicht als installierte Version bestätigt.
+Die bereitgestellten App-Bilder zeigen beim WR105SI.1 einen manuellen Wochenplan mit einem dargestellten Zeitfenster je Wochentag. In der Tagesansicht sind „Rasenkanten-Schnitt“, „Ganzer Tag“, Start, Ende und Löschen sichtbar. Außerdem ist „Automatischer Zeitplan“ ausgeschaltet und die Zeiterweiterung steht auf 0 %. Die individuelle Anzeige ist nicht in den Quellcode übernommen. Der vom Nutzer bereitgestellte Gerätedatensatz meldet Firmware 3.52.0+1.
 
 Siehe [Worx-Feature-Matrix](docs/FEATURE_MATRIX.md), [Architektur und Updatepfad](docs/ARCHITECTURE.md) und [Worx Mower](WorxMower/README.md).
 
