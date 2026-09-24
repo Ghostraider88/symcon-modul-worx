@@ -52,6 +52,8 @@ class WorxMower extends IPSModule
         $this->RegisterAttributeString('PendingRainDelaySerial', '');
         $this->RegisterAttributeString('PendingLock', '');
         $this->RegisterAttributeString('PendingLockSerial', '');
+        $this->RegisterAttributeString('PendingAutoSchedule', '');
+        $this->RegisterAttributeString('PendingAutoScheduleSerial', '');
         $this->RegisterAttributeString('ScheduleEventSnapshot', '');
         $this->RegisterAttributeBoolean('ScheduleEventSyncing', false);
         $this->RegisterAttributeInteger('ScheduleEventListener', 0);
@@ -61,6 +63,7 @@ class WorxMower extends IPSModule
         $this->RegisterTimer('ScheduleEditDebounce', 0, 'WORXMOWER_ScheduleEditDebounce($_IPS[\'TARGET\']);');
         $this->RegisterTimer('RainDelayConfirmationTimeout', 0, 'WORXMOWER_RainDelayConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('LockConfirmationTimeout', 0, 'WORXMOWER_LockConfirmationTimeout($_IPS[\'TARGET\']);');
+        $this->RegisterTimer('AutoScheduleConfirmationTimeout', 0, 'WORXMOWER_AutoScheduleConfirmationTimeout($_IPS[\'TARGET\']);');
 
         $this->registerProfiles();
 
@@ -86,6 +89,8 @@ class WorxMower extends IPSModule
         $this->RegisterVariableString('SettingStatus', 'Einstellungsrückmeldung', '', $p++);
         $this->RegisterVariableBoolean('Locked', 'Gesperrt (bestätigt)', '~Lock', $p++);
         $this->RegisterVariableBoolean('LockCommand', 'Sperre setzen', '~Lock', $p++);
+        $this->RegisterVariableBoolean('AutoSchedule', 'Automatischer Zeitplan (bestätigt)', '~Switch', $p++);
+        $this->RegisterVariableBoolean('AutoScheduleSet', 'Automatischen Zeitplan setzen', '~Switch', $p++);
         $this->RegisterVariableInteger('Zone', 'Aktuelle Zone', '', $p++);
         $this->RegisterVariableString('Firmware', 'Firmware', '', $p++);
         $this->RegisterVariableInteger('LastUpdate', 'Letzte Meldung', '~UnixTimestamp', $p++);
@@ -97,6 +102,7 @@ class WorxMower extends IPSModule
         $this->EnableAction('TimeExtensionSet');
         $this->EnableAction('RainDelaySet');
         $this->EnableAction('LockCommand');
+        $this->EnableAction('AutoScheduleSet');
     }
 
     public function ApplyChanges()
@@ -112,6 +118,7 @@ class WorxMower extends IPSModule
         if ($this->ReadPropertyString('Serial') === '') {
             $this->SetTimerInterval('CommandConfirmationTimeout', 0);
             $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
+            $this->SetTimerInterval('AutoScheduleConfirmationTimeout', 0);
             $this->SetStatus(104);
             return;
         }
@@ -136,6 +143,14 @@ class WorxMower extends IPSModule
             }
             $this->Command($command);
             $this->SetValueSafe('Control', 0);
+            return;
+        }
+        if ($Ident === 'AutoScheduleSet') {
+            if (!is_bool($Value)) {
+                throw new InvalidArgumentException('AutoScheduleSet erwartet true oder false.');
+            }
+            $this->SetValueSafe('AutoScheduleSet', $Value);
+            $this->SetAutoSchedule($Value);
             return;
         }
         if ($Ident === 'LockCommand') {
@@ -189,10 +204,66 @@ class WorxMower extends IPSModule
         return true;
     }
 
+    /** Update the cloud automatic-schedule switch and wait for its reported state. */
+    public function SetAutoSchedule(bool $enabled): bool
+    {
+        if ($this->ReadAttributeString('PendingAutoSchedule') !== '' || $this->ReadAttributeString('PendingLock') !== ''
+            || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingSchedule') !== '') {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
+            return false;
+        }
+        $device = $this->getDevice();
+        if ($device === null || !array_key_exists('auto_schedule', $device) || !is_bool($device['auto_schedule'])) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Automatischer Zeitplan ist für dieses Gerät nicht belegt.');
+            return false;
+        }
+        if (empty($device['online'])) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Der Mäher ist offline.');
+            return false;
+        }
+        $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
+        if ($parent === 0) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Worx-Cloud-Verbindung fehlt.');
+            return false;
+        }
+        $reportedID = $this->GetIDForIdent('AutoSchedule');
+        $previous = $reportedID === false || $reportedID === 0 ? (bool) $device['auto_schedule'] : (bool) GetValue($reportedID);
+        $this->WriteAttributeString('PendingAutoSchedule', json_encode(['desired' => $enabled, 'previous' => $previous]));
+        $this->WriteAttributeString('PendingAutoScheduleSerial', $this->ReadPropertyString('Serial'));
+        $this->SetValueSafe('SettingStatus', 'Automatischer Zeitplan gesendet; Rückmeldung aus der Worx-Cloud steht aus.');
+        $this->SetTimerInterval('AutoScheduleConfirmationTimeout', 120000);
+        $response = $this->SendDataToParent(json_encode([
+            'DataID'  => self::IF_CLOUD,
+            'Command' => 'SetAutoSchedule',
+            'Serial'  => $this->ReadPropertyString('Serial'),
+            'Enabled' => $enabled,
+        ]));
+        if (!filter_var(json_decode((string) $response, true), FILTER_VALIDATE_BOOLEAN)) {
+            $this->WriteAttributeString('PendingAutoSchedule', '');
+            $this->WriteAttributeString('PendingAutoScheduleSerial', '');
+            $this->SetTimerInterval('AutoScheduleConfirmationTimeout', 0);
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Worx-Cloud hat die Änderung abgelehnt oder ist nicht erreichbar.');
+            return false;
+        }
+        return true;
+    }
+
+    public function AutoScheduleConfirmationTimeout(): void
+    {
+        if ($this->ReadAttributeString('PendingAutoSchedule') === '') {
+            return;
+        }
+        $this->WriteAttributeString('PendingAutoSchedule', '');
+        $this->WriteAttributeString('PendingAutoScheduleSerial', '');
+        $this->SetTimerInterval('AutoScheduleConfirmationTimeout', 0);
+        $this->SetValueSafe('SettingStatus', 'Keine Bestätigung des automatischen Zeitplans innerhalb von 120 Sekunden.');
+        $this->Update();
+    }
+
     /** Send a lock state and keep the reported mower state separate. */
     public function SetLock(bool $locked): bool
     {
-        if ($this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingSchedule') !== '') {
+        if ($this->ReadAttributeString('PendingAutoSchedule') !== '' || $this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingSchedule') !== '') {
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
             return false;
         }
@@ -247,7 +318,7 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Der Mäher ist offline.');
             return false;
         }
-        if ($this->ReadAttributeString('PendingSchedule') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '') {
+        if ($this->ReadAttributeString('PendingSchedule') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingAutoSchedule') !== '') {
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
             return false;
         }
@@ -280,7 +351,7 @@ class WorxMower extends IPSModule
         if ($percent < -100 || $percent > 100) {
             throw new InvalidArgumentException('Zeiterweiterung muss zwischen -100 und 100 Prozent liegen.');
         }
-        if ($this->ReadAttributeString('PendingSchedule') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '') {
+        if ($this->ReadAttributeString('PendingSchedule') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingAutoSchedule') !== '') {
             $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
             return false;
         }
@@ -366,7 +437,7 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Eine Zeitplanübertragung wartet noch auf Rückmeldung.');
             return false;
         }
-        if ($this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '') {
+        if ($this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingAutoSchedule') !== '') {
             $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
             return false;
         }
@@ -687,6 +758,12 @@ class WorxMower extends IPSModule
             $this->SetTimerInterval('RainDelayConfirmationTimeout', 0);
             $this->SetValueSafe('SettingStatus', 'Rückmeldung verworfen: Seriennummer der Instanz wurde geändert.');
         }
+        if ($this->ReadAttributeString('PendingAutoSchedule') !== '' && $this->ReadAttributeString('PendingAutoScheduleSerial') !== $serial) {
+            $this->WriteAttributeString('PendingAutoSchedule', '');
+            $this->WriteAttributeString('PendingAutoScheduleSerial', '');
+            $this->SetTimerInterval('AutoScheduleConfirmationTimeout', 0);
+            $this->SetValueSafe('SettingStatus', 'Rückmeldung verworfen: Seriennummer der Instanz wurde geändert.');
+        }
         if ($this->ReadAttributeString('PendingLock') !== '' && $this->ReadAttributeString('PendingLockSerial') !== $serial) {
             $this->WriteAttributeString('PendingLock', '');
             $this->WriteAttributeString('PendingLockSerial', '');
@@ -761,6 +838,20 @@ class WorxMower extends IPSModule
         }
         $rainDelaySetID = $this->GetIDForIdent('RainDelaySet');
         if ($rainDelaySetID !== false && $rainDelaySetID > 0) IPS_SetHidden($rainDelaySetID, !$supportsRainDelay);
+        $autoScheduleSupported = array_key_exists('auto_schedule', $device) && is_bool($device['auto_schedule']);
+        $autoScheduleID = $this->GetIDForIdent('AutoSchedule');
+        $autoScheduleSetID = $this->GetIDForIdent('AutoScheduleSet');
+        if ($autoScheduleID !== false && $autoScheduleID > 0) {
+            IPS_SetHidden($autoScheduleID, !$autoScheduleSupported);
+            if ($autoScheduleSupported) {
+                $this->SetValueSafe('AutoSchedule', $device['auto_schedule']);
+                $this->confirmAutoSchedule($device['auto_schedule']);
+                if ($this->ReadAttributeString('PendingAutoSchedule') === '') {
+                    $this->SetValueSafe('AutoScheduleSet', $device['auto_schedule']);
+                }
+            }
+        }
+        if ($autoScheduleSetID !== false && $autoScheduleSetID > 0) IPS_SetHidden($autoScheduleSetID, !$autoScheduleSupported);
         $lockCapability = in_array('lock', $device['capabilities'] ?? [], true) && (int) ($device['protocol'] ?? -1) === 0;
         $lockCommandID = $this->GetIDForIdent('LockCommand');
         if ($lockCommandID !== false && $lockCommandID > 0) IPS_SetHidden($lockCommandID, !$lockCapability);
@@ -806,6 +897,29 @@ class WorxMower extends IPSModule
             $this->WriteAttributeString('PendingCommandSerial', '');
             $this->SetTimerInterval('CommandConfirmationTimeout', 0);
             $this->SetValueSafe('CommandStatus', 'Vom Mäher bestätigt: ' . self::COMMANDS[$command] . '.');
+        }
+    }
+
+    private function confirmAutoSchedule(bool $reported): void
+    {
+        $pending = $this->ReadAttributeString('PendingAutoSchedule');
+        if ($pending === '' || $this->ReadAttributeString('PendingAutoScheduleSerial') !== $this->ReadPropertyString('Serial')) {
+            return;
+        }
+        $command = json_decode($pending, true);
+        if (!is_array($command) || !isset($command['desired'], $command['previous'])) {
+            return;
+        }
+        if ((bool) $command['desired'] === $reported) {
+            $this->WriteAttributeString('PendingAutoSchedule', '');
+            $this->WriteAttributeString('PendingAutoScheduleSerial', '');
+            $this->SetTimerInterval('AutoScheduleConfirmationTimeout', 0);
+            $this->SetValueSafe('SettingStatus', 'Automatischer Zeitplan aus der Worx-Cloud zurückgelesen und bestätigt.');
+        } elseif ((bool) $command['previous'] !== $reported) {
+            $this->WriteAttributeString('PendingAutoSchedule', '');
+            $this->WriteAttributeString('PendingAutoScheduleSerial', '');
+            $this->SetTimerInterval('AutoScheduleConfirmationTimeout', 0);
+            $this->SetValueSafe('SettingStatus', 'Abweichenden Automatikstatus aus der Worx-Cloud übernommen.');
         }
     }
 

@@ -21,3 +21,8 @@ Die Variable „Gerätenachweis (redigiert)“ zeigt Modellfähigkeiten sowie au
 ## Weitere belegte Einstellungen
 
 `Zeiterweiterung setzen`, `Regenverzögerung setzen` und `Sperre setzen` sind getrennte Eingaben. Daneben zeigen `Zeiterweiterung (bestätigt)`, `Regenverzögerung (bestätigt)` und `Gesperrt (bestätigt)` den zuletzt vom Gerät gemeldeten Zustand. Die Befehle werden nur bei passender Capability und Protokoll 0 angeboten; `Einstellungsrückmeldung` meldet den Geräteecho oder einen Timeout. Diese Schreibwege sind im WR105SI.1-Docker-Test noch nicht vom Nutzer bestätigt.
+
+
+## Automatischer Zeitplan
+
+Die Variable „Automatischer Zeitplan (bestätigt)“ zeigt den Boolean aus dem Worx-Cloud-Gerätedatensatz. „Automatischen Zeitplan setzen“ wird nur eingeblendet, wenn dieser Boolean tatsächlich gemeldet wird. Der Sollwert wird per Worx-Cloud-API gesendet; als bestätigt gilt er erst, wenn eine anschließende Abfrage denselben Wert zurückliefert. Dieser Schreibweg ist im WR105SI.1-Docker-Test noch nicht vom Nutzer geprüft.

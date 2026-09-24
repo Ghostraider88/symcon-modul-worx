@@ -304,6 +304,36 @@ class WorxCloud extends IPSModule
         }
         return false;
     }
+    /** Update the Worx Cloud automatic-schedule flag and refresh the reported device state. */
+    public function SetAutoSchedule(string $serial, bool $enabled): bool
+    {
+        foreach (json_decode($this->ReadAttributeString('Devices'), true) ?: [] as $device) {
+            if (($device['serial_number'] ?? '') !== $serial) {
+                continue;
+            }
+            if (!array_key_exists('auto_schedule', $device) || !is_bool($device['auto_schedule']) || empty($device['online'])) {
+                return false;
+            }
+            $token = $this->getToken();
+            if ($token === '') {
+                return false;
+            }
+            $response = $this->request(
+                'PUT',
+                '/api/v2/product-items/' . rawurlencode($serial),
+                ['auto_schedule' => $enabled],
+                $token
+            );
+            if (!is_array($response)) {
+                return false;
+            }
+            // Fetch the authoritative cloud value and let the Mower confirm it.
+            $this->Poll();
+            return true;
+        }
+        return false;
+    }
+
     /** Lock or unlock a supported protocol-0 mower. */
     public function SetLock(string $serial, bool $locked): bool
     {
@@ -397,6 +427,12 @@ class WorxCloud extends IPSModule
                     (string) ($data['Serial'] ?? ''),
                     (int) ($data['Minutes'] ?? -1)
                 ));
+            case 'SetAutoSchedule':
+                return json_encode($this->SetAutoSchedule(
+                    (string) ($data['Serial'] ?? ''),
+                    (bool) ($data['Enabled'] ?? false)
+                ));
+
             case 'SetLock':
                 return json_encode($this->SetLock(
                     (string) ($data['Serial'] ?? ''),
@@ -602,6 +638,9 @@ class WorxCloud extends IPSModule
         }
         if ($code < 200 || $code >= 300) {
             return null;
+        }
+        if ($body !== null && $response === '') {
+            return [];
         }
         return json_decode((string) $response, true);
     }
