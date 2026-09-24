@@ -164,15 +164,22 @@ class WorxMower extends IPSModule
         return $this->Command(3);
     }
 
-    /** Read cached device state from WorxCloud. */
+    /** Refresh the Worx inventory and receive the latest device state. */
     public function Update(): bool
     {
-        $device = $this->getDevice();
-        if ($device === null) {
+        $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
+        if ($parent === 0) {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Aktualisierung nicht möglich: Worx-Cloud-Verbindung fehlt.');
             return false;
         }
-        $this->applyDevice($device);
-        return true;
+
+        // Poll distributes the newly fetched device record to this instance.
+        $updated = (bool) WORX_Poll($parent);
+        if (!$updated) {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Aktualisierung fehlgeschlagen; der zuletzt empfangene Zeitplan bleibt angezeigt.');
+        }
+
+        return $updated;
     }
 
     public function ReceiveData($JSONString)
@@ -517,29 +524,48 @@ class WorxMower extends IPSModule
         $pending = $this->ReadAttributeString('PendingSchedule');
         $forceEventUpdate = false;
 
-        if ($pending !== '' && $this->ReadAttributeString('PendingScheduleSerial') === $this->ReadPropertyString('Serial')) {
-            if ($pending === $current) {
+        $pendingSerial = $this->ReadAttributeString('PendingScheduleSerial');
+        if ($pending !== '' && $pendingSerial === $this->ReadPropertyString('Serial')) {
+            $pendingSchedule = json_decode($pending, true);
+            if (is_array($pendingSchedule) && WorxScheduleCodec::matchesEditableSlots($pendingSchedule, $schedule)) {
                 $this->WriteAttributeString('PendingSchedule', '');
                 $this->WriteAttributeString('PendingScheduleSerial', '');
                 $this->WriteAttributeString('FailedSchedule', '');
                 $this->WriteAttributeString('FailedScheduleSerial', '');
                 $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
                 $this->SetValueSafe('ScheduleSyncStatus', 'Vom Mäher zurückgelesen und bestätigt.');
-            } else {
+            } elseif ($previous === $current) {
                 $this->SetValueSafe('ScheduleSyncStatus', 'Zeitplan gesendet; warte auf die passende Rückmeldung des Mähers.');
                 return;
+            } else {
+                // A newer cloud schedule that differs from the last confirmed plan
+                // is authoritative, including a change made in the Worx app.
+                $this->WriteAttributeString('PendingSchedule', '');
+                $this->WriteAttributeString('PendingScheduleSerial', '');
+                $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
+                $this->WriteAttributeString('FailedSchedule', '');
+                $this->WriteAttributeString('FailedScheduleSerial', '');
+                $forceEventUpdate = true;
+                $this->SetValueSafe('ScheduleSyncStatus', 'Abweichende Änderung aus der Worx-Cloud übernommen.');
             }
-        } elseif ($this->ReadAttributeString('FailedSchedule') !== ''
-            && $this->ReadAttributeString('FailedScheduleSerial') === $this->ReadPropertyString('Serial')
-            && $this->ReadAttributeString('FailedSchedule') === $current) {
-            $this->WriteAttributeString('FailedSchedule', '');
-            $this->WriteAttributeString('FailedScheduleSerial', '');
-            $this->SetValueSafe('ScheduleSyncStatus', 'Zeitplan nach Verzögerung vom Mäher zurückgelesen und bestätigt.');
-        } elseif ($this->ReadAttributeString('FailedSchedule') !== ''
-            && $this->ReadAttributeString('FailedScheduleSerial') === $this->ReadPropertyString('Serial')
-            && $previous === $current) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Keine passende Mäher-Rückmeldung; die bearbeitete Symcon-Zeit bleibt erhalten.');
-            return;
+        } elseif ($this->ReadAttributeString('FailedSchedule') !== '') {
+            $failedSchedule = json_decode($this->ReadAttributeString('FailedSchedule'), true);
+            if ($this->ReadAttributeString('FailedScheduleSerial') === $this->ReadPropertyString('Serial')
+                && is_array($failedSchedule)
+                && WorxScheduleCodec::matchesEditableSlots($failedSchedule, $schedule)) {
+                $this->WriteAttributeString('FailedSchedule', '');
+                $this->WriteAttributeString('FailedScheduleSerial', '');
+                $this->SetValueSafe('ScheduleSyncStatus', 'Zeitplan nach Verzögerung vom Mäher zurückgelesen und bestätigt.');
+            } elseif ($this->ReadAttributeString('FailedScheduleSerial') === $this->ReadPropertyString('Serial')
+                && $previous === $current) {
+                $this->SetValueSafe('ScheduleSyncStatus', 'Keine passende Mäher-Rückmeldung; die bearbeitete Symcon-Zeit bleibt erhalten.');
+                return;
+            } elseif ($previous !== '' && $previous !== $current) {
+                $this->WriteAttributeString('FailedSchedule', '');
+                $this->WriteAttributeString('FailedScheduleSerial', '');
+                $forceEventUpdate = true;
+                $this->SetValueSafe('ScheduleSyncStatus', 'Änderung aus der Worx-App übernommen.');
+            }
         } elseif ($previous !== '' && $previous !== $current) {
             $this->WriteAttributeString('FailedSchedule', '');
             $this->WriteAttributeString('FailedScheduleSerial', '');

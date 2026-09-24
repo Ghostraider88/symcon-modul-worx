@@ -21,6 +21,19 @@ final class WorxScheduleCodecTest extends TestCase
         self::assertSame('Sonntag', $rows[6]['DayName']);
     }
 
+    public function testAcknowledgesEditableSlotsWhilePreservingCloudOnlyMetadata(): void
+    {
+        $expected = $this->makeSchedule();
+        $reported = $expected;
+        $reported['mower_metadata'] = 'normalized by cloud';
+        $reported['d'][0][3] = 'cloud-only extension';
+
+        self::assertTrue(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
+
+        $reported['d'][1][0] = '08:05';
+        self::assertFalse(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
+    }
+
     public function testPreservesUnknownScheduleAndTupleFields(): void
     {
         $source = $this->makeSchedule();

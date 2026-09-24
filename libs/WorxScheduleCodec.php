@@ -257,6 +257,37 @@ final class WorxScheduleCodec
         return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
+    /** Compare the schedule fields exposed for editing in the Symcon event. */
+    public static function matchesEditableSlots(array $expected, array $reported): bool
+    {
+        if (!self::hasValidSlots($expected, 'd') || !self::hasValidSlots($reported, 'd')) {
+            return false;
+        }
+
+        foreach (['d', 'dd'] as $key) {
+            $expectedHasSlots = self::hasValidSlots($expected, $key);
+            $reportedHasSlots = self::hasValidSlots($reported, $key);
+            if ($expectedHasSlots !== $reportedHasSlots) {
+                return false;
+            }
+            if (!$expectedHasSlots) {
+                continue;
+            }
+
+            for ($day = 0; $day < 7; $day++) {
+                $expectedSlot = $expected[$key][$day];
+                $reportedSlot = $reported[$key][$day];
+                if ((string) $expectedSlot[0] !== (string) $reportedSlot[0]
+                    || (int) $expectedSlot[1] !== (int) $reportedSlot[1]
+                    || (int) $expectedSlot[2] !== (int) $reportedSlot[2]) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     /** Convert the supported daily mowing slots to Symcon weekly-event points. */
     public static function toEventPoints(array $schedule): array
     {
