@@ -583,8 +583,8 @@ class WorxMower extends IPSModule
         if (is_numeric($scheduleMode)) {
             $elements[] = ['type' => 'Label', 'caption' => 'Zeitplanmodus (m, Rohwert): ' . (int) $scheduleMode . ' (Bedeutung noch nicht belegt)'];
         }
-        $timeExtension = is_array($reportedSchedule) ? ($reportedSchedule['p'] ?? null) : null;
-        if (is_numeric($timeExtension) && (float) $timeExtension >= 0 && (float) $timeExtension <= 100) {
+        $timeExtension = is_array($reportedSchedule) ? WorxScheduleCodec::timeExtensionFromProtocol($reportedSchedule['p'] ?? null) : null;
+        if ($timeExtension !== null) {
             $extensionText = rtrim(rtrim(sprintf('%.1f', (float) $timeExtension), '0'), '.');
             $elements[] = ['type' => 'Label', 'caption' => 'Vom Mäher gemeldete tägliche Arbeitszeitänderung: ' . str_replace('.', ',', $extensionText) . ' %'];
         }
