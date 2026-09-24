@@ -281,6 +281,49 @@ class WorxCloud extends IPSModule
         }
         return false;
     }
+    /** Set the protocol-0 rain delay in minutes, after validating model capability. */
+    public function SetRainDelay(string $serial, int $minutes): bool
+    {
+        if ($minutes < 0 || $minutes > 1440) {
+            return false;
+        }
+        foreach (json_decode($this->ReadAttributeString('Devices'), true) ?: [] as $device) {
+            if (($device['serial_number'] ?? '') !== $serial) {
+                continue;
+            }
+            if ((int) ($device['protocol'] ?? -1) !== 0
+                || !in_array('rain_delay', $device['capabilities'] ?? [], true)
+                || empty($device['online'])
+                || empty($device['mqtt_topics']['command_in'])) {
+                return false;
+            }
+            return $this->publish(
+                (string) $device['mqtt_topics']['command_in'],
+                json_encode(['rd' => $minutes], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)
+            );
+        }
+        return false;
+    }
+    /** Lock or unlock a supported protocol-0 mower. */
+    public function SetLock(string $serial, bool $locked): bool
+    {
+        foreach (json_decode($this->ReadAttributeString('Devices'), true) ?: [] as $device) {
+            if (($device['serial_number'] ?? '') !== $serial) {
+                continue;
+            }
+            if ((int) ($device['protocol'] ?? -1) !== 0
+                || !in_array('lock', $device['capabilities'] ?? [], true)
+                || empty($device['online'])
+                || empty($device['mqtt_topics']['command_in'])) {
+                return false;
+            }
+            return $this->publish(
+                (string) $device['mqtt_topics']['command_in'],
+                json_encode(['cmd' => $locked ? 5 : 6], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)
+            );
+        }
+        return false;
+    }
     /** Nachrichten vom MQTT Client — der Mäher meldet seinen Zustand. */
     public function ReceiveData($JSONString)
     {
@@ -347,6 +390,17 @@ class WorxCloud extends IPSModule
                 return json_encode($this->SetSchedule(
                     (string) ($data['Serial'] ?? ''),
                     (string) ($data['Schedule'] ?? '')
+                ));
+
+            case 'SetRainDelay':
+                return json_encode($this->SetRainDelay(
+                    (string) ($data['Serial'] ?? ''),
+                    (int) ($data['Minutes'] ?? -1)
+                ));
+            case 'SetLock':
+                return json_encode($this->SetLock(
+                    (string) ($data['Serial'] ?? ''),
+                    (bool) ($data['Locked'] ?? false)
                 ));
 
             case 'Poll':

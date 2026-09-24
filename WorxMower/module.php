@@ -46,6 +46,12 @@ class WorxMower extends IPSModule
         $this->RegisterAttributeString('PendingCommand', '');
         $this->RegisterAttributeString('PendingCommandSerial', '');
         $this->RegisterAttributeString('PendingScheduleSerial', '');
+        $this->RegisterAttributeString('PendingSchedulePurpose', 'schedule');
+        $this->RegisterAttributeString('ReportedRainDelay', '');
+        $this->RegisterAttributeString('PendingRainDelay', '');
+        $this->RegisterAttributeString('PendingRainDelaySerial', '');
+        $this->RegisterAttributeString('PendingLock', '');
+        $this->RegisterAttributeString('PendingLockSerial', '');
         $this->RegisterAttributeString('ScheduleEventSnapshot', '');
         $this->RegisterAttributeBoolean('ScheduleEventSyncing', false);
         $this->RegisterAttributeInteger('ScheduleEventListener', 0);
@@ -53,6 +59,8 @@ class WorxMower extends IPSModule
         $this->RegisterTimer('CommandConfirmationTimeout', 0, 'WORXMOWER_CommandConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('ScheduleConfirmationTimeout', 0, 'WORXMOWER_ScheduleConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('ScheduleEditDebounce', 0, 'WORXMOWER_ScheduleEditDebounce($_IPS[\'TARGET\']);');
+        $this->RegisterTimer('RainDelayConfirmationTimeout', 0, 'WORXMOWER_RainDelayConfirmationTimeout($_IPS[\'TARGET\']);');
+        $this->RegisterTimer('LockConfirmationTimeout', 0, 'WORXMOWER_LockConfirmationTimeout($_IPS[\'TARGET\']);');
 
         $this->registerProfiles();
 
@@ -71,9 +79,13 @@ class WorxMower extends IPSModule
         $this->RegisterVariableFloat('WorkTime', 'Mähzeit gesamt', 'WORX.Hours', $p++);
         $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', 'WORX.Hours', $p++);
         $this->RegisterVariableBoolean('Rain', 'Regen erkannt', '~Alert', $p++);
-        $this->RegisterVariableInteger('TimeExtension', 'Zeiterweiterung', 'WORX.Percent', $p++);
-        $this->RegisterVariableInteger('RainDelay', 'Regenverzögerung', 'WORX.Minutes', $p++);
-        $this->RegisterVariableBoolean('Locked', 'Gesperrt', '~Lock', $p++);
+        $this->RegisterVariableInteger('TimeExtension', 'Zeiterweiterung (bestätigt)', 'WORX.Percent', $p++);
+        $this->RegisterVariableInteger('TimeExtensionSet', 'Zeiterweiterung setzen', 'WORX.Percent', $p++);
+        $this->RegisterVariableInteger('RainDelay', 'Regenverzögerung (bestätigt)', 'WORX.Minutes', $p++);
+        $this->RegisterVariableInteger('RainDelaySet', 'Regenverzögerung setzen', 'WORX.Minutes', $p++);
+        $this->RegisterVariableString('SettingStatus', 'Einstellungsrückmeldung', '', $p++);
+        $this->RegisterVariableBoolean('Locked', 'Gesperrt (bestätigt)', '~Lock', $p++);
+        $this->RegisterVariableBoolean('LockCommand', 'Sperre setzen', '~Lock', $p++);
         $this->RegisterVariableInteger('Zone', 'Aktuelle Zone', '', $p++);
         $this->RegisterVariableString('Firmware', 'Firmware', '', $p++);
         $this->RegisterVariableInteger('LastUpdate', 'Letzte Meldung', '~UnixTimestamp', $p++);
@@ -82,6 +94,9 @@ class WorxMower extends IPSModule
         $this->RegisterVariableString('ScheduleSyncStatus', 'Zeitplanrückmeldung', '', $p++);
         $this->RegisterVariableString('DeviceDiagnostics', 'Gerätenachweis (redigiert)', '', $p++);
         $this->EnableAction('Control');
+        $this->EnableAction('TimeExtensionSet');
+        $this->EnableAction('RainDelaySet');
+        $this->EnableAction('LockCommand');
     }
 
     public function ApplyChanges()
@@ -114,15 +129,36 @@ class WorxMower extends IPSModule
 
     public function RequestAction($Ident, $Value)
     {
-        if ($Ident !== 'Control') {
-            throw new InvalidArgumentException('Invalid Ident: ' . $Ident);
+        if ($Ident === 'Control') {
+            $command = (int) $Value;
+            if (!isset(self::COMMANDS[$command])) {
+                throw new InvalidArgumentException('Control expects Start (1), Pause (2) or Heimfahrt (3).');
+            }
+            $this->Command($command);
+            $this->SetValueSafe('Control', 0);
+            return;
         }
-        $command = (int) $Value;
-        if (!isset(self::COMMANDS[$command])) {
-            throw new InvalidArgumentException('Control expects Start (1), Pause (2) or Heimfahrt (3).');
+        if ($Ident === 'LockCommand') {
+            if (!is_bool($Value)) {
+                throw new InvalidArgumentException('LockCommand erwartet true für sperren oder false für entsperren.');
+            }
+            $this->SetValueSafe('LockCommand', $Value);
+            $this->SetLock($Value);
+            return;
         }
-        $this->Command($command);
-        $this->SetValueSafe('Control', 0);
+        if ($Ident === 'RainDelaySet') {
+            $minutes = $this->validatedInteger($Value, 0, 1440, 'Regenverzögerung');
+            $this->SetValueSafe('RainDelaySet', $minutes);
+            $this->SetRainDelay($minutes);
+            return;
+        }
+        if ($Ident === 'TimeExtensionSet') {
+            $percent = $this->validatedInteger($Value, -100, 100, 'Zeiterweiterung');
+            $this->SetValueSafe('TimeExtensionSet', $percent);
+            $this->SetTimeExtension($percent);
+            return;
+        }
+        throw new InvalidArgumentException('Invalid Ident: ' . $Ident);
     }
 
     /** true means MQTT accepted the publish; device confirmation is separate. */
@@ -153,6 +189,144 @@ class WorxMower extends IPSModule
         return true;
     }
 
+    /** Send a lock state and keep the reported mower state separate. */
+    public function SetLock(bool $locked): bool
+    {
+        if ($this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingSchedule') !== '') {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
+            return false;
+        }
+        $device = $this->getDevice();
+        if ($device === null || (int) ($device['protocol'] ?? -1) !== 0
+            || !in_array('lock', $device['capabilities'] ?? [], true)) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Sperren wird für dieses Gerät nicht unterstützt.');
+            return false;
+        }
+        if (empty($device['online'])) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Der Mäher ist offline.');
+            return false;
+        }
+        $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
+        if ($parent === 0) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Worx-Cloud-Verbindung fehlt.');
+            return false;
+        }
+        $response = $this->SendDataToParent(json_encode([
+            'DataID' => self::IF_CLOUD,
+            'Command' => 'SetLock',
+            'Serial' => $this->ReadPropertyString('Serial'),
+            'Locked' => $locked,
+        ]));
+        if (!filter_var(json_decode((string) $response, true), FILTER_VALIDATE_BOOLEAN)) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.');
+            return false;
+        }
+        $currentID = $this->GetIDForIdent('Locked');
+        $current = $currentID === false || $currentID === 0 ? false : (bool) GetValue($currentID);
+        $this->WriteAttributeString('PendingLock', json_encode(['desired' => $locked, 'previous' => $current]));
+        $this->WriteAttributeString('PendingLockSerial', $this->ReadPropertyString('Serial'));
+        $this->SetValueSafe('SettingStatus', $locked
+            ? 'Sperrbefehl gesendet; Rückmeldung des Mähers steht aus.'
+            : 'Entsperrbefehl gesendet; Rückmeldung des Mähers steht aus.');
+        $this->SetTimerInterval('LockConfirmationTimeout', 120000);
+        return true;
+    }
+    /** Send the requested rain delay and keep the reported value as confirmed state. */
+    public function SetRainDelay(int $minutes): bool
+    {
+        if ($minutes < 0 || $minutes > 1440) {
+            throw new InvalidArgumentException('Regenverzögerung muss zwischen 0 und 1440 Minuten liegen.');
+        }
+        $device = $this->getDevice();
+        if ($device === null || (int) ($device['protocol'] ?? -1) !== 0
+            || !in_array('rain_delay', $device['capabilities'] ?? [], true)) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Regenverzögerung wird für dieses Gerät nicht unterstützt.');
+            return false;
+        }
+        if (empty($device['online'])) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Der Mäher ist offline.');
+            return false;
+        }
+        if ($this->ReadAttributeString('PendingSchedule') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '') {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
+            return false;
+        }
+        $current = $this->GetValueForIdent('RainDelay');
+        $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
+        if ($parent === 0) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Worx-Cloud-Verbindung fehlt.');
+            return false;
+        }
+        $response = $this->SendDataToParent(json_encode([
+            'DataID' => self::IF_CLOUD,
+            'Command' => 'SetRainDelay',
+            'Serial' => $this->ReadPropertyString('Serial'),
+            'Minutes' => $minutes,
+        ]));
+        if (!filter_var(json_decode((string) $response, true), FILTER_VALIDATE_BOOLEAN)) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.');
+            return false;
+        }
+        $this->WriteAttributeString('PendingRainDelay', json_encode(['desired' => $minutes, 'previous' => $current]));
+        $this->WriteAttributeString('PendingRainDelaySerial', $this->ReadPropertyString('Serial'));
+        $this->SetValueSafe('SettingStatus', 'Regenverzögerung gesendet; Rückmeldung des Mähers steht aus.');
+        $this->SetTimerInterval('RainDelayConfirmationTimeout', 120000);
+        return true;
+    }
+
+    /** Send a protocol-0 schedule patch with the requested time-extension field. */
+    public function SetTimeExtension(int $percent): bool
+    {
+        if ($percent < -100 || $percent > 100) {
+            throw new InvalidArgumentException('Zeiterweiterung muss zwischen -100 und 100 Prozent liegen.');
+        }
+        if ($this->ReadAttributeString('PendingSchedule') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '') {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
+            return false;
+        }
+        $device = $this->getDevice();
+        $schedule = $device === null ? null : WorxScheduleCodec::scheduleFromDevice($device);
+        if ($device === null || (int) ($device['protocol'] ?? -1) !== 0
+            || !in_array('unrestricted_mowing_time', $device['capabilities'] ?? [], true) || $schedule === null) {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Zeiterweiterung wird für dieses Gerät nicht unterstützt.');
+            return false;
+        }
+        if (empty($device['online'])) {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Der Mäher ist offline.');
+            return false;
+        }
+        $schedule['p'] = $percent;
+        $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
+        if ($parent === 0 || !WORX_SetSchedule($parent, $this->ReadPropertyString('Serial'), WorxScheduleCodec::canonicalJson($schedule))) {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Zeiterweiterung nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.');
+            return false;
+        }
+        $this->WriteAttributeString('PendingSchedule', WorxScheduleCodec::canonicalJson($schedule));
+        $this->WriteAttributeString('PendingScheduleSerial', $this->ReadPropertyString('Serial'));
+        $this->WriteAttributeString('PendingSchedulePurpose', 'time_extension');
+        $this->WriteAttributeString('ScheduleEventSnapshot', $this->scheduleEventFingerprint($this->scheduleEventID()));
+        $this->SetValueSafe('ScheduleSyncStatus', 'Zeiterweiterung gesendet; Bestätigung durch Zurücklesen des Mähers steht aus.');
+        $this->SetTimerInterval('ScheduleConfirmationTimeout', 120000);
+        return true;
+    }
+
+    private function validatedInteger($value, int $minimum, int $maximum, string $label): int
+    {
+        if (!is_int($value) && !(is_string($value) && preg_match('/^-?\d+$/', $value))) {
+            throw new InvalidArgumentException($label . ' muss eine ganze Zahl sein.');
+        }
+        $integer = (int) $value;
+        if ($integer < $minimum || $integer > $maximum) {
+            throw new InvalidArgumentException(sprintf('%s muss zwischen %d und %d liegen.', $label, $minimum, $maximum));
+        }
+        return $integer;
+    }
+
+    private function GetValueForIdent(string $ident): int
+    {
+        $id = $this->GetIDForIdent($ident);
+        return $id === false || $id === 0 ? 0 : (int) GetValue($id);
+    }
     public function Start(): bool
     {
         return $this->Command(1);
@@ -210,6 +384,10 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Eine Zeitplanübertragung wartet noch auf Rückmeldung.');
             return false;
         }
+        if ($this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '') {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
+            return false;
+        }
         try {
             $event = IPS_GetEvent($eventID);
             $rows = WorxScheduleCodec::rowsFromEvent($event, $source);
@@ -235,6 +413,7 @@ class WorxMower extends IPSModule
         }
         $this->WriteAttributeString('PendingSchedule', $desiredJson);
         $this->WriteAttributeString('PendingScheduleSerial', $this->ReadPropertyString('Serial'));
+        $this->WriteAttributeString('PendingSchedulePurpose', 'schedule');
         $this->WriteAttributeString('ScheduleEventSnapshot', $this->scheduleEventFingerprint($eventID));
         $this->SetValueSafe('ScheduleSyncStatus', 'Zeitplan gesendet; Bestätigung durch Zurücklesen des Mähers steht aus.');
         $this->SetTimerInterval('ScheduleConfirmationTimeout', 120000);
@@ -276,6 +455,28 @@ class WorxMower extends IPSModule
         $this->SetValueSafe('CommandStatus', 'Keine Bestätigung des Mähers innerhalb von 90 Sekunden.');
     }
 
+    public function RainDelayConfirmationTimeout(): void
+    {
+        if ($this->ReadAttributeString('PendingRainDelay') === '') {
+            return;
+        }
+        $this->WriteAttributeString('PendingRainDelay', '');
+        $this->WriteAttributeString('PendingRainDelaySerial', '');
+        $this->SetTimerInterval('RainDelayConfirmationTimeout', 0);
+        $this->SetValueSafe('SettingStatus', 'Keine Mäher-Bestätigung der Regenverzögerung innerhalb von 120 Sekunden.');
+        $this->Update();
+    }
+    public function LockConfirmationTimeout(): void
+    {
+        if ($this->ReadAttributeString('PendingLock') === '') {
+            return;
+        }
+        $this->WriteAttributeString('PendingLock', '');
+        $this->WriteAttributeString('PendingLockSerial', '');
+        $this->SetTimerInterval('LockConfirmationTimeout', 0);
+        $this->SetValueSafe('SettingStatus', 'Keine Mäher-Bestätigung der Sperrung innerhalb von 120 Sekunden.');
+        $this->Update();
+    }
     public function ScheduleConfirmationTimeout(): void
     {
         if ($this->ReadAttributeString('PendingSchedule') === '') {
@@ -283,10 +484,15 @@ class WorxMower extends IPSModule
         }
         $this->WriteAttributeString('FailedSchedule', $this->ReadAttributeString('PendingSchedule'));
         $this->WriteAttributeString('FailedScheduleSerial', $this->ReadAttributeString('PendingScheduleSerial'));
+        $purpose = $this->ReadAttributeString('PendingSchedulePurpose');
         $this->WriteAttributeString('PendingSchedule', '');
         $this->WriteAttributeString('PendingScheduleSerial', '');
+        $this->WriteAttributeString('PendingSchedulePurpose', 'schedule');
         $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
-        $this->SetValueSafe('ScheduleSyncStatus', 'Keine passende Mäher-Rückmeldung innerhalb von 120 Sekunden; prüfe den zuletzt empfangenen Stand.');
+        $timeoutStatus = $purpose === 'time_extension'
+            ? 'Keine Bestätigung der Zeiterweiterung innerhalb von 120 Sekunden.'
+            : 'Keine passende Mäher-Rückmeldung innerhalb von 120 Sekunden; prüfe den zuletzt empfangenen Stand.';
+        $this->SetValueSafe('ScheduleSyncStatus', $timeoutStatus);
         $this->Update();
     }
 
@@ -348,6 +554,32 @@ class WorxMower extends IPSModule
         if ($eventID === 0 || !IPS_EventExists($eventID)) return '';
         $event = IPS_GetEvent($eventID);
         return WorxScheduleCodec::canonicalJson(['Type' => $event['EventType'] ?? null, 'Actions' => $event['ScheduleActions'] ?? [], 'Groups' => $event['ScheduleGroups'] ?? []]);
+    }
+
+    private function scheduleEventMatches(int $eventID, array $schedule): bool
+    {
+        if ($eventID === 0 || !IPS_EventExists($eventID)) return false;
+        try {
+            $expected = WorxScheduleCodec::toRows($schedule);
+            $actual = WorxScheduleCodec::rowsFromEvent(IPS_GetEvent($eventID), $schedule);
+            $normalize = static function (array $rows): array {
+                $normalized = [];
+                foreach ($rows as $row) {
+                    $key = (int) $row['Day'] . ':' . (int) $row['Slot'];
+                    $normalized[$key] = [
+                        'Enabled' => (bool) $row['Enabled'],
+                        'Start' => (string) $row['Start'],
+                        'Minutes' => (int) $row['Minutes'],
+                        'Border' => (bool) $row['Border'],
+                    ];
+                }
+                ksort($normalized);
+                return $normalized;
+            };
+            return $normalize($expected) === $normalize($actual);
+        } catch (Throwable $exception) {
+            return false;
+        }
     }
 
     /** Keep the single native weekly event aligned with the confirmed mower plan. */
@@ -419,7 +651,18 @@ class WorxMower extends IPSModule
         } finally {
             $this->WriteAttributeBoolean('ScheduleEventSyncing', false);
         }
+        if (!$this->scheduleEventMatches($eventID, $schedule)) {
+            $this->SetValueSafe('ScheduleSyncStatus', 'Mäherplan empfangen, aber das Symcon-Wochenplan-Ereignis stimmt nach dem Schreiben nicht überein.');
+            return;
+        }
         $this->WriteAttributeString('ScheduleEventSnapshot', $this->scheduleEventFingerprint($eventID));
+        $statusID = $this->GetIDForIdent('ScheduleSyncStatus');
+        if ($statusID !== false && $statusID > 0) {
+            $status = GetValueString($statusID);
+            if (!str_contains($status, 'Symcon-Wochenplan geprüft')) {
+                $this->SetValueSafe('ScheduleSyncStatus', rtrim($status, '.') . '; Symcon-Wochenplan geprüft.');
+            }
+        }
     }
     private function clearPendingForDifferentMower(): void
     {
@@ -433,8 +676,21 @@ class WorxMower extends IPSModule
         if ($this->ReadAttributeString('PendingSchedule') !== '' && $this->ReadAttributeString('PendingScheduleSerial') !== $serial) {
             $this->WriteAttributeString('PendingSchedule', '');
             $this->WriteAttributeString('PendingScheduleSerial', '');
+            $this->WriteAttributeString('PendingSchedulePurpose', 'schedule');
             $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
             $this->SetValueSafe('ScheduleSyncStatus', 'Rückmeldung verworfen: Seriennummer der Instanz wurde geändert.');
+        }
+        if ($this->ReadAttributeString('PendingRainDelay') !== '' && $this->ReadAttributeString('PendingRainDelaySerial') !== $serial) {
+            $this->WriteAttributeString('PendingRainDelay', '');
+            $this->WriteAttributeString('PendingRainDelaySerial', '');
+            $this->SetTimerInterval('RainDelayConfirmationTimeout', 0);
+            $this->SetValueSafe('SettingStatus', 'Rückmeldung verworfen: Seriennummer der Instanz wurde geändert.');
+        }
+        if ($this->ReadAttributeString('PendingLock') !== '' && $this->ReadAttributeString('PendingLockSerial') !== $serial) {
+            $this->WriteAttributeString('PendingLock', '');
+            $this->WriteAttributeString('PendingLockSerial', '');
+            $this->SetTimerInterval('LockConfirmationTimeout', 0);
+            $this->SetValueSafe('SettingStatus', 'Rückmeldung verworfen: Seriennummer der Instanz wurde geändert.');
         }
         if ($this->ReadAttributeString('FailedSchedule') !== '' && $this->ReadAttributeString('FailedScheduleSerial') !== $serial) {
             $this->WriteAttributeString('FailedSchedule', '');
@@ -489,16 +745,29 @@ class WorxMower extends IPSModule
             IPS_SetHidden($timeExtensionID, !$supportsTimeExtension);
             if ($supportsTimeExtension) $this->SetValueSafe('TimeExtension', (int) $reportedSchedule['p']);
         }
-        $configuration = WorxScheduleCodec::deviceConfiguration($device);
+        $timeExtensionSetID = $this->GetIDForIdent('TimeExtensionSet');
+        if ($timeExtensionSetID !== false && $timeExtensionSetID > 0) IPS_SetHidden($timeExtensionSetID, !$supportsTimeExtension);
         $supportsRainDelay = in_array('rain_delay', $device['capabilities'] ?? [], true)
             && isset($configuration['rd']) && is_numeric($configuration['rd'])
             && (int) $configuration['rd'] >= 0 && (int) $configuration['rd'] <= 1440;
         $rainDelayID = $this->GetIDForIdent('RainDelay');
         if ($rainDelayID !== false && $rainDelayID > 0) {
             IPS_SetHidden($rainDelayID, !$supportsRainDelay);
-            if ($supportsRainDelay) $this->SetValueSafe('RainDelay', (int) $configuration['rd']);
+            if ($supportsRainDelay) {
+                $this->SetValueSafe('RainDelay', (int) $configuration['rd']);
+                $this->confirmRainDelay((int) $configuration['rd']);
+            }
         }
-        if (isset($dat['lk'])) $this->SetValueSafe('Locked', ((int) $dat['lk']) > 0);
+        $rainDelaySetID = $this->GetIDForIdent('RainDelaySet');
+        if ($rainDelaySetID !== false && $rainDelaySetID > 0) IPS_SetHidden($rainDelaySetID, !$supportsRainDelay);
+        $lockCapability = in_array('lock', $device['capabilities'] ?? [], true) && (int) ($device['protocol'] ?? -1) === 0;
+        $lockCommandID = $this->GetIDForIdent('LockCommand');
+        if ($lockCommandID !== false && $lockCommandID > 0) IPS_SetHidden($lockCommandID, !$lockCapability);
+        if (isset($dat['lk'])) {
+            $locked = ((int) $dat['lk']) > 0;
+            $this->SetValueSafe('Locked', $locked);
+            if ($lockCapability) $this->confirmLock($locked);
+        }
         if (isset($dat['cut']['z'])) $this->SetValueSafe('Zone', (int) $dat['cut']['z']);
         if (isset($dat['tm'])) {
             $timestamp = strtotime((string) $dat['tm']);
@@ -539,6 +808,48 @@ class WorxMower extends IPSModule
         }
     }
 
+    private function confirmLock(bool $reported): void
+    {
+        $pending = $this->ReadAttributeString('PendingLock');
+        if ($pending !== '' && $this->ReadAttributeString('PendingLockSerial') === $this->ReadPropertyString('Serial')) {
+            $command = json_decode($pending, true);
+            if (is_array($command) && isset($command['desired'], $command['previous']) && (bool) $command['desired'] === $reported) {
+                $this->WriteAttributeString('PendingLock', '');
+                $this->WriteAttributeString('PendingLockSerial', '');
+                $this->SetTimerInterval('LockConfirmationTimeout', 0);
+                $this->SetValueSafe('SettingStatus', $reported
+                    ? 'Sperre vom Mäher zurückgelesen und bestätigt.'
+                    : 'Entsperren vom Mäher zurückgelesen und bestätigt.');
+            } elseif (is_array($command) && isset($command['previous']) && (bool) $command['previous'] !== $reported) {
+                $this->WriteAttributeString('PendingLock', '');
+                $this->WriteAttributeString('PendingLockSerial', '');
+                $this->SetTimerInterval('LockConfirmationTimeout', 0);
+                $this->SetValueSafe('SettingStatus', 'Abweichenden Sperrstatus vom Mäher übernommen.');
+            }
+        }
+    }
+    private function confirmRainDelay(int $reported): void
+    {
+        $previous = $this->ReadAttributeString('ReportedRainDelay');
+        $pending = $this->ReadAttributeString('PendingRainDelay');
+        if ($pending !== '' && $this->ReadAttributeString('PendingRainDelaySerial') === $this->ReadPropertyString('Serial')) {
+            $command = json_decode($pending, true);
+            if (is_array($command) && isset($command['desired'], $command['previous']) && (int) $command['desired'] === $reported) {
+                $this->WriteAttributeString('PendingRainDelay', '');
+                $this->WriteAttributeString('PendingRainDelaySerial', '');
+                $this->SetTimerInterval('RainDelayConfirmationTimeout', 0);
+                $this->SetValueSafe('SettingStatus', 'Regenverzögerung vom Mäher zurückgelesen und bestätigt.');
+            } elseif (is_array($command) && isset($command['previous']) && (int) $command['previous'] !== $reported) {
+                $this->WriteAttributeString('PendingRainDelay', '');
+                $this->WriteAttributeString('PendingRainDelaySerial', '');
+                $this->SetTimerInterval('RainDelayConfirmationTimeout', 0);
+                $this->SetValueSafe('SettingStatus', 'Abweichender Regenverzögerungswert vom Mäher übernommen: ' . $reported . ' Minuten.');
+            }
+        } elseif ($previous !== '' && (int) $previous !== $reported) {
+            $this->SetValueSafe('SettingStatus', 'Regenverzögerung aus Worx übernommen: ' . $reported . ' Minuten.');
+        }
+        $this->WriteAttributeString('ReportedRainDelay', (string) $reported);
+    }
     private function updateSchedule(array $schedule): void
     {
         $current = WorxScheduleCodec::canonicalJson($schedule);
@@ -550,12 +861,17 @@ class WorxMower extends IPSModule
         if ($pending !== '' && $pendingSerial === $this->ReadPropertyString('Serial')) {
             $pendingSchedule = json_decode($pending, true);
             if (is_array($pendingSchedule) && WorxScheduleCodec::matchesEditableSlots($pendingSchedule, $schedule)) {
+                $purpose = $this->ReadAttributeString('PendingSchedulePurpose');
                 $this->WriteAttributeString('PendingSchedule', '');
                 $this->WriteAttributeString('PendingScheduleSerial', '');
+                $this->WriteAttributeString('PendingSchedulePurpose', 'schedule');
                 $this->WriteAttributeString('FailedSchedule', '');
                 $this->WriteAttributeString('FailedScheduleSerial', '');
                 $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
-                $this->SetValueSafe('ScheduleSyncStatus', 'Vom Mäher zurückgelesen und bestätigt.');
+                $confirmedStatus = $purpose === 'time_extension'
+                    ? 'Zeiterweiterung vom Mäher zurückgelesen und bestätigt.'
+                    : 'Vom Mäher zurückgelesen und bestätigt.';
+                $this->SetValueSafe('ScheduleSyncStatus', $confirmedStatus);
             } elseif ($previous === $current) {
                 $this->SetValueSafe('ScheduleSyncStatus', 'Zeitplan gesendet; warte auf die passende Rückmeldung des Mähers.');
                 return;
@@ -564,6 +880,7 @@ class WorxMower extends IPSModule
                 // is authoritative, including a change made in the Worx app.
                 $this->WriteAttributeString('PendingSchedule', '');
                 $this->WriteAttributeString('PendingScheduleSerial', '');
+        $this->WriteAttributeString('PendingSchedulePurpose', 'schedule');
                 $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
                 $this->WriteAttributeString('FailedSchedule', '');
                 $this->WriteAttributeString('FailedScheduleSerial', '');
@@ -663,6 +980,7 @@ class WorxMower extends IPSModule
             IPS_SetVariableProfileText('WORX.Percent', '', ' %');
             IPS_SetVariableProfileIcon('WORX.Percent', 'Clock');
         }
+        IPS_SetVariableProfileValues('WORX.Percent', -100, 100, 1);
         if (!IPS_VariableProfileExists('WORX.Minutes')) {
             IPS_CreateVariableProfile('WORX.Minutes', VARIABLETYPE_INTEGER);
             IPS_SetVariableProfileText('WORX.Minutes', '', ' min');

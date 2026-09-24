@@ -264,6 +264,14 @@ final class WorxScheduleCodec
             return false;
         }
 
+        if (array_key_exists('p', $expected) || array_key_exists('p', $reported)) {
+            if (!array_key_exists('p', $expected) || !array_key_exists('p', $reported)
+                || !is_numeric($expected['p']) || !is_numeric($reported['p'])
+                || (int) $expected['p'] !== (int) $reported['p']) {
+                return false;
+            }
+        }
+
         foreach (['d', 'dd'] as $key) {
             $expectedHasSlots = self::hasValidSlots($expected, $key);
             $reportedHasSlots = self::hasValidSlots($reported, $key);

@@ -34,6 +34,15 @@ final class WorxScheduleCodecTest extends TestCase
         self::assertFalse(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
     }
 
+    public function testIncludesTimeExtensionInScheduleAcknowledgement(): void
+    {
+        $expected = $this->makeSchedule();
+        $expected['p'] = 20;
+        $reported = $expected;
+        self::assertTrue(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
+        $reported['p'] = 10;
+        self::assertFalse(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
+    }
     public function testPreservesUnknownScheduleAndTupleFields(): void
     {
         $source = $this->makeSchedule();
