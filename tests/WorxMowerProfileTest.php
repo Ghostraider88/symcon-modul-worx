@@ -8,14 +8,14 @@ require_once __DIR__ . '/../WorxMower/module.php';
 
 final class WorxMowerTestDouble extends WorxMower
 {
-    protected function getTime()
-    {
-        return time();
-    }
-
     public function readAttributeForTest(string $name): string
     {
         return $this->ReadAttributeString($name);
+    }
+
+    protected function getTime()
+    {
+        return time();
     }
 }
 
