@@ -30,6 +30,34 @@ final class WorxMowerProfileTest extends TestCase
             self::assertSame('', $variable['VariableCustomProfile']);
         }
     }
+
+    public function testStatusAndErrorCodesUsePlainValuePresentationAndAreOrderedBesideText(): void
+    {
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $module = new WorxMower($instanceID);
+        $method = new ReflectionMethod(WorxMower::class, 'registerVariables');
+        $method->setAccessible(true);
+        $method->invoke($module);
+
+        $positions = [];
+        foreach (['State', 'StateText', 'Error', 'ErrorText'] as $ident) {
+            $variableID = IPS_GetObjectIDByIdent($ident, $instanceID);
+            $positions[$ident] = IPS_GetObject($variableID)['ObjectPosition'];
+        }
+
+        self::assertLessThan($positions['StateText'], $positions['State']);
+        self::assertLessThan($positions['Error'], $positions['StateText']);
+        self::assertLessThan($positions['ErrorText'], $positions['Error']);
+
+        foreach (['State', 'Error'] as $ident) {
+            $variableID = IPS_GetObjectIDByIdent($ident, $instanceID);
+            $presentation = IPS\VariableManager::getVariablePresentation($variableID);
+            self::assertSame(VARIABLE_PRESENTATION_VALUE_PRESENTATION, $presentation['PRESENTATION']);
+            self::assertSame('', $presentation['SUFFIX']);
+            self::assertArrayNotHasKey('OPTIONS', $presentation);
+        }
+    }
+
     public function testConfirmedTimeExtensionUsesValuePresentationWithLiteralPercentSuffix(): void
     {
         $module = new WorxMower(1);
@@ -109,6 +137,15 @@ final class WorxMowerProfileTest extends TestCase
         self::assertSame(VARIABLETYPE_STRING, IPS_GetVariable($errorTextID)['VariableType']);
         self::assertSame('In der Ladestation', GetValue($stateTextID));
         self::assertSame('Kein Fehler', GetValue($errorTextID));
+
+        $method->invoke($module, [
+            'online'       => true,
+            'protocol'     => 0,
+            'capabilities' => [],
+            'last_status'  => ['payload' => ['dat' => ['ls' => 7, 'le' => 5]]],
+        ]);
+        self::assertSame('Mäht', GetValue($stateTextID));
+        self::assertSame('Regen', GetValue($errorTextID));
     }
 
     public function testMowerReportStoresNegativeAppScaleInConfirmedVariable(): void

@@ -1103,10 +1103,34 @@ class WorxMower extends IPSModule
     private function registerVariables(): void
     {
         $p = 0;
-        $this->RegisterVariableInteger('Control', 'Steuerung', $this->enumerationPresentation([0 => 'Befehl wählen'] + self::COMMANDS), $p++);
-        $this->RegisterVariableInteger('State', 'Status', $this->enumerationPresentation(self::STATES), $p++);
-        $this->RegisterVariableInteger('Error', 'Fehler', $this->enumerationPresentation(self::ERRORS), $p++);
+
+        // Confirmed state first; integer codes stay numeric while adjacent strings provide readable history.
+        $this->RegisterVariableInteger('State', 'Status', $this->valuePresentation(''), $p++);
+        $this->RegisterVariableString('StateText', 'Status (Text)', '', $p++);
+        $this->RegisterVariableInteger('Error', 'Fehler', $this->valuePresentation(''), $p++);
+        $this->RegisterVariableString('ErrorText', 'Fehler (Text)', '', $p++);
         $this->RegisterVariableBoolean('Online', 'Online', $this->booleanValuePresentation('Offline', 'Online'), $p++);
+        $this->RegisterVariableInteger('LastUpdate', 'Letzte Meldung', ['PRESENTATION' => VARIABLE_PRESENTATION_DATE_TIME, 'DATE' => 0, 'TIME' => 1], $p++);
+
+        // Controls and their requested/confirmed feedback.
+        $this->RegisterVariableInteger('Control', 'Steuerung', $this->enumerationPresentation([0 => 'Befehl wählen'] + self::COMMANDS), $p++);
+        $this->RegisterVariableString('LastCommand', 'Letzter Befehl', '', $p++);
+        $this->RegisterVariableString('CommandStatus', 'Befehlsrückmeldung', '', $p++);
+        $this->RegisterVariableBoolean('Locked', 'Gesperrt (bestätigt)', $this->booleanValuePresentation('Entsperrt', 'Gesperrt'), $p++);
+        $this->RegisterVariableBoolean('LockCommand', 'Sperre setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);
+        $this->RegisterVariableBoolean('AutoSchedule', 'Automatischer Zeitplan (bestätigt)', $this->booleanValuePresentation('Aus', 'Ein'), $p++);
+        $this->RegisterVariableBoolean('AutoScheduleSet', 'Automatischen Zeitplan setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);
+
+        // Mowing configuration and its acknowledgements.
+        $this->RegisterVariableInteger('TimeExtension', 'Tägliche Arbeitszeit (bestätigt)', $this->valuePresentation(' %'), $p++);
+        $this->RegisterVariableInteger('TimeExtensionSet', 'Tägliche Arbeitszeit setzen', $this->sliderPresentation(-100, 100, ' %'), $p++);
+        $this->RegisterVariableInteger('RainDelay', 'Regenverzögerung (bestätigt)', $this->valuePresentation(' min'), $p++);
+        $this->RegisterVariableInteger('RainDelaySet', 'Regenverzögerung setzen', $this->sliderPresentation(0, self::MAX_RAIN_DELAY_MINUTES, ' min'), $p++);
+        $this->RegisterVariableBoolean('Rain', 'Regen erkannt', $this->booleanValuePresentation('Nein', 'Ja'), $p++);
+        $this->RegisterVariableString('SettingStatus', 'Einstellungsrückmeldung', '', $p++);
+        $this->RegisterVariableString('ScheduleSyncStatus', 'Zeitplanrückmeldung', '', $p++);
+
+        // Battery and mower statistics.
         $this->RegisterVariableInteger('Battery', 'Akku', $this->valuePresentation(' %'), $p++);
         $this->RegisterVariableBoolean('Charging', 'Lädt', $this->booleanValuePresentation('Nein', 'Ja'), $p++);
         $this->RegisterVariableFloat('BatteryTemp', 'Akkutemperatur', $this->valuePresentation(' °C'), $p++);
@@ -1116,25 +1140,11 @@ class WorxMower extends IPSModule
         $this->RegisterVariableFloat('Distance', 'Gesamtstrecke', $this->valuePresentation(' km'), $p++);
         $this->RegisterVariableFloat('WorkTime', 'Mähzeit gesamt', $this->valuePresentation(' h'), $p++);
         $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', $this->valuePresentation(' h'), $p++);
-        $this->RegisterVariableBoolean('Rain', 'Regen erkannt', $this->booleanValuePresentation('Nein', 'Ja'), $p++);
-        $this->RegisterVariableInteger('TimeExtension', 'Tägliche Arbeitszeit (bestätigt)', $this->valuePresentation(' %'), $p++);
-        $this->RegisterVariableInteger('TimeExtensionSet', 'Tägliche Arbeitszeit setzen', $this->sliderPresentation(-100, 100, ' %'), $p++);
-        $this->RegisterVariableInteger('RainDelay', 'Regenverzögerung (bestätigt)', $this->valuePresentation(' min'), $p++);
-        $this->RegisterVariableInteger('RainDelaySet', 'Regenverzögerung setzen', $this->sliderPresentation(0, self::MAX_RAIN_DELAY_MINUTES, ' min'), $p++);
-        $this->RegisterVariableString('SettingStatus', 'Einstellungsrückmeldung', '', $p++);
-        $this->RegisterVariableBoolean('Locked', 'Gesperrt (bestätigt)', $this->booleanValuePresentation('Entsperrt', 'Gesperrt'), $p++);
-        $this->RegisterVariableBoolean('LockCommand', 'Sperre setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);
-        $this->RegisterVariableBoolean('AutoSchedule', 'Automatischer Zeitplan (bestätigt)', $this->booleanValuePresentation('Aus', 'Ein'), $p++);
-        $this->RegisterVariableBoolean('AutoScheduleSet', 'Automatischen Zeitplan setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);
         $this->RegisterVariableInteger('Zone', 'Aktuelle Zone', '', $p++);
         $this->RegisterVariableString('Firmware', 'Firmware', '', $p++);
-        $this->RegisterVariableInteger('LastUpdate', 'Letzte Meldung', ['PRESENTATION' => VARIABLE_PRESENTATION_DATE_TIME, 'DATE' => 0, 'TIME' => 1], $p++);
-        $this->RegisterVariableString('LastCommand', 'Letzter Befehl', '', $p++);
-        $this->RegisterVariableString('CommandStatus', 'Befehlsrückmeldung', '', $p++);
-        $this->RegisterVariableString('ScheduleSyncStatus', 'Zeitplanrückmeldung', '', $p++);
+
+        // Redacted development diagnostic is intentionally last in the object tree.
         $this->RegisterVariableString('DeviceDiagnostics', 'Gerätenachweis (redigiert)', '', $p++);
-        $this->RegisterVariableString('StateText', 'Status (Text)', '', $p++);
-        $this->RegisterVariableString('ErrorText', 'Fehler (Text)', '', $p++);
     }
 
     private function valuePresentation(string $suffix): array
