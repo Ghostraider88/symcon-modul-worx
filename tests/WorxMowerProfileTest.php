@@ -8,6 +8,9 @@ require_once __DIR__ . '/../WorxMower/module.php';
 
 final class WorxMowerTestDouble extends WorxMower
 {
+    public ?array $deviceOnUpdate = null;
+    public int $scheduleSendCalls = 0;
+
     public function readAttributeForTest(string $name): string
     {
         return $this->ReadAttributeString($name);
@@ -15,7 +18,19 @@ final class WorxMowerTestDouble extends WorxMower
 
     public function Update(): bool
     {
+        if ($this->deviceOnUpdate !== null) {
+            $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
+            $applyDevice->setAccessible(true);
+            $applyDevice->invoke($this, $this->deviceOnUpdate);
+        }
+
         return false;
+    }
+
+    public function SendSchedule(): bool
+    {
+        $this->scheduleSendCalls++;
+        return true;
     }
 
     protected function getTime()
@@ -37,6 +52,48 @@ final class WorxMowerProfileTest extends TestCase
     protected function setUp(): void
     {
         IPS\Kernel::reset();
+    }
+
+    public function testRepeatedApplyChangesDoesNotPublishTheScheduleOrDuplicateItsEvent(): void
+    {
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $module = new WorxMowerTestDouble($instanceID);
+        $module->Create();
+        IPS_SetProperty($instanceID, 'Serial', 'SERIAL-TEST');
+        $module->deviceOnUpdate = [
+            'online'       => true,
+            'protocol'     => 0,
+            'capabilities' => [],
+            'last_status'  => [
+                'payload' => [
+                    'cfg' => ['sc' => [
+                        'm' => 1,
+                        'p' => 0,
+                        'd' => array_fill(0, 7, ['17:00', 120, 1]),
+                    ]],
+                    'dat' => ['ls' => 1, 'le' => 0],
+                ],
+            ],
+        ];
+
+        $module->ApplyChanges();
+        $eventIDs = array_values(array_filter(
+            IPS_GetChildrenIDs($instanceID),
+            static fn (int $childID): bool => (IPS_GetObject($childID)['ObjectType'] ?? null) === OBJECTTYPE_EVENT
+        ));
+
+        self::assertCount(1, $eventIDs);
+        self::assertSame('Mähzeitplan', IPS_GetName($eventIDs[0]));
+        self::assertSame(0, $module->scheduleSendCalls);
+
+        $module->ApplyChanges();
+        $eventIDs = array_values(array_filter(
+            IPS_GetChildrenIDs($instanceID),
+            static fn (int $childID): bool => (IPS_GetObject($childID)['ObjectType'] ?? null) === OBJECTTYPE_EVENT
+        ));
+
+        self::assertCount(1, $eventIDs);
+        self::assertSame(0, $module->scheduleSendCalls);
     }
 
     public function testRegisteredMowerVariablesDoNotUseLegacyProfiles(): void
