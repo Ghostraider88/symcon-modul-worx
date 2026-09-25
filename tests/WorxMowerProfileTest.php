@@ -23,7 +23,7 @@ final class WorxMowerProfileTest extends TestCase
 
         foreach (IPS\VariableManager::getVariableList() as $variableID) {
             $variable = IPS_GetVariable($variableID);
-            $presentation = IPS\VariableManager::getVariablePresentation($variableID);
+            $presentation = IPS_GetVariable($variableID)['VariablePresentation'];
 
             self::assertNotSame(VARIABLE_PRESENTATION_LEGACY, $presentation['PRESENTATION'] ?? null);
             self::assertSame('', $variable['VariableProfile']);
@@ -51,7 +51,7 @@ final class WorxMowerProfileTest extends TestCase
 
         foreach (['State', 'Error'] as $ident) {
             $variableID = IPS_GetObjectIDByIdent($ident, $instanceID);
-            $presentation = IPS\VariableManager::getVariablePresentation($variableID);
+            $presentation = IPS_GetVariable($variableID)['VariablePresentation'];
             self::assertSame(VARIABLE_PRESENTATION_VALUE_PRESENTATION, $presentation['PRESENTATION']);
             self::assertSame('', $presentation['SUFFIX']);
             self::assertArrayNotHasKey('OPTIONS', $presentation);
