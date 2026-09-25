@@ -189,6 +189,33 @@ final class WorxMowerProfileTest extends TestCase
         self::assertSame(' %', $presentation['SUFFIX']);
     }
 
+    public function testRainDelayUsesWireRangeAndThirtyMinuteSteps(): void
+    {
+        $module = new WorxMower(1);
+        $validation = new ReflectionMethod(WorxMower::class, 'validatedRainDelay');
+        $validation->setAccessible(true);
+        foreach ([0, 30, 180, 720] as $minutes) {
+            self::assertSame($minutes, $validation->invoke($module, $minutes));
+        }
+
+        foreach ([-30, 1, 15, 31, 721] as $minutes) {
+            try {
+                $validation->invoke($module, $minutes);
+                self::fail('Expected invalid rain-delay value ' . $minutes . ' to be rejected.');
+            } catch (InvalidArgumentException $exception) {
+                self::assertNotSame('', $exception->getMessage());
+            }
+        }
+
+        $slider = new ReflectionMethod(WorxMower::class, 'sliderPresentation');
+        $slider->setAccessible(true);
+        $presentation = $slider->invoke($module, 0, 720, ' min', 30);
+        self::assertSame(0, $presentation['MIN']);
+        self::assertSame(720, $presentation['MAX']);
+        self::assertSame(30, $presentation['STEP_SIZE']);
+        self::assertSame(' min', $presentation['SUFFIX']);
+    }
+
     public function testPresentationOptionsProvideSymconEditorDefaults(): void
     {
         $module = new WorxMower(1);

@@ -11,7 +11,8 @@ require_once __DIR__ . '/../libs/WorxScheduleCodec.php';
 class WorxMower extends IPSModule
 {
     private const IF_CLOUD = '{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}';
-    private const MAX_RAIN_DELAY_MINUTES = 300;
+    private const MAX_RAIN_DELAY_MINUTES = 720;
+    private const RAIN_DELAY_STEP_MINUTES = 30;
 
     private const STATES = [
         0  => 'Bereit', 1 => 'In der Ladestation', 2 => 'Startsequenz', 3 => 'Verlässt Ladestation',
@@ -157,7 +158,7 @@ class WorxMower extends IPSModule
             return;
         }
         if ($Ident === 'RainDelaySet') {
-            $minutes = $this->validatedInteger($Value, 0, self::MAX_RAIN_DELAY_MINUTES, 'Regenverzögerung');
+            $minutes = $this->validatedRainDelay($Value);
             $this->SetValueSafe('RainDelaySet', $minutes);
             $this->SetRainDelay($minutes);
             return;
@@ -400,9 +401,7 @@ class WorxMower extends IPSModule
     /** Send the requested rain delay and keep the reported value as confirmed state. */
     public function SetRainDelay(int $minutes): bool
     {
-        if ($minutes < 0 || $minutes > self::MAX_RAIN_DELAY_MINUTES) {
-            throw new InvalidArgumentException('Regenverzögerung muss zwischen 0 und ' . self::MAX_RAIN_DELAY_MINUTES . ' Minuten liegen.');
-        }
+        $minutes = $this->validatedRainDelay($minutes);
         $device = $this->getDevice();
         if ($device === null || (int) ($device['protocol'] ?? -1) !== 0
             || !in_array('rain_delay', $device['capabilities'] ?? [], true)) {
@@ -741,6 +740,15 @@ class WorxMower extends IPSModule
             throw new InvalidArgumentException(sprintf('%s muss zwischen %d und %d liegen.', $label, $minimum, $maximum));
         }
         return $integer;
+    }
+
+    private function validatedRainDelay($value): int
+    {
+        $minutes = $this->validatedInteger($value, 0, self::MAX_RAIN_DELAY_MINUTES, 'Regenverzögerung');
+        if ($minutes !== 0 && $minutes % self::RAIN_DELAY_STEP_MINUTES !== 0) {
+            throw new InvalidArgumentException('Regenverzögerung muss 0 oder ein Vielfaches von ' . self::RAIN_DELAY_STEP_MINUTES . ' Minuten sein.');
+        }
+        return $minutes;
     }
 
     private function GetValueForIdent(string $ident): int
@@ -1274,7 +1282,7 @@ class WorxMower extends IPSModule
         $this->RegisterVariableInteger('TimeExtension', 'Tägliche Arbeitszeit (bestätigt)', $this->valuePresentation(' %'), $p++);
         $this->RegisterVariableInteger('TimeExtensionSet', 'Tägliche Arbeitszeit setzen', $this->sliderPresentation(-100, 100, ' %'), $p++);
         $this->RegisterVariableInteger('RainDelay', 'Regenverzögerung (bestätigt)', $this->valuePresentation(' min'), $p++);
-        $this->RegisterVariableInteger('RainDelaySet', 'Regenverzögerung setzen', $this->sliderPresentation(0, self::MAX_RAIN_DELAY_MINUTES, ' min'), $p++);
+        $this->RegisterVariableInteger('RainDelaySet', 'Regenverzögerung setzen', $this->sliderPresentation(0, self::MAX_RAIN_DELAY_MINUTES, ' min', self::RAIN_DELAY_STEP_MINUTES), $p++);
         $this->RegisterVariableBoolean('Rain', 'Regen erkannt', $this->booleanValuePresentation('Nein', 'Ja'), $p++);
         $this->RegisterVariableString('SettingStatus', 'Einstellungsrückmeldung', '', $p++);
         $this->RegisterVariableString('ScheduleSyncStatus', 'Zeitplanrückmeldung', '', $p++);
@@ -1430,13 +1438,13 @@ class WorxMower extends IPSModule
     /**
      * Build a modern, bounded slider presentation for an actionable integer setting.
      */
-    private function sliderPresentation(int $minimum, int $maximum, string $suffix): array
+    private function sliderPresentation(int $minimum, int $maximum, string $suffix, int $stepSize = 1): array
     {
         return [
             'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
             'MIN'          => $minimum,
             'MAX'          => $maximum,
-            'STEP_SIZE'    => 1,
+            'STEP_SIZE'    => $stepSize,
             'SUFFIX'       => $suffix,
             'PERCENTAGE'   => false,
         ];
