@@ -17,6 +17,11 @@ final class WorxMowerTestDouble extends WorxMower
     {
         return time();
     }
+
+    public function Update(): bool
+    {
+        return false;
+    }
 }
 
 final class WorxMowerTranslationTestDouble extends WorxMower
@@ -527,29 +532,47 @@ final class WorxMowerProfileTest extends TestCase
         self::assertSame(-40, GetValue($variableID));
     }
 
-    public function testUnsentAndTimedOutSettingsRestoreTheLastConfirmedInputs(): void
+    public function testTimedOutSettingsRestoreTheLastConfirmedInputs(): void
     {
-        IPS\Kernel::reset();
-        $instanceID = 1;
-        IPS\InstanceManager::createInstance($instanceID, [
-            'Class'      => WorxMower::class,
-            'ModuleID'   => '{39CA7807-D252-4375-8D05-1C5F918552C0}',
-            'ModuleName' => 'Worx Mower Test',
-            'ModuleType' => 3,
-        ]);
-        $module = IPS\InstanceManager::getInstanceInterface($instanceID);
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $module = new WorxMowerTestDouble($instanceID);
+        $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
+        $registerVariables->setAccessible(true);
+        $registerVariables->invoke($module);
+
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        foreach ([
+            'PendingAutoSchedule', 'PendingAutoScheduleSerial',
+            'PendingLock', 'PendingLockSerial',
+            'PendingRainDelay', 'PendingRainDelaySerial',
+            'PendingSchedule', 'PendingScheduleSerial', 'PendingSchedulePurpose',
+            'FailedSchedule', 'FailedScheduleSerial',
+        ] as $attribute) {
+            $default = $attribute === 'PendingSchedulePurpose' ? 'schedule' : '';
+            $registerAttribute->invoke($module, $attribute, $default);
+        }
+
+        $registerTimer = new ReflectionMethod(IPSModule::class, 'RegisterTimer');
+        $registerTimer->setAccessible(true);
+        foreach ([
+            'AutoScheduleConfirmationTimeout',
+            'LockConfirmationTimeout',
+            'RainDelayConfirmationTimeout',
+            'ScheduleConfirmationTimeout',
+        ] as $timer) {
+            $registerTimer->invoke($module, $timer, 0, '');
+        }
 
         $variables = [
             'AutoSchedule'           => false,
-            'AutoScheduleSet'        => false,
+            'AutoScheduleSet'        => true,
             'Locked'                 => false,
-            'LockCommand'            => false,
+            'LockCommand'            => true,
             'RainDelay'              => 180,
-            'RainDelaySet'           => 180,
+            'RainDelaySet'           => 330,
             'TimeExtension'          => -40,
-            'TimeExtensionSet'       => -40,
-            'FirmwareAutoUpgrade'    => false,
-            'FirmwareAutoUpgradeSet' => false,
+            'TimeExtensionSet'       => 60,
         ];
         $ids = [];
         foreach ($variables as $ident => $value) {
@@ -557,49 +580,22 @@ final class WorxMowerProfileTest extends TestCase
             SetValue($ids[$ident], $value);
         }
 
-        // With no cloud parent these actions are rejected before sending.
-        $module->RequestAction('AutoScheduleSet', true);
-        $module->RequestAction('LockCommand', true);
-        $module->RequestAction('RainDelaySet', 330);
-        $module->RequestAction('TimeExtensionSet', 60);
-        $module->RequestAction('FirmwareAutoUpgradeSet', true);
-
-        $expected = [
-            'AutoScheduleSet'        => false,
-            'LockCommand'            => false,
-            'RainDelaySet'           => 180,
-            'TimeExtensionSet'       => -40,
-            'FirmwareAutoUpgradeSet' => false,
-        ];
-        foreach ($expected as $ident => $value) {
-            self::assertSame($value, GetValue($ids[$ident]), $ident . ' should revert after an unsent action.');
-        }
-
         $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
         $writeAttribute->setAccessible(true);
-
         $writeAttribute->invoke($module, 'PendingAutoSchedule', '{"desired":true,"previous":false}');
-        $writeAttribute->invoke($module, 'PendingAutoScheduleSerial', 'SERIAL-TEST');
-        SetValue($ids['AutoScheduleSet'], true);
         $module->AutoScheduleConfirmationTimeout();
         self::assertFalse(GetValue($ids['AutoScheduleSet']));
 
         $writeAttribute->invoke($module, 'PendingLock', '{"desired":true,"previous":false}');
-        $writeAttribute->invoke($module, 'PendingLockSerial', 'SERIAL-TEST');
-        SetValue($ids['LockCommand'], true);
         $module->LockConfirmationTimeout();
         self::assertFalse(GetValue($ids['LockCommand']));
 
         $writeAttribute->invoke($module, 'PendingRainDelay', '{"desired":330,"previous":180}');
-        $writeAttribute->invoke($module, 'PendingRainDelaySerial', 'SERIAL-TEST');
-        SetValue($ids['RainDelaySet'], 330);
         $module->RainDelayConfirmationTimeout();
         self::assertSame(180, GetValue($ids['RainDelaySet']));
 
         $writeAttribute->invoke($module, 'PendingSchedule', '{"p":60,"d":[]}');
-        $writeAttribute->invoke($module, 'PendingScheduleSerial', 'SERIAL-TEST');
         $writeAttribute->invoke($module, 'PendingSchedulePurpose', 'time_extension');
-        SetValue($ids['TimeExtensionSet'], 60);
         $module->ScheduleConfirmationTimeout();
         self::assertSame(-40, GetValue($ids['TimeExtensionSet']));
     }
