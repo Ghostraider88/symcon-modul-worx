@@ -14,7 +14,7 @@
             "Jetzt aktualisieren": "Refresh now",
             "Kein unterstützter Zeitplan empfangen. Der Editor benötigt Protokoll 0 und sieben empfangene Tagesfelder.": "No supported schedule received. The editor requires protocol 0 and seven received daily entries.",
             "Der bestätigte Mäherplan wird als natives, deaktiviertes Symcon-Wochenplan-Ereignis „Mähzeitplan“ angezeigt. Änderungen am Ereignis werden an Worx übertragen; der zurückgemeldete Mäherplan bestätigt die Übertragung.": "The confirmed mower schedule is shown in the native Symcon weekly event “Mowing schedule”. Event edits are sent to Worx and confirmed by the schedule returned by the mower.",
-            "Die Worx-App zeigt außerdem „Ganzer Tag“. Die Cloud-Zuordnung dieses Schalters ist noch offen.": "The Worx app also shows “All day”. The corresponding cloud field has not been established yet.",
+            "Der Worx-App-Schalter „Ganzer Tag“ änderte den redigierten Gerätestatus im Vorher-/Nachher-Vergleich nicht und ist deshalb hier nicht bedienbar.": "The redacted device state was unchanged before and after toggling the all-day switch in the Worx app, so this option is not editable here.",
             "Befehlsstatus und bestätigter Mäherzustand sind getrennt. MQTT-Publish ist keine Gerätebestätigung.": "Command status and confirmed mower state are shown separately. An MQTT publish is not device confirmation.",
             "Aktiv": "Active",
             "Seriennummer fehlt": "Serial number missing"
