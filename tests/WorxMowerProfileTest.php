@@ -383,6 +383,8 @@ final class WorxMowerProfileTest extends TestCase
         $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
         $registerAttribute->setAccessible(true);
         $registerAttribute->invoke($module, 'PendingCommand', '');
+        $registerAttribute->invoke($module, 'PendingSchedule', '');
+        $registerAttribute->invoke($module, 'PendingSchedulePurpose', 'schedule');
         $method = new ReflectionMethod(WorxMower::class, 'applyDevice');
         $method->setAccessible(true);
         $method->invoke($module, [
@@ -420,6 +422,8 @@ final class WorxMowerProfileTest extends TestCase
         $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
         $registerAttribute->setAccessible(true);
         $registerAttribute->invoke($module, 'PendingCommand', '');
+        $registerAttribute->invoke($module, 'PendingSchedule', '');
+        $registerAttribute->invoke($module, 'PendingSchedulePurpose', 'schedule');
         $method = new ReflectionMethod(WorxMower::class, 'applyDevice');
         $method->setAccessible(true);
         $method->invoke($module, [
