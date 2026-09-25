@@ -585,7 +585,7 @@ class WorxCloud extends IPSModule
         }
     }
 
-    private function getToken(): string
+    protected function getToken(): string
     {
         $token = $this->ReadAttributeString('AccessToken');
         if ($token !== '' && $this->ReadAttributeInteger('TokenExpires') > time() + 60) {
@@ -651,7 +651,7 @@ class WorxCloud extends IPSModule
         return json_decode((string) $response, true);
     }
 
-    private function request(string $method, string $path, $body, string $token)
+    protected function request(string $method, string $path, $body, string $token)
     {
         if ($this->ReadPropertyString('Cloud') !== 'worx') {
             $this->SendDebug('API', 'Anfrage abgelehnt: nur Worx wird unterstützt.', 0);
