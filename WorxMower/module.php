@@ -149,20 +149,8 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('Control', 0);
             return;
         }
-        if ($Ident === 'Update') {
-            if ($Value !== true) {
-                throw new InvalidArgumentException('Update erwartet true.');
-            }
-            $this->Update();
-            return;
-        }
-        if ($Ident === 'FollowBorder') {
-            if ($Value !== true) {
-                throw new InvalidArgumentException('FollowBorder erwartet true.');
-            }
-            $this->FollowBorder();
-            return;
-        }
+
+
         if ($Ident === 'AutoScheduleSet') {
             if (!is_bool($Value)) {
                 throw new InvalidArgumentException('AutoScheduleSet erwartet true oder false.');
@@ -650,15 +638,15 @@ class WorxMower extends IPSModule
         }
         $actions = [
             ['type' => 'RowLayout', 'items' => [
-                ['type' => 'Button', 'caption' => 'Start', 'onClick' => 'IPS_RequestAction($id, "Control", 1);'],
-                ['type' => 'Button', 'caption' => 'Pause', 'onClick' => 'IPS_RequestAction($id, "Control", 2);'],
-                ['type' => 'Button', 'caption' => 'Ladestation', 'onClick' => 'IPS_RequestAction($id, "Control", 3);'],
+                ['type' => 'Button', 'caption' => 'Start', 'onClick' => 'WORXMOWER_Start($id);'],
+                ['type' => 'Button', 'caption' => 'Pause', 'onClick' => 'WORXMOWER_Pause($id);'],
+                ['type' => 'Button', 'caption' => 'Ladestation', 'onClick' => 'WORXMOWER_Home($id);'],
             ]],
-            ['type' => 'Button', 'caption' => 'Jetzt aktualisieren', 'onClick' => 'IPS_RequestAction($id, "Update", true);'],
+            ['type' => 'Button', 'caption' => 'Jetzt aktualisieren', 'onClick' => 'WORXMOWER_Update($id);'],
         ];
         if ($device !== null && (int) ($device['protocol'] ?? -1) === 0
             && in_array('follow_border', $device['capabilities'] ?? [], true)) {
-            $actions[] = ['type' => 'Button', 'caption' => 'Kantenschnitt starten', 'onClick' => 'IPS_RequestAction($id, "FollowBorder", true);'];
+            $actions[] = ['type' => 'Button', 'caption' => 'Kantenschnitt starten', 'onClick' => 'WORXMOWER_FollowBorder($id);'];
         }
 
         if ($schedule === null) {
