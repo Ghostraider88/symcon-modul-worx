@@ -2,7 +2,9 @@
 
 ## Unveröffentlicht
 
-- Library-Build auf 3 angehoben, damit der aktuelle Entwicklungsstand als neues Modulupdate erkennbar ist.
+- Bestehende Mower-Variablen entfernen veraltete benutzerdefinierte Profilzuweisungen vor dem erneuten Anwenden der modernen Variablenpräsentationen.
+
+- Library-Build auf 4 angehoben, damit der korrigierte Variablenprofil-Migrationsstand als neues Modulupdate erkennbar ist.
 
 - Mindestversion auf IP-Symcon 9.0 angehoben; Produktionsdateien werden in CI mit PHP 8.5 auf Syntax geprüft.
 - Seriennummern in dynamischen Worx-API-Pfaden werden vor der Debug-Protokollierung maskiert.

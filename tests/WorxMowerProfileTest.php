@@ -31,6 +31,38 @@ final class WorxMowerProfileTest extends TestCase
         }
     }
 
+    public function testReregisteringVariablesClearsExistingCustomProfilesBeforeApplyingModernPresentations(): void
+    {
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $module = new WorxMower($instanceID);
+        $method = new ReflectionMethod(WorxMower::class, 'registerVariables');
+        $method->setAccessible(true);
+        $method->invoke($module);
+
+        $variableID = IPS_GetObjectIDByIdent('TimeExtensionSet', $instanceID);
+        $profile = 'WorxMower.ProfileMigrationTest';
+        IPS_CreateVariableProfile($profile, 1);
+        try {
+            IPS_SetVariableCustomProfile($variableID, $profile);
+            self::assertSame($profile, IPS_GetVariable($variableID)['VariableCustomProfile']);
+
+            $method->invoke($module);
+
+            $variable = IPS_GetVariable($variableID);
+            self::assertSame('', $variable['VariableProfile']);
+            self::assertSame('', $variable['VariableCustomProfile']);
+            self::assertSame(VARIABLE_PRESENTATION_SLIDER, $variable['VariablePresentation']['PRESENTATION']);
+            self::assertSame(-100, $variable['VariablePresentation']['MIN']);
+            self::assertSame(100, $variable['VariablePresentation']['MAX']);
+            self::assertSame(' %', $variable['VariablePresentation']['SUFFIX']);
+        } finally {
+            if (IPS_GetVariable($variableID)['VariableCustomProfile'] !== '') {
+                IPS_SetVariableCustomProfile($variableID, '');
+            }
+            IPS_DeleteVariableProfile($profile);
+        }
+    }
+
     public function testStatusAndErrorCodesUsePlainValuePresentationAndAreOrderedBesideText(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);

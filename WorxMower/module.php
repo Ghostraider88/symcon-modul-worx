@@ -1242,6 +1242,7 @@ class WorxMower extends IPSModule
      */
     private function registerVariables(): void
     {
+        $this->clearCustomVariableProfiles();
         $p = 0;
 
         // Confirmed state first; integer codes stay numeric while adjacent strings provide readable history.
@@ -1307,6 +1308,24 @@ class WorxMower extends IPSModule
                 if (IPS_GetObject($variableID)['ObjectPosition'] !== $position) {
                     throw new RuntimeException(sprintf('Position für Mower-Variable %s (ID %d) konnte nicht gesetzt werden.', $ident, $variableID));
                 }
+            }
+        }
+    }
+
+    private function clearCustomVariableProfiles(): void
+    {
+        foreach (IPS_GetChildrenIDs($this->InstanceID) as $childID) {
+            if (IPS_GetObject($childID)['ObjectType'] !== 2) {
+                continue;
+            }
+
+            $variable = IPS_GetVariable($childID);
+            if (($variable['VariableCustomProfile'] ?? '') === '') {
+                continue;
+            }
+
+            if (IPS_SetVariableCustomProfile($childID, '') === false) {
+                throw new RuntimeException(sprintf('Benutzerdefiniertes Variablenprofil für Objekt %d konnte nicht entfernt werden.', $childID));
             }
         }
     }
