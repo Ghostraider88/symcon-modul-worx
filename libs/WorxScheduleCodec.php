@@ -118,7 +118,7 @@ final class WorxScheduleCodec
         $capabilities = $device['capabilities'] ?? [];
         $available = $device['capabilities_available'] ?? [];
         $features = $device['features'] ?? [];
-        $safeFeatureKeys = ['auto_lock', 'lock', 'multi_zone', 'multi_zone_percentage', 'multi_zone_zones', 'one_time_scheduler', 'ota_upgrade', 'rain_delay', 'rain_delay_start', 'scheduler_two_slots', 'unrestricted_mowing_time'];
+        $safeFeatureKeys = ['auto_lock', 'lock', 'multi_zone', 'multi_zone_percentage', 'multi_zone_zones', 'one_time_scheduler', 'ota_upgrade', 'party_mode', 'rain_delay', 'rain_delay_start', 'scheduler_two_slots', 'unrestricted_mowing_time'];
         $safeFeatures = [];
         if (is_array($features)) {
             foreach ($safeFeatureKeys as $key) {

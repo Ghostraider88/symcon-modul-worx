@@ -111,7 +111,7 @@ final class WorxScheduleCodecTest extends TestCase
         $device['firmware_version'] = '3.52.0+1';
         $device['capabilities'] = ['mqtt', 'rain_delay', 'multi_zone', 'lock'];
         $device['capabilities_available'] = ['display_pairing_shortcut'];
-        $device['features'] = ['rain_delay' => true, 'multi_zone_zones' => 4, 'private_location' => 'must-not-be-exported'];
+        $device['features'] = ['rain_delay' => true, 'multi_zone_zones' => 4, 'one_time_scheduler' => false, 'party_mode' => true, 'private_location' => 'must-not-be-exported'];
         $device['auto_schedule'] = false;
         $device['locked'] = false;
         $device['serial_number'] = 'must-not-be-exported';
@@ -131,7 +131,7 @@ final class WorxScheduleCodecTest extends TestCase
         self::assertSame(0, $record['protocol']);
         self::assertSame(['mqtt', 'rain_delay', 'multi_zone', 'lock'], $record['capabilities']);
         self::assertSame(['display_pairing_shortcut'], $record['capabilities_available']);
-        self::assertSame(['multi_zone_zones' => 4, 'rain_delay' => true], $record['features']);
+        self::assertSame(['multi_zone_zones' => 4, 'one_time_scheduler' => false, 'party_mode' => true, 'rain_delay' => true], $record['features']);
         self::assertSame(120, $record['cfg']['rd']);
         self::assertSame([1, 2, 3, 4], $record['cfg']['mz']);
         self::assertSame(['tq' => -10, 'lz' => 2], $record['dat']);
