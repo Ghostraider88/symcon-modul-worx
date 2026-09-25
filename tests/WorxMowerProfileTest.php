@@ -60,7 +60,7 @@ final class WorxMowerProfileTest extends TestCase
 
     public function testRepeatedApplyChangesDoesNotPublishTheScheduleOrDuplicateItsEvent(): void
     {
-        $instanceID = 1;
+        $instanceID = IPS\ObjectManager::registerObject(1);
         IPS\InstanceManager::createInstance($instanceID, [
             'Class'      => WorxMowerTestDouble::class,
             'ModuleID'   => '{39CA7807-D252-4375-8D05-1C5F918552C0}',
