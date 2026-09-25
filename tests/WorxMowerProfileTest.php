@@ -229,6 +229,62 @@ final class WorxMowerProfileTest extends TestCase
         self::assertSame(' min', $presentation['SUFFIX']);
     }
 
+    public function testWorxAppChangesSynchronizeSettingInputsWithConfirmedDeviceValues(): void
+    {
+        IPS\Kernel::reset();
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $module = new WorxMower($instanceID);
+        $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
+        $registerVariables->setAccessible(true);
+        $registerVariables->invoke($module);
+
+        $registerProperty = new ReflectionMethod(IPSModule::class, 'RegisterPropertyString');
+        $registerProperty->setAccessible(true);
+        $registerProperty->invoke($module, 'Serial', 'SERIAL-TEST');
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        foreach ([
+            'PendingCommand', 'PendingRainDelay', 'PendingRainDelaySerial', 'ReportedRainDelay',
+            'PendingLock', 'PendingLockSerial', 'PendingSchedule', 'PendingScheduleSerial',
+            'PendingSchedulePurpose', 'ReportedSchedule', 'FailedSchedule', 'FailedScheduleSerial',
+        ] as $attribute) {
+            $default = $attribute === 'PendingSchedulePurpose' ? 'schedule' : '';
+            $registerAttribute->invoke($module, $attribute, $default);
+        }
+
+        $rainDelaySetID = IPS_GetObjectIDByIdent('RainDelaySet', $instanceID);
+        $timeExtensionSetID = IPS_GetObjectIDByIdent('TimeExtensionSet', $instanceID);
+        $lockCommandID = IPS_GetObjectIDByIdent('LockCommand', $instanceID);
+        SetValue($rainDelaySetID, 180);
+        SetValue($timeExtensionSetID, -20);
+        SetValue($lockCommandID, true);
+
+        $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
+        $applyDevice->setAccessible(true);
+        foreach ([
+            ['rd' => 330, 'p' => 30, 'lock' => 0],
+            ['rd' => 240, 'p' => -50, 'lock' => 1],
+        ] as $report) {
+            $applyDevice->invoke($module, [
+                'online'       => true,
+                'protocol'     => 0,
+                'capabilities' => ['rain_delay', 'unrestricted_mowing_time', 'lock'],
+                'last_status'  => [
+                    'payload' => [
+                        'cfg' => [
+                            'rd' => $report['rd'],
+                            'sc' => ['p' => $report['p'], 'd' => [['17:00', 120, 1]]],
+                        ],
+                        'dat' => ['ls' => 1, 'le' => 0, 'lk' => $report['lock']],
+                    ],
+                ],
+            ]);
+            self::assertSame($report['rd'], GetValue($rainDelaySetID));
+            self::assertSame($report['p'], GetValue($timeExtensionSetID));
+            self::assertSame((bool) $report['lock'], GetValue($lockCommandID));
+        }
+    }
+
     public function testRainDelayConfirmationIgnoresStaleEchoAndAdoptsLaterAppChange(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);

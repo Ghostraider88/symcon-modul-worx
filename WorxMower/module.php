@@ -985,8 +985,12 @@ class WorxMower extends IPSModule
         if ($rainDelayID !== false && $rainDelayID > 0) {
             IPS_SetHidden($rainDelayID, !$supportsRainDelay);
             if ($supportsRainDelay) {
-                $this->SetValueSafe('RainDelay', (int) $configuration['rd']);
-                $this->confirmRainDelay((int) $configuration['rd']);
+                $reportedRainDelay = (int) $configuration['rd'];
+                $this->SetValueSafe('RainDelay', $reportedRainDelay);
+                $this->confirmRainDelay($reportedRainDelay);
+                if ($this->ReadAttributeString('PendingRainDelay') === '') {
+                    $this->SetValueSafe('RainDelaySet', $reportedRainDelay);
+                }
             }
         }
         $rainDelaySetID = $this->GetIDForIdent('RainDelaySet');
@@ -1011,7 +1015,12 @@ class WorxMower extends IPSModule
         if (isset($dat['lk'])) {
             $locked = ((int) $dat['lk']) > 0;
             $this->SetValueSafe('Locked', $locked);
-            if ($lockCapability) $this->confirmLock($locked);
+            if ($lockCapability) {
+                $this->confirmLock($locked);
+                if ($this->ReadAttributeString('PendingLock') === '') {
+                    $this->SetValueSafe('LockCommand', $locked);
+                }
+            }
         }
         if (isset($dat['cut']['z'])) $this->SetValueSafe('Zone', (int) $dat['cut']['z']);
         if (isset($dat['tm'])) {
@@ -1025,7 +1034,13 @@ class WorxMower extends IPSModule
         } else {
             $this->SetValueSafe('ScheduleSyncStatus', 'Zeitplanformat des Geräts wird nicht unterstützt oder ist unvollständig.');
         }
-
+        if ($supportsTimeExtension
+            && ($this->ReadAttributeString('PendingSchedule') === '' || $this->ReadAttributeString('PendingSchedulePurpose') !== 'time_extension')) {
+            $reportedTimeExtension = WorxScheduleCodec::timeExtensionFromProtocol($reportedSchedule['p']);
+            if ($reportedTimeExtension !== null) {
+                $this->SetValueSafe('TimeExtensionSet', $reportedTimeExtension);
+            }
+        }
         $summary = sprintf('%s · %d%%', self::STATES[$state] ?? 'Unbekannt', (int) ($dat['bt']['p'] ?? 0));
         if ($error > 0) $summary .= ' · ' . (self::ERRORS[$error] ?? ('Fehler ' . $error));
         $this->SetSummary($summary);

@@ -2,6 +2,7 @@
 
 ## Unveröffentlicht
 
+- Vom Mäher bestätigte Änderungen aus der Worx-App synchronisieren jetzt auch Regenverzögerung, Zeiterweiterung und Sperre in die jeweiligen Symcon-Eingabevariablen; ausstehende Schreibbestätigungen behalten bis zur Klärung Vorrang.
 - Auch der Cloud-Transport validiert Regenverzögerungen ausschließlich als 0 oder Vielfache von 30 Minuten bis 720 Minuten; zuvor hatte die Transportgrenze Werte über 300 Minuten abgewiesen.
 
 
