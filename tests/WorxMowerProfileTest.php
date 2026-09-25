@@ -19,6 +19,14 @@ final class WorxMowerTestDouble extends WorxMower
     }
 }
 
+final class WorxMowerTranslationTestDouble extends WorxMower
+{
+    public function Translate($Text): string
+    {
+        return 'EN:' . $Text;
+    }
+}
+
 final class WorxMowerProfileTest extends TestCase
 {
     protected function setUp(): void
@@ -443,6 +451,40 @@ final class WorxMowerProfileTest extends TestCase
         ]);
         self::assertSame('Mäht', GetValue($stateTextID));
         self::assertSame('Regen', GetValue($errorTextID));
+    }
+
+    public function testMowerStateAndErrorTextUseSymconTranslations(): void
+    {
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $module = new WorxMowerTranslationTestDouble($instanceID);
+        $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
+        $registerVariables->setAccessible(true);
+        $registerVariables->invoke($module);
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        foreach ([
+            'PendingCommand', 'PendingSchedule', 'PendingSchedulePurpose',
+        ] as $attribute) {
+            $registerAttribute->invoke($module, $attribute, $attribute === 'PendingSchedulePurpose' ? 'schedule' : '');
+        }
+
+        $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
+        $applyDevice->setAccessible(true);
+        $applyDevice->invoke($module, [
+            'online'       => true,
+            'protocol'     => 0,
+            'capabilities' => [],
+            'last_status'  => ['payload' => ['dat' => ['ls' => 7, 'le' => 5]]],
+        ]);
+
+        $stateTextID = IPS_GetObjectIDByIdent('StateText', $instanceID);
+        $errorTextID = IPS_GetObjectIDByIdent('ErrorText', $instanceID);
+        self::assertSame('EN:Mäht', GetValue($stateTextID));
+        self::assertSame('EN:Regen', GetValue($errorTextID));
+
+        $locale = json_decode(file_get_contents(__DIR__ . '/../WorxMower/locale.json'), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('Mowing', $locale['translations']['en']['Mäht']);
+        self::assertSame('Rain', $locale['translations']['en']['Regen']);
     }
 
     public function testMowerReportStoresNegativeAppScaleInConfirmedVariable(): void

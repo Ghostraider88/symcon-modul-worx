@@ -945,9 +945,15 @@ class WorxMower extends IPSModule
         $state = (int) ($dat['ls'] ?? 0);
         $error = (int) ($dat['le'] ?? 0);
         $this->SetValueSafe('State', $state);
-        $this->SetValueSafe('StateText', self::STATES[$state] ?? ('Unbekannter Status (' . $state . ')'));
+        $stateText = isset(self::STATES[$state])
+            ? $this->Translate(self::STATES[$state])
+            : $this->Translate('Unbekannter Status') . ' (' . $state . ')';
+        $errorText = isset(self::ERRORS[$error])
+            ? $this->Translate(self::ERRORS[$error])
+            : $this->Translate('Unbekannter Fehler') . ' (' . $error . ')';
+        $this->SetValueSafe('StateText', $stateText);
         $this->SetValueSafe('Error', $error);
-        $this->SetValueSafe('ErrorText', self::ERRORS[$error] ?? ('Unbekannter Fehler (' . $error . ')'));
+        $this->SetValueSafe('ErrorText', $errorText);
         $this->confirmCommand($state, $error);
 
         if (isset($dat['bt']) && is_array($dat['bt'])) {
@@ -1041,8 +1047,8 @@ class WorxMower extends IPSModule
                 $this->SetValueSafe('TimeExtensionSet', $reportedTimeExtension);
             }
         }
-        $summary = sprintf('%s · %d%%', self::STATES[$state] ?? 'Unbekannt', (int) ($dat['bt']['p'] ?? 0));
-        if ($error > 0) $summary .= ' · ' . (self::ERRORS[$error] ?? ('Fehler ' . $error));
+        $summary = sprintf('%s · %d%%', $stateText, (int) ($dat['bt']['p'] ?? 0));
+        if ($error > 0) $summary .= ' · ' . $errorText;
         $this->SetSummary($summary);
     }
 
