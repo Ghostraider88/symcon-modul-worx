@@ -33,6 +33,10 @@ final class WorxMowerTestDouble extends WorxMower
         return true;
     }
 
+    protected function ConnectParent($ModuleID)
+    {
+    }
+
     protected function getTime()
     {
         return time();
@@ -56,9 +60,14 @@ final class WorxMowerProfileTest extends TestCase
 
     public function testRepeatedApplyChangesDoesNotPublishTheScheduleOrDuplicateItsEvent(): void
     {
-        $instanceID = IPS\ObjectManager::registerObject(1);
-        $module = new WorxMowerTestDouble($instanceID);
-        $module->Create();
+        $instanceID = 1;
+        IPS\InstanceManager::createInstance($instanceID, [
+            'Class'      => WorxMowerTestDouble::class,
+            'ModuleID'   => '{39CA7807-D252-4375-8D05-1C5F918552C0}',
+            'ModuleName' => 'Worx Mower Test',
+            'ModuleType' => 3,
+        ]);
+        $module = IPS\InstanceManager::getInstanceInterface($instanceID);
         $module->SetProperty('Serial', 'SERIAL-TEST');
         $module->deviceOnUpdate = [
             'online'       => true,
