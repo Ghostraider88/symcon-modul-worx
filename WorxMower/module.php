@@ -1160,8 +1160,11 @@ class WorxMower extends IPSModule
             if ($variableID === false || $variableID <= 0) {
                 continue;
             }
-            if (IPS_GetObject($variableID)['ObjectPosition'] !== $position && !IPS_SetPosition($variableID, $position)) {
-                throw new RuntimeException(sprintf('Position für Mower-Variable %s (ID %d) konnte nicht gesetzt werden.', $ident, $variableID));
+            if (IPS_GetObject($variableID)['ObjectPosition'] !== $position) {
+                IPS_SetPosition($variableID, $position);
+                if (IPS_GetObject($variableID)['ObjectPosition'] !== $position) {
+                    throw new RuntimeException(sprintf('Position für Mower-Variable %s (ID %d) konnte nicht gesetzt werden.', $ident, $variableID));
+                }
             }
         }
     }
