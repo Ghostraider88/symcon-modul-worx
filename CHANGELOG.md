@@ -3,6 +3,7 @@
 ## Unveröffentlicht
 
 - Mindestversion auf IP-Symcon 9.0 angehoben; Produktionsdateien werden in CI mit PHP 8.5 auf Syntax geprüft.
+- Seriennummern in dynamischen Worx-API-Pfaden werden vor der Debug-Protokollierung maskiert.
 
 - Die Zeiterweiterung verwendet für den WR105SI.1 den von der App gemeldeten signierten Wert `cfg.sc.p` direkt; Lesen, Schreiben und Gerätebestätigung bleiben auf der App-Skala von −100 bis +100 %.
 - Ein manueller Kantenschnitt-Knopf wird nur angezeigt, wenn der Mäher Protokoll 0 und `follow_border` meldet; Gerätebestätigung bleibt vom Publish-Status getrennt.

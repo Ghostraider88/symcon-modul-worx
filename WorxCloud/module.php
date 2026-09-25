@@ -632,7 +632,7 @@ class WorxCloud extends IPSModule
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        $this->SendDebug('API', sprintf('%s %s → HTTP %d', $method, $path, $code), 0);
+        $this->SendDebug('API', sprintf('%s %s → HTTP %d', $method, $this->sanitizeApiPathForDebug($path), $code), 0);
         if ($code === 401) {
             $this->WriteAttributeInteger('TokenExpires', 0);
             return null;
@@ -644,6 +644,13 @@ class WorxCloud extends IPSModule
             return [];
         }
         return json_decode((string) $response, true);
+    }
+
+    /** Mask device-specific path segments before writing request paths to debug logs. */
+    private function sanitizeApiPathForDebug(string $path): string
+    {
+        $sanitized = preg_replace('~/api/v2/product-items/[^/?]+~', '/api/v2/product-items/{serial}', $path);
+        return $sanitized ?? '[path omitted]';
     }
 
     private function headers(): array
