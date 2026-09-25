@@ -150,7 +150,6 @@ class WorxMower extends IPSModule
             return;
         }
 
-
         if ($Ident === 'AutoScheduleSet') {
             if (!is_bool($Value)) {
                 throw new InvalidArgumentException('AutoScheduleSet erwartet true oder false.');
