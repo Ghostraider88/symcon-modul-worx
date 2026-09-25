@@ -142,12 +142,6 @@ final class WorxMowerProfileTest extends TestCase
         self::assertNotContains(4, $this->controlOptions($controlID));
     }
 
-    private function controlOptions(int $controlID): array
-    {
-        $presentation = IPS_GetVariable($controlID)['VariablePresentation'];
-        $options = json_decode($presentation['OPTIONS'], true, 512, JSON_THROW_ON_ERROR);
-        return array_map(static fn (array $option): int => (int) $option['Value'], $options);
-    }
 
     public function testStatusAndErrorTextVariablesContainReadableConfirmedLabels(): void
     {
@@ -222,4 +216,11 @@ final class WorxMowerProfileTest extends TestCase
 
         self::assertSame(-40, GetValue($variableID));
     }
+    private function controlOptions(int $controlID): array
+    {
+        $presentation = IPS_GetVariable($controlID)['VariablePresentation'];
+        $options = json_decode($presentation['OPTIONS'], true, 512, JSON_THROW_ON_ERROR);
+        return array_map(static fn (array $option): int => (int) $option['Value'], $options);
+    }
+
 }
