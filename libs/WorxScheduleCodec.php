@@ -72,7 +72,7 @@ final class WorxScheduleCodec
         }
 
         $raw = (float) $value;
-        if ($raw < -100 || $raw > 100) {
+        if ($raw < -100 || $raw > 100 || floor($raw) !== $raw) {
             return null;
         }
 

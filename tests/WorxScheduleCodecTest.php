@@ -67,6 +67,7 @@ final class WorxScheduleCodecTest extends TestCase
     {
         self::assertNull(WorxScheduleCodec::timeExtensionFromProtocol(-100.1));
         self::assertNull(WorxScheduleCodec::timeExtensionFromProtocol(100.1));
+        self::assertNull(WorxScheduleCodec::timeExtensionFromProtocol(30.5));
 
         try {
             WorxScheduleCodec::timeExtensionToProtocol(101);
