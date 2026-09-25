@@ -4,7 +4,7 @@ Die Mower-Instanz übernimmt die vorhandene Worx-Seriennummer aus dem Configurat
 
 ## Befehle und bestätigter Zustand
 
-Start, Pause und Heimfahrt werden über MQTT gesendet. Die Variablen `LastCommand` und `CommandStatus` zeigen den angeforderten Befehl und seine Rückmeldung. `State` bleibt der vom Mäher gemeldete Zustand. Ein erfolgreicher MQTT-Publish ist keine Gerätebestätigung.
+Start, Pause und Heimfahrt werden über MQTT gesendet. Die Variablen `LastCommand` und `CommandStatus` zeigen den angeforderten Befehl und seine Rückmeldung. `State` und `Error` bleiben als Integer-Variablen mit lesbarer Wertdarstellung für Kompatibilität und Automationen erhalten. Zusätzlich liefern `StateText` und `ErrorText` die übersetzten Status- und Fehlernamen als Strings, sodass ihre Verläufe in der Visualisierung ohne Zahlencodes lesbar sind. Unbekannte Gerätecodelabels werden als „Unbekannter Status (Code)“ beziehungsweise „Unbekannter Fehler (Code)“ angezeigt. Ein erfolgreicher MQTT-Publish ist keine Gerätebestätigung.
 
 ## Wochenplan
 

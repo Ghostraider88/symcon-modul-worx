@@ -74,41 +74,6 @@ class WorxMower extends IPSModule
         $this->EnableAction('AutoScheduleSet');
     }
 
-    private function registerVariables(): void
-    {
-        $p = 0;
-        $this->RegisterVariableInteger('Control', 'Steuerung', $this->enumerationPresentation([0 => 'Befehl wählen'] + self::COMMANDS), $p++);
-        $this->RegisterVariableInteger('State', 'Status', $this->enumerationPresentation(self::STATES), $p++);
-        $this->RegisterVariableInteger('Error', 'Fehler', $this->enumerationPresentation(self::ERRORS), $p++);
-        $this->RegisterVariableBoolean('Online', 'Online', $this->booleanValuePresentation('Offline', 'Online'), $p++);
-        $this->RegisterVariableInteger('Battery', 'Akku', $this->valuePresentation(' %'), $p++);
-        $this->RegisterVariableBoolean('Charging', 'Lädt', $this->booleanValuePresentation('Nein', 'Ja'), $p++);
-        $this->RegisterVariableFloat('BatteryTemp', 'Akkutemperatur', $this->valuePresentation(' °C'), $p++);
-        $this->RegisterVariableFloat('BatteryVoltage', 'Akkuspannung', $this->valuePresentation(' V'), $p++);
-        $this->RegisterVariableInteger('ChargeCycles', 'Ladezyklen', '', $p++);
-        $this->RegisterVariableInteger('WifiSignal', 'WLAN-Signal', $this->valuePresentation(' dBm'), $p++);
-        $this->RegisterVariableFloat('Distance', 'Gesamtstrecke', $this->valuePresentation(' km'), $p++);
-        $this->RegisterVariableFloat('WorkTime', 'Mähzeit gesamt', $this->valuePresentation(' h'), $p++);
-        $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', $this->valuePresentation(' h'), $p++);
-        $this->RegisterVariableBoolean('Rain', 'Regen erkannt', $this->booleanValuePresentation('Nein', 'Ja'), $p++);
-        $this->RegisterVariableInteger('TimeExtension', 'Tägliche Arbeitszeit (bestätigt)', $this->valuePresentation(' %'), $p++);
-        $this->RegisterVariableInteger('TimeExtensionSet', 'Tägliche Arbeitszeit setzen', $this->sliderPresentation(-100, 100, ' %'), $p++);
-        $this->RegisterVariableInteger('RainDelay', 'Regenverzögerung (bestätigt)', $this->valuePresentation(' min'), $p++);
-        $this->RegisterVariableInteger('RainDelaySet', 'Regenverzögerung setzen', $this->sliderPresentation(0, self::MAX_RAIN_DELAY_MINUTES, ' min'), $p++);
-        $this->RegisterVariableString('SettingStatus', 'Einstellungsrückmeldung', '', $p++);
-        $this->RegisterVariableBoolean('Locked', 'Gesperrt (bestätigt)', $this->booleanValuePresentation('Entsperrt', 'Gesperrt'), $p++);
-        $this->RegisterVariableBoolean('LockCommand', 'Sperre setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);
-        $this->RegisterVariableBoolean('AutoSchedule', 'Automatischer Zeitplan (bestätigt)', $this->booleanValuePresentation('Aus', 'Ein'), $p++);
-        $this->RegisterVariableBoolean('AutoScheduleSet', 'Automatischen Zeitplan setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);
-        $this->RegisterVariableInteger('Zone', 'Aktuelle Zone', '', $p++);
-        $this->RegisterVariableString('Firmware', 'Firmware', '', $p++);
-        $this->RegisterVariableInteger('LastUpdate', 'Letzte Meldung', ['PRESENTATION' => VARIABLE_PRESENTATION_DATE_TIME, 'DATE' => 0, 'TIME' => 1], $p++);
-        $this->RegisterVariableString('LastCommand', 'Letzter Befehl', '', $p++);
-        $this->RegisterVariableString('CommandStatus', 'Befehlsrückmeldung', '', $p++);
-        $this->RegisterVariableString('ScheduleSyncStatus', 'Zeitplanrückmeldung', '', $p++);
-        $this->RegisterVariableString('DeviceDiagnostics', 'Gerätenachweis (redigiert)', '', $p++);
-    }
-
     public function ApplyChanges()
     {
         parent::ApplyChanges();
@@ -866,7 +831,9 @@ class WorxMower extends IPSModule
         $state = (int) ($dat['ls'] ?? 0);
         $error = (int) ($dat['le'] ?? 0);
         $this->SetValueSafe('State', $state);
+        $this->SetValueSafe('StateText', self::STATES[$state] ?? ('Unbekannter Status (' . $state . ')'));
         $this->SetValueSafe('Error', $error);
+        $this->SetValueSafe('ErrorText', self::ERRORS[$error] ?? ('Unbekannter Fehler (' . $error . ')'));
         $this->confirmCommand($state, $error);
 
         if (isset($dat['bt']) && is_array($dat['bt'])) {
@@ -1133,11 +1100,48 @@ class WorxMower extends IPSModule
     /**
      * Build a modern Symcon value presentation for a variable that is display-only.
      */
+    private function registerVariables(): void
+    {
+        $p = 0;
+        $this->RegisterVariableInteger('Control', 'Steuerung', $this->enumerationPresentation([0 => 'Befehl wählen'] + self::COMMANDS), $p++);
+        $this->RegisterVariableInteger('State', 'Status', $this->enumerationPresentation(self::STATES), $p++);
+        $this->RegisterVariableInteger('Error', 'Fehler', $this->enumerationPresentation(self::ERRORS), $p++);
+        $this->RegisterVariableBoolean('Online', 'Online', $this->booleanValuePresentation('Offline', 'Online'), $p++);
+        $this->RegisterVariableInteger('Battery', 'Akku', $this->valuePresentation(' %'), $p++);
+        $this->RegisterVariableBoolean('Charging', 'Lädt', $this->booleanValuePresentation('Nein', 'Ja'), $p++);
+        $this->RegisterVariableFloat('BatteryTemp', 'Akkutemperatur', $this->valuePresentation(' °C'), $p++);
+        $this->RegisterVariableFloat('BatteryVoltage', 'Akkuspannung', $this->valuePresentation(' V'), $p++);
+        $this->RegisterVariableInteger('ChargeCycles', 'Ladezyklen', '', $p++);
+        $this->RegisterVariableInteger('WifiSignal', 'WLAN-Signal', $this->valuePresentation(' dBm'), $p++);
+        $this->RegisterVariableFloat('Distance', 'Gesamtstrecke', $this->valuePresentation(' km'), $p++);
+        $this->RegisterVariableFloat('WorkTime', 'Mähzeit gesamt', $this->valuePresentation(' h'), $p++);
+        $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', $this->valuePresentation(' h'), $p++);
+        $this->RegisterVariableBoolean('Rain', 'Regen erkannt', $this->booleanValuePresentation('Nein', 'Ja'), $p++);
+        $this->RegisterVariableInteger('TimeExtension', 'Tägliche Arbeitszeit (bestätigt)', $this->valuePresentation(' %'), $p++);
+        $this->RegisterVariableInteger('TimeExtensionSet', 'Tägliche Arbeitszeit setzen', $this->sliderPresentation(-100, 100, ' %'), $p++);
+        $this->RegisterVariableInteger('RainDelay', 'Regenverzögerung (bestätigt)', $this->valuePresentation(' min'), $p++);
+        $this->RegisterVariableInteger('RainDelaySet', 'Regenverzögerung setzen', $this->sliderPresentation(0, self::MAX_RAIN_DELAY_MINUTES, ' min'), $p++);
+        $this->RegisterVariableString('SettingStatus', 'Einstellungsrückmeldung', '', $p++);
+        $this->RegisterVariableBoolean('Locked', 'Gesperrt (bestätigt)', $this->booleanValuePresentation('Entsperrt', 'Gesperrt'), $p++);
+        $this->RegisterVariableBoolean('LockCommand', 'Sperre setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);
+        $this->RegisterVariableBoolean('AutoSchedule', 'Automatischer Zeitplan (bestätigt)', $this->booleanValuePresentation('Aus', 'Ein'), $p++);
+        $this->RegisterVariableBoolean('AutoScheduleSet', 'Automatischen Zeitplan setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);
+        $this->RegisterVariableInteger('Zone', 'Aktuelle Zone', '', $p++);
+        $this->RegisterVariableString('Firmware', 'Firmware', '', $p++);
+        $this->RegisterVariableInteger('LastUpdate', 'Letzte Meldung', ['PRESENTATION' => VARIABLE_PRESENTATION_DATE_TIME, 'DATE' => 0, 'TIME' => 1], $p++);
+        $this->RegisterVariableString('LastCommand', 'Letzter Befehl', '', $p++);
+        $this->RegisterVariableString('CommandStatus', 'Befehlsrückmeldung', '', $p++);
+        $this->RegisterVariableString('ScheduleSyncStatus', 'Zeitplanrückmeldung', '', $p++);
+        $this->RegisterVariableString('DeviceDiagnostics', 'Gerätenachweis (redigiert)', '', $p++);
+        $this->RegisterVariableString('StateText', 'Status (Text)', '', $p++);
+        $this->RegisterVariableString('ErrorText', 'Fehler (Text)', '', $p++);
+    }
+
     private function valuePresentation(string $suffix): array
     {
         return [
             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'SUFFIX' => $suffix,
+            'SUFFIX'       => $suffix,
         ];
     }
 
@@ -1148,10 +1152,27 @@ class WorxMower extends IPSModule
     {
         return [
             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'OPTIONS' => json_encode([
-                ['Value' => false, 'Caption' => $falseCaption],
-                ['Value' => true, 'Caption' => $trueCaption],
+            'OPTIONS'      => json_encode([
+                $this->presentationOption(false, $falseCaption),
+                $this->presentationOption(true, $trueCaption),
             ], JSON_THROW_ON_ERROR),
+        ];
+    }
+
+    /** Provide all option keys expected by current Symcon presentation editors. */
+    private function presentationOption(bool $value, string $caption): array
+    {
+        return [
+            'Value'              => $value,
+            'Caption'            => $caption,
+            'IconActive'         => false,
+            'IconValue'          => '',
+            'ColorActive'        => false,
+            'ColorValue'         => -1,
+            'ContentColorActive' => false,
+            'ContentColorValue'  => -1,
+            'Color'              => -1,
+            'ContentColor'       => -1,
         ];
     }
 
@@ -1162,7 +1183,18 @@ class WorxMower extends IPSModule
     {
         $options = [];
         foreach ($values as $value => $caption) {
-            $options[] = ['Value' => (int) $value, 'Caption' => $caption];
+            $options[] = [
+                'Value'              => (int) $value,
+                'Caption'            => $caption,
+                'IconActive'         => false,
+                'IconValue'          => '',
+                'ColorActive'        => false,
+                'ColorValue'         => -1,
+                'ContentColorActive' => false,
+                'ContentColorValue'  => -1,
+                'Color'              => -1,
+                'ContentColor'       => -1,
+            ];
         }
 
         return [
@@ -1178,11 +1210,11 @@ class WorxMower extends IPSModule
     {
         return [
             'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-            'MIN' => $minimum,
-            'MAX' => $maximum,
-            'STEP_SIZE' => 1,
-            'SUFFIX' => $suffix,
-            'PERCENTAGE' => false,
+            'MIN'         => $minimum,
+            'MAX'         => $maximum,
+            'STEP_SIZE'   => 1,
+            'SUFFIX'      => $suffix,
+            'PERCENTAGE'  => false,
         ];
     }
 
