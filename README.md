@@ -22,7 +22,7 @@ Für den aktuellen Teststand nach dem Hinzufügen über das Zahnrad in Module Co
 
 ## Voraussetzungen
 
-- IP-Symcon 6.0 oder neuer
+- IP-Symcon 9.0 oder neuer
 - Ein Worx-Landroid-Konto und eine Worx-Cloud-Verbindung
 - Für Echtzeitstatus und Steuerung die Symcon-Module „WebSocket Client“ und „MQTT Client“
 

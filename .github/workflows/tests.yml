@@ -13,15 +13,15 @@ jobs:
       - name: Run tests
         uses: symcon/action-tests@master
 
-  php74_syntax:
+  php85_syntax:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout module
         uses: actions/checkout@v4
-      - name: Set up PHP 7.4
+      - name: Set up PHP 8.5
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '7.4'
+          php-version: '8.5'
           coverage: none
-      - name: Lint production PHP files on PHP 7.4
+      - name: Lint production PHP files on PHP 8.5
         run: find WorxCloud WorxConfigurator WorxMower libs -name '*.php' -print0 | xargs -0 -n1 php -l
