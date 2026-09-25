@@ -142,7 +142,6 @@ final class WorxMowerProfileTest extends TestCase
         self::assertNotContains(4, $this->controlOptions($controlID));
     }
 
-
     public function testStatusAndErrorTextVariablesContainReadableConfirmedLabels(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
@@ -216,6 +215,7 @@ final class WorxMowerProfileTest extends TestCase
 
         self::assertSame(-40, GetValue($variableID));
     }
+
     private function controlOptions(int $controlID): array
     {
         $presentation = IPS_GetVariable($controlID)['VariablePresentation'];
