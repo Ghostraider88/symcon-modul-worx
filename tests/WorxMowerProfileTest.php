@@ -13,14 +13,14 @@ final class WorxMowerTestDouble extends WorxMower
         return $this->ReadAttributeString($name);
     }
 
-    protected function getTime()
-    {
-        return time();
-    }
-
     public function Update(): bool
     {
         return false;
+    }
+
+    protected function getTime()
+    {
+        return time();
     }
 }
 
