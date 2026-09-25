@@ -7,7 +7,8 @@
 
 - Die Zeiterweiterung verwendet für den WR105SI.1 den von der App gemeldeten signierten Wert `cfg.sc.p` direkt; Lesen, Schreiben und Gerätebestätigung bleiben auf der App-Skala von −100 bis +100 %.
 - Ein manueller Kantenschnitt-Knopf wird nur angezeigt, wenn der Mäher Protokoll 0 und `follow_border` meldet; Gerätebestätigung bleibt vom Publish-Status getrennt.
-- Die Arbeitszeitvariablen verwenden ein eigenes Symcon-Profil von −100 bis +100 %; bei bestehenden Instanzen wird es erneut zugeordnet. Ein gemeinsam genutztes Prozentprofil bleibt unverändert.
+- Die Arbeitszeitvariablen verwenden moderne Symcon-Wertdarstellungen mit dem Suffix „ %“. Es werden keine Legacy-, Tilde- oder benutzerdefinierten Variablenprofile registriert; bestehende Instanzen erhalten die Darstellung erneut in ApplyChanges(). Der signierte Worx-Wert bleibt unverändert im Bereich −100 bis +100 %.
+- Der gemeldete Firmware-Auto-Update-Status und die separate Cloud-Präferenz erhalten capability-geprüfte Variablen. Das Setzen der Präferenz startet kein Firmware-Update; Cloud-Echo am WR105SI.1 noch nicht validiert.
 - Zeitplan- und Arbeitszeitübertragungen registrieren die erwartete Rückmeldung vor dem MQTT-Publish; schnelle Geräteechos werden dadurch dem wartenden Befehl zugeordnet.
 
 - Start/Pause/Heimfahrt, Sperre und Regenverzögerung registrieren die ausstehende Gerätebestätigung vor dem Sendeaufruf, damit schnelle Geräteechos nicht verpasst werden; abgelehnte Sendungen räumen den Wartezustand auf.
