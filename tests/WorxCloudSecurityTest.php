@@ -11,6 +11,12 @@ final class WorxCloudRequestTestDouble extends WorxCloud
     public array $requests = [];
     public bool $pollCalled = false;
 
+    public function Poll(): bool
+    {
+        $this->pollCalled = true;
+        return true;
+    }
+
     protected function getToken(): string
     {
         return 'test-token';
@@ -20,12 +26,6 @@ final class WorxCloudRequestTestDouble extends WorxCloud
     {
         $this->requests[] = [$method, $path, $body, $token];
         return ['accepted' => true];
-    }
-
-    public function Poll(): bool
-    {
-        $this->pollCalled = true;
-        return true;
     }
 }
 

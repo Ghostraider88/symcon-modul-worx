@@ -512,6 +512,71 @@ class WorxCloud extends IPSModule
         ]);
     }
 
+    protected function getToken(): string
+    {
+        $token = $this->ReadAttributeString('AccessToken');
+        if ($token !== '' && $this->ReadAttributeInteger('TokenExpires') > time() + 60) {
+            return $token;
+        }
+
+        $refresh = $this->ReadAttributeString('RefreshToken');
+        if ($refresh !== '') {
+            $result = $this->authRequest([
+                'client_id'     => self::CLIENT_ID,
+                'refresh_token' => $refresh,
+                'scope'         => '*',
+                'grant_type'    => 'refresh_token',
+            ]);
+            if ($this->storeToken($result)) {
+                return $this->ReadAttributeString('AccessToken');
+            }
+            $this->SendDebug('Auth', 'Erneuerung fehlgeschlagen — melde neu an', 0);
+        }
+
+        $result = $this->authRequest([
+            'client_id'  => self::CLIENT_ID,
+            'username'   => $this->ReadPropertyString('Email'),
+            'password'   => $this->ReadPropertyString('Password'),
+            'scope'      => '*',
+            'grant_type' => 'password',
+        ]);
+        return $this->storeToken($result) ? $this->ReadAttributeString('AccessToken') : '';
+    }
+
+    protected function request(string $method, string $path, $body, string $token)
+    {
+        if ($this->ReadPropertyString('Cloud') !== 'worx') {
+            $this->SendDebug('API', 'Anfrage abgelehnt: nur Worx wird unterstützt.', 0);
+            return null;
+        }
+        $ch = curl_init('https://' . self::CLOUD_API . $path);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST  => $method,
+            CURLOPT_HTTPHEADER     => array_merge($this->headers(), ['authorization: Bearer ' . $token]),
+            CURLOPT_TIMEOUT        => 30,
+        ]);
+        if ($body !== null) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
+        }
+        $response = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $this->SendDebug('API', sprintf('%s %s → HTTP %d', $method, $this->sanitizeApiPathForDebug($path), $code), 0);
+        if ($code === 401) {
+            $this->WriteAttributeInteger('TokenExpires', 0);
+            return null;
+        }
+        if ($code < 200 || $code >= 300) {
+            return null;
+        }
+        if ($body !== null && $response === '') {
+            return [];
+        }
+        return json_decode((string) $response, true);
+    }
+
     /**
      * Stellt sicher, dass WorxCloud über einen MQTT Client und einen WebSocket
      * verbunden ist. Symcon kann beim Anlegen zunächst einen Client Socket
@@ -585,37 +650,6 @@ class WorxCloud extends IPSModule
         }
     }
 
-    protected function getToken(): string
-    {
-        $token = $this->ReadAttributeString('AccessToken');
-        if ($token !== '' && $this->ReadAttributeInteger('TokenExpires') > time() + 60) {
-            return $token;
-        }
-
-        $refresh = $this->ReadAttributeString('RefreshToken');
-        if ($refresh !== '') {
-            $result = $this->authRequest([
-                'client_id'     => self::CLIENT_ID,
-                'refresh_token' => $refresh,
-                'scope'         => '*',
-                'grant_type'    => 'refresh_token',
-            ]);
-            if ($this->storeToken($result)) {
-                return $this->ReadAttributeString('AccessToken');
-            }
-            $this->SendDebug('Auth', 'Erneuerung fehlgeschlagen — melde neu an', 0);
-        }
-
-        $result = $this->authRequest([
-            'client_id'  => self::CLIENT_ID,
-            'username'   => $this->ReadPropertyString('Email'),
-            'password'   => $this->ReadPropertyString('Password'),
-            'scope'      => '*',
-            'grant_type' => 'password',
-        ]);
-        return $this->storeToken($result) ? $this->ReadAttributeString('AccessToken') : '';
-    }
-
     private function storeToken($result): bool
     {
         if (!is_array($result) || !isset($result['access_token'])) {
@@ -647,40 +681,6 @@ class WorxCloud extends IPSModule
             // Passwort niemals mitloggen — nur der Grund ist interessant
             $this->SendDebug('Auth', sprintf('Anmeldung fehlgeschlagen (HTTP %d).', $code), 0);
             return null;
-        }
-        return json_decode((string) $response, true);
-    }
-
-    protected function request(string $method, string $path, $body, string $token)
-    {
-        if ($this->ReadPropertyString('Cloud') !== 'worx') {
-            $this->SendDebug('API', 'Anfrage abgelehnt: nur Worx wird unterstützt.', 0);
-            return null;
-        }
-        $ch = curl_init('https://' . self::CLOUD_API . $path);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CUSTOMREQUEST  => $method,
-            CURLOPT_HTTPHEADER     => array_merge($this->headers(), ['authorization: Bearer ' . $token]),
-            CURLOPT_TIMEOUT        => 30,
-        ]);
-        if ($body !== null) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
-        }
-        $response = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        $this->SendDebug('API', sprintf('%s %s → HTTP %d', $method, $this->sanitizeApiPathForDebug($path), $code), 0);
-        if ($code === 401) {
-            $this->WriteAttributeInteger('TokenExpires', 0);
-            return null;
-        }
-        if ($code < 200 || $code >= 300) {
-            return null;
-        }
-        if ($body !== null && $response === '') {
-            return [];
         }
         return json_decode((string) $response, true);
     }
