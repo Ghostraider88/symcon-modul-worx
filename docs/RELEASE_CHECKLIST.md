@@ -30,6 +30,7 @@ Diese Checkliste gilt für `Ghostraider88/symcon-modul-worx`. Der Branch `codex/
 | Start, Pause und Heimfahrt | Implementiert; am echten Mäher noch nicht bestätigt |
 | Neuinstallation, Update, wiederholte Konfiguration und Wiederanlauf | Noch vollständig abzunehmen |
 | Fehlerfälle (falsche Zugangsdaten, Cloud-/MQTT-Ausfall, leere Antwort) | Noch vollständig abzunehmen |
+| PHP-7.4-Syntax für IP-Symcon 6.0 | CI-Job vorhanden; für Commit c8efa97 erfolgreich |
 
 Gerätesteuerungen nur einzeln und mit sichtbarer Sollwert-/Rückmeldungsprüfung ausprobieren. Ein MQTT-Publish oder HTTP-Erfolg allein gilt nicht als Gerätebestätigung. Keine Aktionen im Rahmen statischer Codeprüfungen ausführen.
 
