@@ -820,6 +820,13 @@ class WorxMower extends IPSModule
         $this->SetValueSafe('Online', (bool) ($device['online'] ?? false));
         $this->SetValueSafe('DeviceDiagnostics', WorxScheduleCodec::canonicalJson(WorxScheduleCodec::sanitizedDeviceRecord($device)));
         $this->updateControlPresentation($device);
+        $firmwareAutoUpdateID = $this->GetIDForIdent('FirmwareAutoUpgrade');
+        $supportsFirmwareAutoUpdate = in_array('ota_upgrade', $device['capabilities'] ?? [], true)
+            && array_key_exists('firmware_auto_upgrade', $device) && is_bool($device['firmware_auto_upgrade']);
+        if ($firmwareAutoUpdateID !== false && $firmwareAutoUpdateID > 0) {
+            IPS_SetHidden($firmwareAutoUpdateID, !$supportsFirmwareAutoUpdate);
+            if ($supportsFirmwareAutoUpdate) $this->SetValueSafe('FirmwareAutoUpgrade', $device['firmware_auto_upgrade']);
+        }
         if (isset($device['firmware_version'])) {
             $this->SetValueSafe('Firmware', (string) $device['firmware_version']);
         }
@@ -1144,6 +1151,7 @@ class WorxMower extends IPSModule
         $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', $this->valuePresentation(' h'), $p++);
         $this->RegisterVariableInteger('Zone', 'Aktuelle Zone', '', $p++);
         $this->RegisterVariableString('Firmware', 'Firmware', '', $p++);
+        $this->RegisterVariableBoolean('FirmwareAutoUpgrade', 'Firmware-Update automatisch (Cloud)', $this->booleanValuePresentation('Aus', 'Ein'), $p++);
 
         // Redacted development diagnostic is intentionally last in the object tree.
         $this->RegisterVariableString('DeviceDiagnostics', 'Gerätenachweis (redigiert)', '', $p++);
@@ -1155,7 +1163,7 @@ class WorxMower extends IPSModule
             'Control', 'LastCommand', 'CommandStatus', 'Locked', 'LockCommand', 'AutoSchedule', 'AutoScheduleSet',
             'TimeExtension', 'TimeExtensionSet', 'RainDelay', 'RainDelaySet', 'Rain', 'SettingStatus', 'ScheduleSyncStatus',
             'Battery', 'Charging', 'BatteryTemp', 'BatteryVoltage', 'ChargeCycles', 'WifiSignal', 'Distance', 'WorkTime',
-            'BladeTime', 'Zone', 'Firmware', 'DeviceDiagnostics',
+            'BladeTime', 'Zone', 'Firmware', 'FirmwareAutoUpgrade', 'DeviceDiagnostics',
         ];
         foreach ($orderedIdents as $position => $ident) {
             $variableID = $this->GetIDForIdent($ident);

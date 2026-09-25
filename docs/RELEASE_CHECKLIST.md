@@ -27,7 +27,7 @@ Diese Checkliste gilt für `Ghostraider88/symcon-modul-worx`. Der Branch `codex/
 | Symcon-Wochenplan → Worx-App/Mäher | Vom Nutzer bestätigt |
 | Worx-App → Symcon-Wochenplan ohne manuellen Refresh | Vom Nutzer bestätigt |
 | „Ganzer Tag“ und Zeitfenster über Mitternacht | Vorher-/Nachher-Datensatz beim Umschalten von „Ganzer Tag“ identisch; Wire-Abbildung bleibt offen. Mitternachtsfenster ebenfalls offen. |
-| Automatischer Zeitplan, Regenverzögerung, tägliche Arbeitszeitänderung und Sperre | Schreibwege implementiert; Arbeitszeitfeld ist eine unveränderte signierte Abbildung; Legacy-Profilanzeige durch moderne Wertdarstellung ersetzt, Docker-Ansicht noch zu bestätigen; Geräteechos der Einstellungen offen |
+| Automatischer Zeitplan, Regenverzögerung, tägliche Arbeitszeitänderung und Sperre | Schreibwege implementiert; Arbeitszeitfeld ist eine unveränderte signierte Abbildung; Legacy-Profilanzeige durch moderne Wertdarstellung ersetzt, Docker-Ansicht noch zu bestätigen; Geräteechos der Einstellungen offen. Firmware-Auto-Update wird capability-geprüft read-only aus dem Cloud-Boolean angezeigt; kein Symcon-Schreibschalter. |
 | Start, Pause und Heimfahrt | Implementiert; am echten Mäher noch nicht bestätigt |
 | Neuinstallation, Update, wiederholte Konfiguration und Wiederanlauf | Noch vollständig abzunehmen |
 | Fehlerfälle (falsche Zugangsdaten, Cloud-/MQTT-Ausfall, leere Antwort) | Noch vollständig abzunehmen |

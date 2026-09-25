@@ -73,6 +73,33 @@ final class WorxMowerProfileTest extends TestCase
         self::assertArrayNotHasKey('OPTIONS', $presentation);
     }
 
+    public function testFirmwareAutoUpdateIsDisplayedAsCapabilityGatedReadOnlyCloudState(): void
+    {
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $module = new WorxMower($instanceID);
+        $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
+        $applyDevice->setAccessible(true);
+        $device = [
+            'online' => true,
+            'capabilities' => ['ota_upgrade'],
+            'firmware_auto_upgrade' => true,
+            'last_status' => ['payload' => ['dat' => []]],
+        ];
+
+        $applyDevice->invoke($module, $device);
+        $variableID = IPS_GetObjectIDByIdent('FirmwareAutoUpgrade', $instanceID);
+        self::assertTrue(GetValueBoolean($variableID));
+        self::assertFalse(IPS_GetObject($variableID)['ObjectIsHidden']);
+        self::assertFalse(HasAction($variableID));
+        $presentation = IPS_GetVariable($variableID)['VariablePresentation'];
+        self::assertSame(VARIABLE_PRESENTATION_VALUE_PRESENTATION, $presentation['PRESENTATION']);
+
+        $device['capabilities'] = [];
+        $device['firmware_auto_upgrade'] = false;
+        $applyDevice->invoke($module, $device);
+        self::assertTrue(IPS_GetObject($variableID)['ObjectIsHidden']);
+    }
+
     public function testConfirmedTimeExtensionUsesValuePresentationWithLiteralPercentSuffix(): void
     {
         $module = new WorxMower(1);
