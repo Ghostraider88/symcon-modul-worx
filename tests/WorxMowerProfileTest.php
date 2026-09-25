@@ -39,6 +39,15 @@ final class WorxMowerProfileTest extends TestCase
         $method->setAccessible(true);
         $method->invoke($module);
 
+        $statusID = IPS_GetObjectIDByIdent('State', $instanceID);
+        $errorID = IPS_GetObjectIDByIdent('Error', $instanceID);
+        $stateTextID = IPS_GetObjectIDByIdent('StateText', $instanceID);
+        $errorTextID = IPS_GetObjectIDByIdent('ErrorText', $instanceID);
+        foreach ([$statusID, $errorID, $stateTextID, $errorTextID] as $readOnlyID) {
+            self::assertFalse(HasAction($readOnlyID));
+            self::assertArrayNotHasKey('OPTIONS', IPS_GetVariable($readOnlyID)['VariablePresentation']);
+        }
+
         // Emulate the old scattered positions already present on an installed instance.
         IPS_SetPosition(IPS_GetObjectIDByIdent('State', $instanceID), 80);
         IPS_SetPosition(IPS_GetObjectIDByIdent('StateText', $instanceID), 10);
