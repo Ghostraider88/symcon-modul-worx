@@ -36,11 +36,8 @@ final class WorxScheduleCodecTest extends TestCase
 
     public function testIncludesTimeExtensionInScheduleAcknowledgement(): void
     {
-        $expected = [
-            'm' => 1,
-            'd' => [['17:00', 120, 1]],
-            'p' => -40,
-        ];
+        $expected = $this->makeSchedule();
+        $expected['p'] = -40;
         $reported = $expected;
         self::assertTrue(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
 
