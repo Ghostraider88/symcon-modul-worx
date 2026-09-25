@@ -9,10 +9,10 @@ final class ForkIdentityTest extends TestCase
     public function testForkGuidsRemainStableAndIndependentFromCatomic(): void
     {
         $forkGuids = [
-            'library.json' => '{D41E48F5-1BCC-4527-9C46-AB3113FCC1D7}',
-            'WorxCloud/module.json' => '{2A3889B6-AD03-4B1E-8782-BEB0E6CABCC1}',
+            'library.json'                => '{D41E48F5-1BCC-4527-9C46-AB3113FCC1D7}',
+            'WorxCloud/module.json'        => '{2A3889B6-AD03-4B1E-8782-BEB0E6CABCC1}',
             'WorxConfigurator/module.json' => '{A8373ED9-7396-421E-A78E-4904A6AC4657}',
-            'WorxMower/module.json' => '{39CA7807-D252-4375-8D05-1C5F918552C0}',
+            'WorxMower/module.json'        => '{39CA7807-D252-4375-8D05-1C5F918552C0}',
         ];
         $catomicGuids = [
             '{C078EFF0-18B3-4CC4-8027-CB6558E546A2}',
@@ -39,9 +39,9 @@ final class ForkIdentityTest extends TestCase
         self::assertCount(count($forkGuids), array_unique($observedGuids), 'Fork manifest GUIDs must be unique');
 
         $forkInterfaceGuids = [
-            'WorxCloud' => ['{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}', '{F925090C-4AED-407D-8B80-F1730A55717E}'],
+            'WorxCloud'        => ['{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}', '{F925090C-4AED-407D-8B80-F1730A55717E}'],
             'WorxConfigurator' => ['{F925090C-4AED-407D-8B80-F1730A55717E}'],
-            'WorxMower' => ['{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}'],
+            'WorxMower'        => ['{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}'],
         ];
         $catomicInterfaceGuids = [
             '{01E8C2C0-BB9C-4615-AD25-A78E12D842F0}',
