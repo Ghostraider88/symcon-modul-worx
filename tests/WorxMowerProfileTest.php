@@ -6,6 +6,19 @@ use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../WorxMower/module.php';
 
+final class WorxMowerTestDouble extends WorxMower
+{
+    protected function getTime()
+    {
+        return time();
+    }
+
+    public function readAttributeForTest(string $name): string
+    {
+        return $this->ReadAttributeString($name);
+    }
+}
+
 final class WorxMowerProfileTest extends TestCase
 {
     protected function setUp(): void
@@ -214,6 +227,45 @@ final class WorxMowerProfileTest extends TestCase
         self::assertSame(720, $presentation['MAX']);
         self::assertSame(30, $presentation['STEP_SIZE']);
         self::assertSame(' min', $presentation['SUFFIX']);
+    }
+
+    public function testRainDelayConfirmationIgnoresStaleEchoAndAdoptsLaterAppChange(): void
+    {
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $module = new WorxMowerTestDouble($instanceID);
+        $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
+        $registerVariables->setAccessible(true);
+        $registerVariables->invoke($module);
+
+        $registerProperty = new ReflectionMethod(IPSModule::class, 'RegisterPropertyString');
+        $registerProperty->setAccessible(true);
+        $registerProperty->invoke($module, 'Serial', 'SERIAL-TEST');
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        $registerAttribute->invoke($module, 'ReportedRainDelay', '180');
+        $registerAttribute->invoke($module, 'PendingRainDelay', json_encode(['desired' => 330, 'previous' => 180]));
+        $registerAttribute->invoke($module, 'PendingRainDelaySerial', 'SERIAL-TEST');
+        $registerTimer = new ReflectionMethod(IPSModule::class, 'RegisterTimer');
+        $registerTimer->setAccessible(true);
+        $registerTimer->invoke($module, 'RainDelayConfirmationTimeout', 120000, '', 0);
+        $settingStatusID = IPS_GetObjectIDByIdent('SettingStatus', $instanceID);
+        SetValue($settingStatusID, 'Regenverzögerung gesendet; Rückmeldung des Mähers steht aus.');
+
+        $confirm = new ReflectionMethod(WorxMower::class, 'confirmRainDelay');
+        $confirm->setAccessible(true);
+        $confirm->invoke($module, 180);
+        self::assertSame('180', $module->readAttributeForTest('ReportedRainDelay'));
+        self::assertSame(330, json_decode($module->readAttributeForTest('PendingRainDelay'), true)['desired']);
+        self::assertSame('Regenverzögerung gesendet; Rückmeldung des Mähers steht aus.', GetValue($settingStatusID));
+
+        $confirm->invoke($module, 330);
+        self::assertSame('', $module->readAttributeForTest('PendingRainDelay'));
+        self::assertSame('', $module->readAttributeForTest('PendingRainDelaySerial'));
+        self::assertSame('Regenverzögerung vom Mäher zurückgelesen und bestätigt.', GetValue($settingStatusID));
+
+        $confirm->invoke($module, 180);
+        self::assertSame('180', $module->readAttributeForTest('ReportedRainDelay'));
+        self::assertSame('Regenverzögerung aus Worx übernommen: 180 Minuten.', GetValue($settingStatusID));
     }
 
     public function testPresentationOptionsProvideSymconEditorDefaults(): void
