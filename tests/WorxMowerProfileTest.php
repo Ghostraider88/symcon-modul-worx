@@ -283,6 +283,40 @@ final class WorxMowerProfileTest extends TestCase
             self::assertSame($report['p'], GetValue($timeExtensionSetID));
             self::assertSame((bool) $report['lock'], GetValue($lockCommandID));
         }
+
+        $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeAttribute->setAccessible(true);
+        $writeAttribute->invoke($module, 'PendingRainDelay', json_encode(['desired' => 330, 'previous' => 240], JSON_THROW_ON_ERROR));
+        $writeAttribute->invoke($module, 'PendingRainDelaySerial', 'SERIAL-TEST');
+        $writeAttribute->invoke($module, 'PendingLock', json_encode(['desired' => false, 'previous' => true], JSON_THROW_ON_ERROR));
+        $writeAttribute->invoke($module, 'PendingLockSerial', 'SERIAL-TEST');
+        $writeAttribute->invoke($module, 'PendingSchedule', json_encode([
+            'p' => 40,
+            'd' => [['17:00', 120, 1]],
+        ], JSON_THROW_ON_ERROR));
+        $writeAttribute->invoke($module, 'PendingScheduleSerial', 'SERIAL-TEST');
+        $writeAttribute->invoke($module, 'PendingSchedulePurpose', 'time_extension');
+        SetValue($rainDelaySetID, 330);
+        SetValue($timeExtensionSetID, 40);
+        SetValue($lockCommandID, false);
+
+        $applyDevice->invoke($module, [
+            'online'       => true,
+            'protocol'     => 0,
+            'capabilities' => ['rain_delay', 'unrestricted_mowing_time', 'lock'],
+            'last_status'  => [
+                'payload' => [
+                    'cfg' => [
+                        'rd' => 240,
+                        'sc' => ['p' => -50, 'd' => [['17:00', 120, 1]]],
+                    ],
+                    'dat' => ['ls' => 1, 'le' => 0, 'lk' => 1],
+                ],
+            ],
+        ]);
+        self::assertSame(330, GetValue($rainDelaySetID));
+        self::assertSame(40, GetValue($timeExtensionSetID));
+        self::assertFalse(GetValue($lockCommandID));
     }
 
     public function testRainDelayConfirmationIgnoresStaleEchoAndAdoptsLaterAppChange(): void
