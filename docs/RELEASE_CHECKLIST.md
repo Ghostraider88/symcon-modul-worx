@@ -23,7 +23,7 @@ Diese Checkliste gilt für `Ghostraider88/symcon-modul-worx`. Der Branch `codex/
 | Prüfung | Stand |
 |---|---|
 | Anmeldung, Geräteerkennung und Live-Status in Docker | Bestätigt |
-| Lesbare Status-/Fehlerhistorie über `StateText` und `ErrorText`; Darstellungsdialoge öffnen/speichern | Nach neuestem Modulupdate in Docker visuell zu bestätigen; Archivierung der beiden Variablen für Verlaufskurven aktivieren |
+| `State`/`Error` als Zahlen ohne Aufzählung; `StateText`/`ErrorText` daneben und bei Statuswechsel aktualisiert; neue Reihenfolge wird auf Bestandsinstanz angewandt | Nach neuestem Modulupdate in Docker visuell zu bestätigen; Archivierung der Textvariablen für Verlaufskurven aktivieren |
 | Symcon-Wochenplan → Worx-App/Mäher | Vom Nutzer bestätigt |
 | Worx-App → Symcon-Wochenplan ohne manuellen Refresh | Vom Nutzer bestätigt |
 | „Ganzer Tag“ und Zeitfenster über Mitternacht | Offen; Format und verlustfreie Symcon-Abbildung belegen |
