@@ -118,6 +118,37 @@ final class WorxMowerProfileTest extends TestCase
         }
     }
 
+    public function testManualEdgeCutAppearsOnlyWhenProtocolAndCapabilitySupportIt(): void
+    {
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $module = new WorxMower($instanceID);
+        $register = new ReflectionMethod(WorxMower::class, 'registerVariables');
+        $register->setAccessible(true);
+        $register->invoke($module);
+        $apply = new ReflectionMethod(WorxMower::class, 'applyDevice');
+        $apply->setAccessible(true);
+        $controlID = IPS_GetObjectIDByIdent('Control', $instanceID);
+
+        $apply->invoke($module, ['protocol' => 1, 'capabilities' => ['follow_border']]);
+        self::assertNotContains(4, $this->controlOptions($controlID));
+
+        $apply->invoke($module, ['protocol' => 0, 'capabilities' => []]);
+        self::assertNotContains(4, $this->controlOptions($controlID));
+
+        $apply->invoke($module, ['protocol' => 0, 'capabilities' => ['follow_border']]);
+        self::assertContains(4, $this->controlOptions($controlID));
+
+        $apply->invoke($module, ['protocol' => 0, 'capabilities' => []]);
+        self::assertNotContains(4, $this->controlOptions($controlID));
+    }
+
+    private function controlOptions(int $controlID): array
+    {
+        $presentation = IPS_GetVariable($controlID)['VariablePresentation'];
+        $options = json_decode($presentation['OPTIONS'], true, 512, JSON_THROW_ON_ERROR);
+        return array_map(static fn (array $option): int => (int) $option['Value'], $options);
+    }
+
     public function testStatusAndErrorTextVariablesContainReadableConfirmedLabels(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);

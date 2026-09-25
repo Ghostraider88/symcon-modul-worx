@@ -33,6 +33,7 @@ class WorxMower extends IPSModule
     ];
 
     private const COMMANDS = [1 => 'Start', 2 => 'Pause', 3 => 'Heimfahrt', 4 => 'Kantenschnitt'];
+    private const STANDARD_COMMANDS = [1 => 'Start', 2 => 'Pause', 3 => 'Heimfahrt'];
 
     public function Create()
     {
@@ -110,7 +111,7 @@ class WorxMower extends IPSModule
         if ($Ident === 'Control') {
             $command = (int) $Value;
             if (!isset(self::COMMANDS[$command])) {
-                throw new InvalidArgumentException('Control expects Start (1), Pause (2) or Heimfahrt (3).');
+                throw new InvalidArgumentException('Control erwartet Start (1), Pause (2), Heimfahrt (3) oder den vom Gerät unterstützten Kantenschnitt (4).');
             }
             $this->Command($command);
             $this->SetValueSafe('Control', 0);
@@ -818,6 +819,7 @@ class WorxMower extends IPSModule
     {
         $this->SetValueSafe('Online', (bool) ($device['online'] ?? false));
         $this->SetValueSafe('DeviceDiagnostics', WorxScheduleCodec::canonicalJson(WorxScheduleCodec::sanitizedDeviceRecord($device)));
+        $this->updateControlPresentation($device);
         if (isset($device['firmware_version'])) {
             $this->SetValueSafe('Firmware', (string) $device['firmware_version']);
         }
@@ -1113,7 +1115,7 @@ class WorxMower extends IPSModule
         $this->RegisterVariableInteger('LastUpdate', 'Letzte Meldung', ['PRESENTATION' => VARIABLE_PRESENTATION_DATE_TIME, 'DATE' => 0, 'TIME' => 1], $p++);
 
         // Controls and their requested/confirmed feedback.
-        $this->RegisterVariableInteger('Control', 'Steuerung', $this->enumerationPresentation([0 => 'Befehl wählen'] + self::COMMANDS), $p++);
+        $this->RegisterVariableInteger('Control', 'Steuerung', $this->enumerationPresentation([0 => 'Befehl wählen'] + self::STANDARD_COMMANDS), $p++);
         $this->RegisterVariableString('LastCommand', 'Letzter Befehl', '', $p++);
         $this->RegisterVariableString('CommandStatus', 'Befehlsrückmeldung', '', $p++);
         $this->RegisterVariableBoolean('Locked', 'Gesperrt (bestätigt)', $this->booleanValuePresentation('Entsperrt', 'Gesperrt'), $p++);
@@ -1169,6 +1171,28 @@ class WorxMower extends IPSModule
         }
     }
 
+    private function updateControlPresentation(array $device): void
+    {
+        $controlID = $this->GetIDForIdent('Control');
+        if ($controlID === false || $controlID <= 0) {
+            return;
+        }
+
+        $commands = [0 => 'Befehl wählen'] + self::STANDARD_COMMANDS;
+        if ((int) ($device['protocol'] ?? -1) === 0
+            && in_array('follow_border', $device['capabilities'] ?? [], true)) {
+            $commands[4] = self::COMMANDS[4];
+        }
+        $presentation = $this->enumerationPresentation($commands);
+        $current = IPS_GetVariable($controlID)['VariablePresentation'] ?? [];
+        if (($current['PRESENTATION'] ?? null) === $presentation['PRESENTATION']
+            && ($current['OPTIONS'] ?? null) === $presentation['OPTIONS']) {
+            return;
+        }
+
+        // Update action choices when device capability evidence changes without creating another variable.
+        $this->RegisterVariableInteger('Control', 'Steuerung', $presentation, 6);
+    }
     private function valuePresentation(string $suffix): array
     {
         return [

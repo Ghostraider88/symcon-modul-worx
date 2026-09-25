@@ -26,7 +26,7 @@ Diese Checkliste gilt für `Ghostraider88/symcon-modul-worx`. Der Branch `codex/
 | `State`/`Error` als Zahlen ohne Aufzählung; `StateText`/`ErrorText` daneben und bei Statuswechsel aktualisiert; neue Reihenfolge wird auf Bestandsinstanz angewandt | Sortierung und Status-Zahl-/Textdarstellung nach Modulupdate durch Nutzer in Docker bestätigt; Fehler-Textdarstellung noch zu prüfen. Für Verlaufskurven muss Archive Control die gewünschte String-Variable aufzeichnen. |
 | Symcon-Wochenplan → Worx-App/Mäher | Vom Nutzer bestätigt |
 | Worx-App → Symcon-Wochenplan ohne manuellen Refresh | Vom Nutzer bestätigt |
-| „Ganzer Tag“ und Zeitfenster über Mitternacht | Offen; Format und verlustfreie Symcon-Abbildung belegen |
+| „Ganzer Tag“ und Zeitfenster über Mitternacht | Vorher-/Nachher-Datensatz beim Umschalten von „Ganzer Tag“ identisch; Wire-Abbildung bleibt offen. Mitternachtsfenster ebenfalls offen. |
 | Automatischer Zeitplan, Regenverzögerung, tägliche Arbeitszeitänderung und Sperre | Schreibwege implementiert; Arbeitszeitfeld ist eine unveränderte signierte Abbildung; Legacy-Profilanzeige durch moderne Wertdarstellung ersetzt, Docker-Ansicht noch zu bestätigen; Geräteechos der Einstellungen offen |
 | Start, Pause und Heimfahrt | Implementiert; am echten Mäher noch nicht bestätigt |
 | Neuinstallation, Update, wiederholte Konfiguration und Wiederanlauf | Noch vollständig abzunehmen |
