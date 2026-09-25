@@ -4,7 +4,7 @@
 
 - Bestehende, vom Mower-Modul verwaltete Variablen entfernen veraltete benutzerdefinierte Profilzuweisungen vor dem erneuten Anwenden der modernen Variablenpräsentationen; benutzerdefinierte Zusatzvariablen bleiben unberührt.
 
-- Library-Build auf 4 angehoben, damit der korrigierte Variablenprofil-Migrationsstand als neues Modulupdate erkennbar ist.
+- Library-Build auf 5 angehoben, damit die auf Modulvariablen begrenzte Profilbereinigung als Update erkennbar ist.
 
 - Mindestversion auf IP-Symcon 9.0 angehoben; Produktionsdateien werden in CI mit PHP 8.5 auf Syntax geprüft.
 - Seriennummern in dynamischen Worx-API-Pfaden werden vor der Debug-Protokollierung maskiert.
