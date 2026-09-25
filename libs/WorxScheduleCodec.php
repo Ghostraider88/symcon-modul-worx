@@ -64,7 +64,7 @@ final class WorxScheduleCodec
         return self::scheduleFromDevice($device) !== null;
     }
 
-    /** Validate and read the signed protocol-0/app time-extension percentage (-100..100). */
+    /** Read the app-scale percentage from the protocol value, including signed mower echoes. */
     public static function timeExtensionFromProtocol($value): ?int
     {
         if (!is_numeric($value)) {
@@ -76,17 +76,20 @@ final class WorxScheduleCodec
             return null;
         }
 
-        return (int) round($raw);
+        // The app maps -100..100 to non-negative protocol values 0..100.
+        // Some observed mower echoes also carry the app value directly as a negative number.
+        return (int) round($raw < 0 ? $raw : ($raw * 2) - 100);
     }
 
-    /** Keep the app percentage unchanged in the signed protocol-0 schedule field (-100..100). */
+    /** Convert the app percentage (-100..100) to the non-negative protocol schedule value (0..100). */
     public static function timeExtensionToProtocol(int $percent)
     {
         if ($percent < -100 || $percent > 100) {
             throw new InvalidArgumentException('Tägliche Arbeitszeit muss zwischen -100 und 100 Prozent liegen.');
         }
 
-        return $percent;
+        $raw = $percent + 100;
+        return $raw % 2 === 0 ? intdiv($raw, 2) : $raw / 2;
     }
 
     /**
@@ -291,8 +294,9 @@ final class WorxScheduleCodec
 
         if (array_key_exists('p', $expected) || array_key_exists('p', $reported)) {
             if (!array_key_exists('p', $expected) || !array_key_exists('p', $reported)
-                || !is_numeric($expected['p']) || !is_numeric($reported['p'])
-                || abs((float) $expected['p'] - (float) $reported['p']) > 0.001) {
+                || self::timeExtensionFromProtocol($expected['p']) === null
+                || self::timeExtensionFromProtocol($reported['p']) === null
+                || self::timeExtensionFromProtocol($expected['p']) !== self::timeExtensionFromProtocol($reported['p'])) {
                 return false;
             }
         }

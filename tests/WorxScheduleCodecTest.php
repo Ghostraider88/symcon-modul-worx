@@ -43,32 +43,46 @@ final class WorxScheduleCodecTest extends TestCase
         $reported['p'] = 10;
         self::assertFalse(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
 
-        $expected['p'] = 95.5;
+        $expected['p'] = 30;
         $reported = $expected;
         self::assertTrue(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
-        $reported['p'] = 95;
+        $reported['p'] = -40;
+        self::assertTrue(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
+        $reported['p'] = 35;
         self::assertFalse(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
     }
 
-    public function testPreservesSignedDailyWorkPercentageFromProtocol(): void
+    public function testMapsAppDailyWorkPercentageToProtocolScale(): void
     {
-        $cases = [
-            [-100, -100],
-            [-40, -40],
-            [0, 0],
-            [30, 30],
-            [60, 60],
+        $writeCases = [
+            [-100, 0],
+            [-40, 30],
+            [0, 50],
+            [30, 65],
+            [60, 80],
+            [90, 95],
             [100, 100],
         ];
 
-        foreach ($cases as [$appPercent, $protocolValue]) {
-            self::assertSame($appPercent, WorxScheduleCodec::timeExtensionFromProtocol($protocolValue));
+        foreach ($writeCases as [$appPercent, $protocolValue]) {
             self::assertEquals($protocolValue, WorxScheduleCodec::timeExtensionToProtocol($appPercent));
+        }
+
+        $readCases = [
+            [0, -100],
+            [30, -40],
+            [50, 0],
+            [65, 30],
+            [80, 60],
+            [95, 90],
+            [100, 100],
+        ];
+        foreach ($readCases as [$protocolValue, $appPercent]) {
+            self::assertSame($appPercent, WorxScheduleCodec::timeExtensionFromProtocol($protocolValue));
         }
 
         self::assertSame(-40, WorxScheduleCodec::timeExtensionFromProtocol(-40));
     }
-
     public function testRejectsTimeExtensionValuesOutsideProtocolRange(): void
     {
         self::assertNull(WorxScheduleCodec::timeExtensionFromProtocol(-100.1));
