@@ -22,7 +22,8 @@
             "Firmware-Auto-Update-Einstellung ist bereits bestätigt.": "Firmware auto-update preference is already confirmed.",
             "Firmware-Auto-Update-Einstellung aus der Worx-Cloud zurückgelesen und bestätigt.": "Firmware auto-update preference read back from Worx Cloud and confirmed.",
             "Abweichende Firmware-Auto-Update-Einstellung aus der Worx-Cloud übernommen.": "Different firmware auto-update preference received from Worx Cloud.",
-            "Keine Cloud-Bestätigung der Firmware-Auto-Update-Einstellung innerhalb von 120 Sekunden.": "No confirmation of the firmware auto-update preference from the cloud within 120 seconds.",            "Aktiv": "Active",
+            "Keine Cloud-Bestätigung der Firmware-Auto-Update-Einstellung innerhalb von 120 Sekunden.": "No confirmation of the firmware auto-update preference from the cloud within 120 seconds.",
+            "Aktiv": "Active",
             "Seriennummer fehlt": "Serial number missing"
         }
     }

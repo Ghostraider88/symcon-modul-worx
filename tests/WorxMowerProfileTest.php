@@ -80,7 +80,9 @@ final class WorxMowerProfileTest extends TestCase
         $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
         $registerVariables->setAccessible(true);
         $registerVariables->invoke($module);
-        $module->EnableAction('FirmwareAutoUpgradeSet');
+        $enableAction = new ReflectionMethod(IPSModule::class, 'EnableAction');
+        $enableAction->setAccessible(true);
+        $enableAction->invoke($module, 'FirmwareAutoUpgradeSet');
         $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
         $registerAttribute->setAccessible(true);
         $registerAttribute->invoke($module, 'PendingFirmwareAutoUpgrade', '');
