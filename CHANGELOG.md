@@ -2,6 +2,8 @@
 
 ## Unveröffentlicht
 
+- Kompatibilität mit IP-Symcon 6.0/PHP 7.4 durch Entfernen eines PHP-8-only-Aufrufs erhalten.
+
 - Die Zeitangabe „Erhöhen/Verringern der täglichen Arbeitszeit“ wird auf die Worx-App-Skala −100 bis +100 % abgebildet; `cfg.sc.p` verwendet dafür die gemessene Skala 0 bis 100.
 - Die Arbeitszeitvariablen verwenden ein eigenes Symcon-Profil von −100 bis +100 %; bei bestehenden Instanzen wird es erneut zugeordnet. Ein gemeinsam genutztes Prozentprofil bleibt unverändert.
 - Zeitplan- und Arbeitszeitübertragungen registrieren die erwartete Rückmeldung vor dem MQTT-Publish; schnelle Geräteechos werden dadurch dem wartenden Befehl zugeordnet.

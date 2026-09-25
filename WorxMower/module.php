@@ -779,7 +779,7 @@ class WorxMower extends IPSModule
         $statusID = $this->GetIDForIdent('ScheduleSyncStatus');
         if ($statusID !== false && $statusID > 0) {
             $status = GetValueString($statusID);
-            if (!str_contains($status, 'Symcon-Wochenplan geprüft')) {
+            if (strpos($status, 'Symcon-Wochenplan geprüft') === false) {
                 $this->SetValueSafe('ScheduleSyncStatus', rtrim($status, '.') . '; Symcon-Wochenplan geprüft.');
             }
         }
