@@ -116,10 +116,10 @@ final class WorxCloudSecurityTest extends TestCase
         $writeAttribute->setAccessible(true);
         $writeAttribute->invoke($module, 'Devices', json_encode([[
             'serial_number' => 'SERIAL-TEST',
-            'protocol' => 0,
-            'capabilities' => ['rain_delay'],
-            'online' => true,
-            'mqtt_topics' => ['command_in' => 'test/topic'],
+            'protocol'      => 0,
+            'capabilities'  => ['rain_delay'],
+            'online'        => true,
+            'mqtt_topics'   => ['command_in' => 'test/topic'],
         ]]));
 
         foreach ([-30, 1, 15, 31, 721] as $minutes) {
