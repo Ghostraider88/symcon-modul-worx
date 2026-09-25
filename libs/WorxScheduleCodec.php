@@ -64,7 +64,7 @@ final class WorxScheduleCodec
         return self::scheduleFromDevice($device) !== null;
     }
 
-    /** Read the app-scale percentage from the protocol value, including signed mower echoes. */
+    /** Read the signed app percentage directly from the protocol value. */
     public static function timeExtensionFromProtocol($value): ?int
     {
         if (!is_numeric($value)) {
@@ -76,20 +76,18 @@ final class WorxScheduleCodec
             return null;
         }
 
-        // The app maps -100..100 to non-negative protocol values 0..100.
-        // Some observed mower echoes also carry the app value directly as a negative number.
-        return (int) round($raw < 0 ? $raw : ($raw * 2) - 100);
+        // WR105SI.1 payloads confirm that cfg.sc.p uses the signed app value directly.
+        return (int) round($raw);
     }
 
-    /** Convert the app percentage (-100..100) to the non-negative protocol schedule value (0..100). */
+    /** Keep the signed app percentage unchanged in cfg.sc.p. */
     public static function timeExtensionToProtocol(int $percent)
     {
         if ($percent < -100 || $percent > 100) {
             throw new InvalidArgumentException('Tägliche Arbeitszeit muss zwischen -100 und 100 Prozent liegen.');
         }
 
-        $raw = $percent + 100;
-        return $raw % 2 === 0 ? intdiv($raw, 2) : $raw / 2;
+        return $percent;
     }
 
     /**

@@ -9,7 +9,7 @@ final class ForkIdentityTest extends TestCase
     public function testForkGuidsRemainStableAndIndependentFromCatomic(): void
     {
         $forkGuids = [
-            'library.json'                => '{D41E48F5-1BCC-4527-9C46-AB3113FCC1D7}',
+            'library.json'                          => '{D41E48F5-1BCC-4527-9C46-AB3113FCC1D7}',
             'WorxCloud/module.json'        => '{2A3889B6-AD03-4B1E-8782-BEB0E6CABCC1}',
             'WorxConfigurator/module.json' => '{A8373ED9-7396-421E-A78E-4904A6AC4657}',
             'WorxMower/module.json'        => '{39CA7807-D252-4375-8D05-1C5F918552C0}',

@@ -36,53 +36,36 @@ final class WorxScheduleCodecTest extends TestCase
 
     public function testIncludesTimeExtensionInScheduleAcknowledgement(): void
     {
-        $expected = $this->makeSchedule();
-        $expected['p'] = 20;
+        $expected = [
+            'm' => 1,
+            'd' => [['17:00', 120, 1]],
+            'p' => -40,
+        ];
         $reported = $expected;
         self::assertTrue(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
-        $reported['p'] = 10;
-        self::assertFalse(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
 
-        $expected['p'] = 30;
-        $reported = $expected;
-        self::assertTrue(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
-        $reported['p'] = -40;
-        self::assertTrue(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
-        $reported['p'] = 35;
+        $reported['p'] = 30;
         self::assertFalse(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
     }
 
-    public function testMapsAppDailyWorkPercentageToProtocolScale(): void
+    public function testPreservesSignedDailyWorkPercentageFromProtocol(): void
     {
-        $writeCases = [
-            [-100, 0],
-            [-40, 30],
-            [0, 50],
-            [30, 65],
-            [60, 80],
-            [90, 95],
+        $cases = [
+            [-100, -100],
+            [-50, -50],
+            [-40, -40],
+            [0, 0],
+            [30, 30],
+            [60, 60],
             [100, 100],
         ];
 
-        foreach ($writeCases as [$appPercent, $protocolValue]) {
-            self::assertEquals($protocolValue, WorxScheduleCodec::timeExtensionToProtocol($appPercent));
-        }
-
-        $readCases = [
-            [0, -100],
-            [30, -40],
-            [50, 0],
-            [65, 30],
-            [80, 60],
-            [95, 90],
-            [100, 100],
-        ];
-        foreach ($readCases as [$protocolValue, $appPercent]) {
+        foreach ($cases as [$appPercent, $protocolValue]) {
             self::assertSame($appPercent, WorxScheduleCodec::timeExtensionFromProtocol($protocolValue));
+            self::assertSame($protocolValue, WorxScheduleCodec::timeExtensionToProtocol($appPercent));
         }
-
-        self::assertSame(-40, WorxScheduleCodec::timeExtensionFromProtocol(-40));
     }
+
     public function testRejectsTimeExtensionValuesOutsideProtocolRange(): void
     {
         self::assertNull(WorxScheduleCodec::timeExtensionFromProtocol(-100.1));

@@ -38,8 +38,8 @@ Gerätesteuerungen nur einzeln und mit sichtbarer Sollwert-/Rückmeldungsprüfun
 
 Nach Aktualisierung des Testbranches und erneutem Anwenden der Mower-Konfiguration:
 
-1. Nach Modulupdate und erneutem Anwenden der Mower-Konfiguration in der Worx-App nacheinander −100 %, 0 % und +100 % einstellen. Die Variable „Tägliche Arbeitszeit (bestätigt)“ muss jeweils denselben Prozentwert anzeigen. Den zeitgleichen redigierten cfg.sc.p-Wert notieren; bei positiven Rohwerten 0/50/100 wird daraus −100/0/+100. Ein negatives Mäher-Echo wie p=-40 muss als −40 % angezeigt werden.
-2. Für den Schreibrundlauf in Symcon „Tägliche Arbeitszeit setzen“ nacheinander auf −40 % und +60 % setzen. Die Worx-App und „Tägliche Arbeitszeit (bestätigt)“ müssen jeweils denselben Wert zeigen; Status und Mäher-Echo abwarten. Anschließend den notierten Ausgangswert wiederherstellen.
+1. Nach Modulupdate und erneutem Anwenden der Mower-Konfiguration in der Worx-App −100 %, −50 %, 0 % und +30 % einstellen. „Tägliche Arbeitszeit (bestätigt)“ muss jeweils denselben Wert wie App und redigiertes `cfg.sc.p` zeigen.
+2. Für den Schreibrundlauf in Symcon „Tägliche Arbeitszeit setzen“ nacheinander auf −40 % und +60 % setzen. Die Worx-App und „Tägliche Arbeitszeit (bestätigt)“ müssen jeweils denselben Wert zeigen; der redigierte `cfg.sc.p`-Wert muss dem Sollwert entsprechen; Status und Mäher-Echo abwarten. Anschließend den notierten Ausgangswert wiederherstellen.
 3. Vor dem Test den aktuellen App-Wert notieren. Nach dem Echo den gewünschten Ausgangswert gezielt wiederherstellen, falls er geändert wurde.
 
 Die Werte müssen jeweils aus demselben Rückmeldezeitpunkt stammen. Eine bloße Publish-Meldung zählt nicht als Gerätebestätigung.
