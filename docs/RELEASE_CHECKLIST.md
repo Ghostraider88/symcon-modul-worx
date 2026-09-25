@@ -23,11 +23,11 @@ Diese Checkliste gilt für `Ghostraider88/symcon-modul-worx`. Der Branch `codex/
 | Prüfung | Stand |
 |---|---|
 | Anmeldung, Geräteerkennung und Live-Status in Docker | Bestätigt |
-| Lesbare Status-/Fehlerhistorie über StateText und ErrorText; Darstellungsdialoge öffnen/speichern | Nach neuestem Modulupdate in Docker visuell zu bestätigen; Archive Control für gewünschte Verlaufskurven aktivieren |
+| Lesbare Status-/Fehlerhistorie über `StateText` und `ErrorText`; Darstellungsdialoge öffnen/speichern | Nach neuestem Modulupdate in Docker visuell zu bestätigen; Archivierung der beiden Variablen für Verlaufskurven aktivieren |
 | Symcon-Wochenplan → Worx-App/Mäher | Vom Nutzer bestätigt |
 | Worx-App → Symcon-Wochenplan ohne manuellen Refresh | Vom Nutzer bestätigt |
 | „Ganzer Tag“ und Zeitfenster über Mitternacht | Offen; Format und verlustfreie Symcon-Abbildung belegen |
-| Automatischer Zeitplan, Regenverzögerung, tägliche Arbeitszeitänderung und Sperre | Schreibweg implementiert; Zeit-Skala korrigiert, Echo nach Korrektur noch zu bestätigen; übrige Geräteechos je Funktion offen |
+| Automatischer Zeitplan, Regenverzögerung, tägliche Arbeitszeitänderung und Sperre | Schreibwege implementiert; Arbeitszeitfeld ist eine unveränderte signierte Abbildung; Legacy-Profilanzeige durch moderne Wertdarstellung ersetzt, Docker-Ansicht noch zu bestätigen; Geräteechos der Einstellungen offen |
 | Start, Pause und Heimfahrt | Implementiert; am echten Mäher noch nicht bestätigt |
 | Neuinstallation, Update, wiederholte Konfiguration und Wiederanlauf | Noch vollständig abzunehmen |
 | Fehlerfälle (falsche Zugangsdaten, Cloud-/MQTT-Ausfall, leere Antwort) | Noch vollständig abzunehmen |
