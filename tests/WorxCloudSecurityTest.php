@@ -29,6 +29,26 @@ final class WorxCloudRequestTestDouble extends WorxCloud
     }
 }
 
+final class WorxCloudMqttParentTestDouble extends IPSModule
+{
+    public array $messages = [];
+
+    public function GetForwardDataFilter()
+    {
+        return '.*';
+    }
+
+    public function ForwardData($JSONString)
+    {
+        $message = json_decode($JSONString, true);
+        $this->messages[] = [
+            'Topic'   => $message['Topic'] ?? '',
+            'Payload' => json_decode($message['Payload'] ?? '', true),
+        ];
+        return '';
+    }
+}
+
 final class WorxCloudSecurityTest extends TestCase
 {
     public function testDeviceSerialIsMaskedInApiDebugPath(): void
@@ -125,5 +145,43 @@ final class WorxCloudSecurityTest extends TestCase
         foreach ([-30, 1, 15, 31, 721] as $minutes) {
             self::assertFalse($module->SetRainDelay('SERIAL-TEST', $minutes));
         }
+    }
+
+    public function testRainDelayCloudCommandPublishesValidValuesAboveTheFormerLimit(): void
+    {
+        IPS\Kernel::reset();
+        IPS\InstanceManager::createInstance(1, [
+            'Class'      => WorxCloudRequestTestDouble::class,
+            'ModuleID'   => '{2A3889B6-AD03-4B1E-8782-BEB0E6CABCC1}',
+            'ModuleName' => 'Worx Cloud Test',
+            'ModuleType' => 2,
+        ]);
+        IPS\InstanceManager::createInstance(2, [
+            'Class'      => WorxCloudMqttParentTestDouble::class,
+            'ModuleID'   => '{00000000-0000-0000-0000-000000000001}',
+            'ModuleName' => 'MQTT Parent Test',
+            'ModuleType' => 1,
+        ]);
+        IPS\InstanceManager::connectInstance(1, 2);
+        $module = IPS\InstanceManager::getInstanceInterface(1);
+        $mqtt = IPS\InstanceManager::getInstanceInterface(2);
+        $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeAttribute->setAccessible(true);
+        $writeAttribute->invoke($module, 'Devices', json_encode([[
+            'serial_number' => 'SERIAL-TEST',
+            'protocol'      => 0,
+            'capabilities'  => ['rain_delay'],
+            'online'        => true,
+            'mqtt_topics'   => ['command_in' => 'test/topic'],
+        ]]));
+
+        foreach ([330, 720] as $minutes) {
+            self::assertTrue($module->SetRainDelay('SERIAL-TEST', $minutes));
+        }
+
+        self::assertSame([
+            ['Topic'   => 'test/topic', 'Payload' => ['rd' => 330]],
+            ['Topic'   => 'test/topic', 'Payload' => ['rd' => 720]],
+        ], $mqtt->messages);
     }
 }
