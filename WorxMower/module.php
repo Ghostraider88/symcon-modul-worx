@@ -1199,7 +1199,7 @@ class WorxMower extends IPSModule
 
         return [
             'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-            'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR),
+            'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR),
         ];
     }
 
@@ -1210,11 +1210,11 @@ class WorxMower extends IPSModule
     {
         return [
             'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-            'MIN'         => $minimum,
-            'MAX'         => $maximum,
-            'STEP_SIZE'   => 1,
-            'SUFFIX'      => $suffix,
-            'PERCENTAGE'  => false,
+            'MIN'          => $minimum,
+            'MAX'          => $maximum,
+            'STEP_SIZE'    => 1,
+            'SUFFIX'       => $suffix,
+            'PERCENTAGE'   => false,
         ];
     }
 
