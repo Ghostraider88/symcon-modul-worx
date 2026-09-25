@@ -130,6 +130,55 @@ final class WorxCloudSecurityTest extends TestCase
         self::assertTrue($module->pollCalled);
     }
 
+    public function testAutoScheduleWriteRequiresReportedBooleanAndOnlineDevice(): void
+    {
+        IPS\Kernel::reset();
+        $module = new WorxCloud(1);
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        $registerAttribute->invoke($module, 'Devices', '[]');
+        $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeAttribute->setAccessible(true);
+
+        $device = [
+            'serial_number' => 'SERIAL-TEST',
+            'online'        => true,
+        ];
+        $writeAttribute->invoke($module, 'Devices', json_encode([$device]));
+        self::assertFalse($module->SetAutoSchedule('SERIAL-TEST', true));
+
+        $device['auto_schedule'] = 'false';
+        $writeAttribute->invoke($module, 'Devices', json_encode([$device]));
+        self::assertFalse($module->SetAutoSchedule('SERIAL-TEST', true));
+
+        $device['auto_schedule'] = false;
+        $device['online'] = false;
+        $writeAttribute->invoke($module, 'Devices', json_encode([$device]));
+        self::assertFalse($module->SetAutoSchedule('SERIAL-TEST', true));
+    }
+
+    public function testAutoScheduleWriteUpdatesOnlyTheCloudPreferenceAndPollsForConfirmation(): void
+    {
+        IPS\Kernel::reset();
+        $module = new WorxCloudRequestTestDouble(1);
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        $registerAttribute->invoke($module, 'Devices', '[]');
+        $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeAttribute->setAccessible(true);
+        $writeAttribute->invoke($module, 'Devices', json_encode([[
+            'serial_number' => 'SERIAL-TEST',
+            'online'        => true,
+            'auto_schedule' => false,
+        ]]));
+
+        self::assertTrue($module->SetAutoSchedule('SERIAL-TEST', true));
+        self::assertSame([
+            ['PUT', '/api/v2/product-items/SERIAL-TEST', ['auto_schedule' => true], 'test-token'],
+        ], $module->requests);
+        self::assertTrue($module->pollCalled);
+    }
+
     public function testRainDelayCloudCommandRejectsValuesOutsideTheDeviceSteps(): void
     {
         IPS\Kernel::reset();

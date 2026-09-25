@@ -332,6 +332,75 @@ final class WorxMowerProfileTest extends TestCase
         self::assertFalse(GetValue($lockCommandID));
     }
 
+    public function testAutoScheduleAppEchoKeepsPendingInputUntilConfirmedAndThenTracksAppChanges(): void
+    {
+        IPS\Kernel::reset();
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $module = new WorxMowerTestDouble($instanceID);
+        $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
+        $registerVariables->setAccessible(true);
+        $registerVariables->invoke($module);
+
+        $registerProperty = new ReflectionMethod(IPSModule::class, 'RegisterPropertyString');
+        $registerProperty->setAccessible(true);
+        $registerProperty->invoke($module, 'Serial', 'SERIAL-TEST');
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        foreach ([
+            'PendingCommand', 'PendingCommandSerial',
+            'PendingRainDelay', 'PendingRainDelaySerial', 'ReportedRainDelay',
+            'PendingLock', 'PendingLockSerial',
+            'PendingAutoSchedule', 'PendingAutoScheduleSerial',
+            'PendingFirmwareAutoUpgrade', 'PendingFirmwareAutoUpgradeSerial',
+            'PendingSchedule', 'PendingScheduleSerial', 'PendingSchedulePurpose',
+            'ReportedSchedule', 'FailedSchedule', 'FailedScheduleSerial',
+        ] as $attribute) {
+            $default = $attribute === 'PendingSchedulePurpose' ? 'schedule' : '';
+            $registerAttribute->invoke($module, $attribute, $default);
+        }
+        $registerTimer = new ReflectionMethod(IPSModule::class, 'RegisterTimer');
+        $registerTimer->setAccessible(true);
+        $registerTimer->invoke($module, 'AutoScheduleConfirmationTimeout', 0, '');
+
+        $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
+        $applyDevice->setAccessible(true);
+        $device = [
+            'online'        => true,
+            'protocol'      => 0,
+            'capabilities'  => [],
+            'auto_schedule' => false,
+            'last_status'   => ['payload' => [
+                'cfg' => ['sc' => ['m' => 1, 'p' => 0, 'd' => [['17:00', 120, 1]]]],
+                'dat' => ['ls' => 1, 'le' => 0],
+            ]],
+        ];
+        $applyDevice->invoke($module, $device);
+
+        $confirmedID = IPS_GetObjectIDByIdent('AutoSchedule', $instanceID);
+        $setID = IPS_GetObjectIDByIdent('AutoScheduleSet', $instanceID);
+        $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeAttribute->setAccessible(true);
+        $writeAttribute->invoke($module, 'PendingAutoSchedule', '{"desired":true,"previous":false}');
+        $writeAttribute->invoke($module, 'PendingAutoScheduleSerial', 'SERIAL-TEST');
+        SetValue($setID, true);
+
+        $applyDevice->invoke($module, $device);
+        self::assertFalse(GetValueBoolean($confirmedID));
+        self::assertTrue(GetValueBoolean($setID));
+        self::assertNotSame('', $module->readAttributeForTest('PendingAutoSchedule'));
+
+        $device['auto_schedule'] = true;
+        $applyDevice->invoke($module, $device);
+        self::assertTrue(GetValueBoolean($confirmedID));
+        self::assertTrue(GetValueBoolean($setID));
+        self::assertSame('', $module->readAttributeForTest('PendingAutoSchedule'));
+
+        $device['auto_schedule'] = false;
+        $applyDevice->invoke($module, $device);
+        self::assertFalse(GetValueBoolean($confirmedID));
+        self::assertFalse(GetValueBoolean($setID));
+    }
+
     public function testRainDelayConfirmationIgnoresStaleEchoAndAdoptsLaterAppChange(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
