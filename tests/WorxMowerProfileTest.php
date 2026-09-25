@@ -13,6 +13,19 @@ final class WorxMowerProfileTest extends TestCase
         IPS\Kernel::reset();
     }
 
+    public function testConfigurationButtonsUseSupportedRequestActions(): void
+    {
+        $module = new WorxMower(1);
+        $form = json_decode($module->GetConfigurationForm(), true);
+
+        self::assertIsArray($form);
+        $actions = array_column($form['actions'], 'onClick');
+        self::assertContains('IPS_RequestAction($id, "Control", 1);', $actions);
+        self::assertContains('IPS_RequestAction($id, "Control", 2);', $actions);
+        self::assertContains('IPS_RequestAction($id, "Control", 3);', $actions);
+        self::assertContains('IPS_RequestAction($id, "Update", true);', $actions);
+        self::assertNotContains('WORXMOWER_Update($id);', $actions);
+    }
     public function testTimeExtensionProfileIsDedicatedAndUsesTheAppRange(): void
     {
         IPS_CreateVariableProfile('WORX.Percent', VARIABLETYPE_INTEGER);

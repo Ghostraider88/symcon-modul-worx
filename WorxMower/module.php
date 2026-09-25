@@ -149,6 +149,13 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('Control', 0);
             return;
         }
+        if ($Ident === 'Update') {
+            if ($Value !== true) {
+                throw new InvalidArgumentException('Update erwartet true.');
+            }
+            $this->Update();
+            return;
+        }
         if ($Ident === 'FollowBorder') {
             if ($Value !== true) {
                 throw new InvalidArgumentException('FollowBorder erwartet true.');
@@ -643,11 +650,11 @@ class WorxMower extends IPSModule
         }
         $actions = [
             ['type' => 'RowLayout', 'items' => [
-                ['type' => 'Button', 'caption' => 'Start', 'onClick' => 'WORXMOWER_Start($id);'],
-                ['type' => 'Button', 'caption' => 'Pause', 'onClick' => 'WORXMOWER_Pause($id);'],
-                ['type' => 'Button', 'caption' => 'Ladestation', 'onClick' => 'WORXMOWER_Home($id);'],
+                ['type' => 'Button', 'caption' => 'Start', 'onClick' => 'IPS_RequestAction($id, "Control", 1);'],
+                ['type' => 'Button', 'caption' => 'Pause', 'onClick' => 'IPS_RequestAction($id, "Control", 2);'],
+                ['type' => 'Button', 'caption' => 'Ladestation', 'onClick' => 'IPS_RequestAction($id, "Control", 3);'],
             ]],
-            ['type' => 'Button', 'caption' => 'Jetzt aktualisieren', 'onClick' => 'WORXMOWER_Update($id);'],
+            ['type' => 'Button', 'caption' => 'Jetzt aktualisieren', 'onClick' => 'IPS_RequestAction($id, "Update", true);'],
         ];
         if ($device !== null && (int) ($device['protocol'] ?? -1) === 0
             && in_array('follow_border', $device['capabilities'] ?? [], true)) {
