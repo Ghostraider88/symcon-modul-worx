@@ -49,13 +49,12 @@ final class WorxMowerProfileTest extends TestCase
         self::assertLessThan($positions['Error'], $positions['StateText']);
         self::assertLessThan($positions['ErrorText'], $positions['Error']);
 
-        foreach (['State', 'Error'] as $ident) {
-            $variableID = IPS_GetObjectIDByIdent($ident, $instanceID);
-            $presentation = IPS_GetVariable($variableID)['VariablePresentation'];
-            self::assertSame(VARIABLE_PRESENTATION_VALUE_PRESENTATION, $presentation['PRESENTATION']);
-            self::assertSame('', $presentation['SUFFIX']);
-            self::assertArrayNotHasKey('OPTIONS', $presentation);
-        }
+        $presentationMethod = new ReflectionMethod(WorxMower::class, 'valuePresentation');
+        $presentationMethod->setAccessible(true);
+        $presentation = $presentationMethod->invoke($module, '');
+        self::assertSame(VARIABLE_PRESENTATION_VALUE_PRESENTATION, $presentation['PRESENTATION']);
+        self::assertSame('', $presentation['SUFFIX']);
+        self::assertArrayNotHasKey('OPTIONS', $presentation);
     }
 
     public function testConfirmedTimeExtensionUsesValuePresentationWithLiteralPercentSuffix(): void
