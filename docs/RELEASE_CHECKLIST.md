@@ -23,15 +23,16 @@ Diese Checkliste gilt für `Ghostraider88/symcon-modul-worx`. Der Branch `codex/
 | Prüfung | Stand |
 |---|---|
 | Anmeldung, Geräteerkennung und Live-Status in Docker | Bestätigt |
-| `State`/`Error` als Zahlen ohne Aufzählung; `StateText`/`ErrorText` daneben und bei Statuswechsel aktualisiert; neue Reihenfolge wird auf Bestandsinstanz angewandt | Sortierung und Status-Zahl-/Textdarstellung nach Modulupdate durch Nutzer in Docker bestätigt; Fehler-Textdarstellung noch zu prüfen. Für Verlaufskurven muss Archive Control die gewünschte String-Variable aufzeichnen. |
+| `State`/`Error` als Zahlen ohne Aufzählung; `StateText`/`ErrorText` daneben und bei Statuswechsel aktualisiert; neue Reihenfolge wird auf Bestandsinstanz angewandt | Schreibgeschützter Docker-RPC bestätigt State 1 / „In der Ladestation“ und Error 0 / „Kein Fehler“ mit passenden Strings direkt dahinter (Position 0–3), Integer ohne Variablenprofile und ohne Aktion. Verlaufshistorie noch nicht geprüft; Archive Control muss die gewünschten Strings separat aufzeichnen. |
 | Symcon-Wochenplan → Worx-App/Mäher | Vom Nutzer bestätigt |
 | Worx-App → Symcon-Wochenplan ohne manuellen Refresh | Vom Nutzer bestätigt |
 | „Ganzer Tag“ und Zeitfenster über Mitternacht | Vorher-/Nachher-Datensatz beim Umschalten von „Ganzer Tag“ identisch; Wire-Abbildung bleibt offen. Mitternachtsfenster ebenfalls offen. |
-| Automatischer Zeitplan, Regenverzögerung, tägliche Arbeitszeitänderung und Sperre | Schreibwege implementiert; Arbeitszeitfeld ist eine unveränderte signierte Abbildung; Legacy-Profilanzeige durch moderne Wertdarstellung mit literalem Suffix „ %“ ersetzt; keine Legacy-, Tilde- oder benutzerdefinierten Profile mehr registriert, Docker-Ansicht nach Update noch visuell zu bestätigen; Geräteechos der Einstellungen offen. Firmware-Auto-Update wird capability-geprüft als getrennte bestätigte Variable und Symcon-Schalter angezeigt; der Schalter ändert nur die Cloud-Präferenz, nicht die Firmware selbst. Cloud-Echo-Test in Docker und am Gerät offen. |
+| Automatischer Zeitplan, Regenverzögerung, tägliche Arbeitszeitänderung und Sperre | Schreibwege implementiert; Arbeitszeitfeld ist eine unveränderte signierte Abbildung; Docker-RPC bestätigt moderne Wertdarstellung mit Suffix „ %“, ohne Legacy-, Tilde- oder benutzerdefiniertes Profil; aktueller Wert 0, negativer Schreib-Echo nach Profilwechsel noch offen; Geräteechos der Einstellungen offen. Firmware-Auto-Update wird capability-geprüft als getrennte bestätigte Variable und Symcon-Schalter angezeigt; der Schalter ändert nur die Cloud-Präferenz, nicht die Firmware selbst. Cloud-Echo-Test in Docker und am Gerät offen. |
 | Start, Pause und Heimfahrt | Implementiert; am echten Mäher noch nicht bestätigt |
+| Aktueller Modulstand der Docker-Mower-Instanz | Firmware-Auto-Update-Variablen aus dem aktuellen Quellstand fehlen; Repository aktualisieren und Instanzkonfiguration erneut anwenden, danach Vorhandensein und Capability-Gating erneut lesen |
 | Neuinstallation, Update, wiederholte Konfiguration und Wiederanlauf | Noch vollständig abzunehmen |
 | Fehlerfälle (falsche Zugangsdaten, Cloud-/MQTT-Ausfall, leere Antwort) | Noch vollständig abzunehmen |
-| Mindestversion IP-Symcon 9.0 | Manifest und README aktualisiert; PHP-8.5-Syntaxprüfung läuft in CI |
+| Mindestversion IP-Symcon 9.0 | Manifest/README verlangen 9.0; Docker-Kernel 9.0 per read-only RPC bestätigt; PHP-8.5-Syntax- und Repository-Prüfungen in CI erfolgreich |
 
 Gerätesteuerungen nur einzeln und mit sichtbarer Sollwert-/Rückmeldungsprüfung ausprobieren. Ein MQTT-Publish oder HTTP-Erfolg allein gilt nicht als Gerätebestätigung. Keine Aktionen im Rahmen statischer Codeprüfungen ausführen.
 
