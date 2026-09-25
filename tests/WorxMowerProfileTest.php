@@ -15,6 +15,7 @@ final class WorxMowerProfileTest extends TestCase
 
     public function testConfigurationButtonsUseSupportedRequestActions(): void
     {
+        IPS\ObjectManager::registerObject(1);
         $module = new WorxMower(1);
         $form = json_decode($module->GetConfigurationForm(), true);
 
