@@ -29,9 +29,9 @@ Diese Checkliste gilt für `Ghostraider88/symcon-modul-worx`. Der Branch `codex/
 | „Ganzer Tag“ und Zeitfenster über Mitternacht | Vorher-/Nachher-Datensatz beim Umschalten von „Ganzer Tag“ identisch; Wire-Abbildung bleibt offen. Mitternachtsfenster ebenfalls offen. |
 | Automatischer Zeitplan, Regenverzögerung, tägliche Arbeitszeitänderung und Sperre | Schreibwege implementiert; Arbeitszeitfeld ist eine unveränderte signierte Abbildung; Docker bestätigt nach Build 5 (Commit `0f181ee`), dass alle 34 Variablen keine Legacy- oder benutzerdefinierten Profile verwenden und der Slider `%` anzeigt. Negativer Schreib-Echo und Geräteechos der übrigen Einstellungen offen. Firmware-Auto-Update wird capability-geprüft als getrennte bestätigte Variable und Symcon-Schalter angezeigt; der Schalter ändert nur die Cloud-Präferenz, nicht die Firmware selbst. Cloud-Echo-Test in Docker und am Gerät offen. |
 | Start, Pause und Heimfahrt | Implementiert; am echten Mäher noch nicht bestätigt |
-| Aktueller Modulstand der Docker-Mower-Instanz | Build 5 `0f181ee` geladen; 34 Mower-Variablen live ausgelesen: keine Standard- oder benutzerdefinierten Profilzuweisungen; Arbeitszeit-Slider mit −100…+100 und `%`-Suffix vorhanden. Natives Wochenplanereignis vorhanden; keine Entwurfsvariablen. |
-| Aktueller Code-Stand im Testbranch | Build 7, letzter Branch-Commit 9b3fe6d; enthält Regenverzögerung 0 oder 30-Minuten-Schritte bis 720 Minuten auch auf der Cloud-Transportschicht. Der letzte bestätigte Docker-Lesestand ist Build 5 und muss zum Echo-Test aktualisiert werden. |
-| Regenverzögerung 330 Minuten → Worx-App und bestätigte Variable | Mit Build 7 zu testen; 330 Minuten liegt über der früheren Cloud-Grenze von 300. Nach bestätigtem Echo den zuvor notierten Ausgangswert wiederherstellen. |
+| Aktueller Modulstand der Docker-Mower-Instanz | Library-API bestätigt Version 2.0, Build 7. Alle 34 Mower-Variablen haben keine Standard- oder benutzerdefinierten Profile; Wochenplanereignis vorhanden, keine Entwurfsvariablen. Regenverzögerungs-Slider: 0–720 Minuten in 30-Minuten-Schritten; bestätigter Wert 180 Minuten. |
+| Aktueller Code-Stand im Testbranch | Build 7 enthält die Regenverzögerung 0 oder 30-Minuten-Schritte bis 720 Minuten auch auf der Cloud-Transportschicht. Docker ist auf Build 7 aktualisiert; der Schreib-Echo bleibt offen. |
+| Regenverzögerung 330 Minuten → Worx-App und bestätigte Variable | Build 7 ist installiert; Darstellung und aktueller Wert 180 Minuten sind live bestätigt. Der 330-Minuten-Schreibrundlauf über der früheren Cloud-Grenze von 300 ist noch auszuführen. Danach den Ausgangswert wiederherstellen. |
 | Neuinstallation, Update, wiederholte Konfiguration und Wiederanlauf | Noch vollständig abzunehmen |
 | Fehlerfälle (falsche Zugangsdaten, Cloud-/MQTT-Ausfall, leere Antwort) | Noch vollständig abzunehmen |
 | Mindestversion IP-Symcon 9.0 | Manifest/README verlangen 9.0; Docker-Kernel 9.0 per read-only RPC bestätigt; PHP-8.5-Syntax- und Repository-Prüfungen in CI erfolgreich |
@@ -50,7 +50,7 @@ Die Werte müssen jeweils aus demselben Rückmeldezeitpunkt stammen. Eine bloße
 
 ## Prüfschritt: Regenverzögerung bis über 300 Minuten
 
-Nach Aktualisierung der Docker-Testinstallation auf Build 7:
+Bei installierter Build-7-Version:
 
 1. Den aktuellen Wert aus der Worx-App und „Regenverzögerung (bestätigt)“ notieren.
 2. In Symcon „Regenverzögerung setzen“ auf 330 Minuten stellen. Das prüft gezielt die frühere 300-Minuten-Grenze im Cloud-Transport.
