@@ -88,7 +88,12 @@ final class WorxMowerProfileTest extends TestCase
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
         $module = new WorxMower($instanceID);
-        $module->Create();
+        $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
+        $registerVariables->setAccessible(true);
+        $registerVariables->invoke($module);
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        $registerAttribute->invoke($module, 'PendingCommand', '');
         $method = new ReflectionMethod(WorxMower::class, 'applyDevice');
         $method->setAccessible(true);
         $method->invoke($module, [
