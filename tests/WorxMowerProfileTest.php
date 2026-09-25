@@ -9,6 +9,7 @@ require_once __DIR__ . '/../WorxMower/module.php';
 final class WorxMowerTestDouble extends WorxMower
 {
     public array $scheduleSuppressionDuringUpdate = [];
+    public bool $captureScheduleSuppression = false;
 
     public function readAttributeForTest(string $name): string
     {
@@ -17,7 +18,9 @@ final class WorxMowerTestDouble extends WorxMower
 
     public function Update(): bool
     {
-        $this->scheduleSuppressionDuringUpdate[] = $this->ReadAttributeBoolean('ScheduleWritesSuppressed');
+        if ($this->captureScheduleSuppression) {
+            $this->scheduleSuppressionDuringUpdate[] = $this->ReadAttributeBoolean('ScheduleWritesSuppressed');
+        }
         return false;
     }
 
@@ -57,6 +60,7 @@ final class WorxMowerProfileTest extends TestCase
         ]);
         $module = IPS\InstanceManager::getInstanceInterface($instanceID);
         $module->SetProperty('Serial', 'SERIAL-TEST');
+        $module->captureScheduleSuppression = true;
 
         $module->ApplyChanges();
         $module->ApplyChanges();
