@@ -1,0 +1,19 @@
+{
+    "id": "{39CA7807-D252-4375-8D05-1C5F918552C0}",
+    "name": "Worx Mower",
+    "type": 3,
+    "vendor": "Worx",
+    "aliases": [
+        "Worx Landroid",
+        "Landroid Mähroboter"
+    ],
+    "parentRequirements": [
+        "{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}"
+    ],
+    "childRequirements": [],
+    "implemented": [
+        "{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}"
+    ],
+    "prefix": "WORXMOWER",
+    "url": "https://github.com/Ghostraider88/symcon-modul-worx"
+}
