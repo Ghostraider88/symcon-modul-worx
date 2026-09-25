@@ -1145,6 +1145,25 @@ class WorxMower extends IPSModule
 
         // Redacted development diagnostic is intentionally last in the object tree.
         $this->RegisterVariableString('DeviceDiagnostics', 'Gerätenachweis (redigiert)', '', $p++);
+
+        // RegisterVariable* may leave positions unchanged for existing child variables after an update.
+        // Apply the order explicitly so existing installations receive the same layout as fresh installs.
+        $orderedIdents = [
+            'State', 'StateText', 'Error', 'ErrorText', 'Online', 'LastUpdate',
+            'Control', 'LastCommand', 'CommandStatus', 'Locked', 'LockCommand', 'AutoSchedule', 'AutoScheduleSet',
+            'TimeExtension', 'TimeExtensionSet', 'RainDelay', 'RainDelaySet', 'Rain', 'SettingStatus', 'ScheduleSyncStatus',
+            'Battery', 'Charging', 'BatteryTemp', 'BatteryVoltage', 'ChargeCycles', 'WifiSignal', 'Distance', 'WorkTime',
+            'BladeTime', 'Zone', 'Firmware', 'DeviceDiagnostics',
+        ];
+        foreach ($orderedIdents as $position => $ident) {
+            $variableID = $this->GetIDForIdent($ident);
+            if ($variableID === false || $variableID <= 0) {
+                continue;
+            }
+            if (IPS_GetObject($variableID)['ObjectPosition'] !== $position && !IPS_SetPosition($variableID, $position)) {
+                throw new RuntimeException(sprintf('Position für Mower-Variable %s (ID %d) konnte nicht gesetzt werden.', $ident, $variableID));
+            }
+        }
     }
 
     private function valuePresentation(string $suffix): array

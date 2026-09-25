@@ -39,15 +39,22 @@ final class WorxMowerProfileTest extends TestCase
         $method->setAccessible(true);
         $method->invoke($module);
 
+        // Emulate the old scattered positions already present on an installed instance.
+        IPS_SetPosition(IPS_GetObjectIDByIdent('State', $instanceID), 80);
+        IPS_SetPosition(IPS_GetObjectIDByIdent('StateText', $instanceID), 10);
+        IPS_SetPosition(IPS_GetObjectIDByIdent('Error', $instanceID), 70);
+        IPS_SetPosition(IPS_GetObjectIDByIdent('ErrorText', $instanceID), 20);
+        $method->invoke($module);
         $positions = [];
         foreach (['State', 'StateText', 'Error', 'ErrorText'] as $ident) {
             $variableID = IPS_GetObjectIDByIdent($ident, $instanceID);
             $positions[$ident] = IPS_GetObject($variableID)['ObjectPosition'];
         }
 
-        self::assertLessThan($positions['StateText'], $positions['State']);
-        self::assertLessThan($positions['Error'], $positions['StateText']);
-        self::assertLessThan($positions['ErrorText'], $positions['Error']);
+        self::assertSame(0, $positions['State']);
+        self::assertSame(1, $positions['StateText']);
+        self::assertSame(2, $positions['Error']);
+        self::assertSame(3, $positions['ErrorText']);
 
         $presentationMethod = new ReflectionMethod(WorxMower::class, 'valuePresentation');
         $presentationMethod->setAccessible(true);
