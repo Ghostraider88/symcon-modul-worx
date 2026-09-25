@@ -22,6 +22,11 @@ final class WorxCloudRequestTestDouble extends WorxCloud
         return 'test-token';
     }
 
+    protected function getTime()
+    {
+        return time();
+    }
+
     protected function request(string $method, string $path, $body, string $token)
     {
         $this->requests[] = [$method, $path, $body, $token];
