@@ -59,7 +59,7 @@ final class WorxMowerProfileTest extends TestCase
         $instanceID = IPS\ObjectManager::registerObject(1);
         $module = new WorxMowerTestDouble($instanceID);
         $module->Create();
-        IPS_SetProperty($instanceID, 'Serial', 'SERIAL-TEST');
+        $module->SetProperty('Serial', 'SERIAL-TEST');
         $module->deviceOnUpdate = [
             'online'       => true,
             'protocol'     => 0,
