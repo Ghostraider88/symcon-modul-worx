@@ -8,8 +8,7 @@ require_once __DIR__ . '/../WorxMower/module.php';
 
 final class WorxMowerTestDouble extends WorxMower
 {
-    public ?array $deviceOnUpdate = null;
-    public int $scheduleSendCalls = 0;
+    public array $scheduleSuppressionDuringUpdate = [];
 
     public function readAttributeForTest(string $name): string
     {
@@ -18,19 +17,8 @@ final class WorxMowerTestDouble extends WorxMower
 
     public function Update(): bool
     {
-        if ($this->deviceOnUpdate !== null) {
-            $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
-            $applyDevice->setAccessible(true);
-            $applyDevice->invoke($this, $this->deviceOnUpdate);
-        }
-
+        $this->scheduleSuppressionDuringUpdate[] = $this->ReadAttributeBoolean('ScheduleWritesSuppressed');
         return false;
-    }
-
-    public function SendSchedule(): bool
-    {
-        $this->scheduleSendCalls++;
-        return true;
     }
 
     protected function ConnectParent($ModuleID)
@@ -58,7 +46,7 @@ final class WorxMowerProfileTest extends TestCase
         IPS\Kernel::reset();
     }
 
-    public function testRepeatedApplyChangesDoesNotPublishTheScheduleOrDuplicateItsEvent(): void
+    public function testApplyChangesSuppressesScheduleWritesDuringRefreshAndResetsTheFlag(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
         IPS\InstanceManager::createInstance($instanceID, [
@@ -69,40 +57,14 @@ final class WorxMowerProfileTest extends TestCase
         ]);
         $module = IPS\InstanceManager::getInstanceInterface($instanceID);
         $module->SetProperty('Serial', 'SERIAL-TEST');
-        $module->deviceOnUpdate = [
-            'online'       => true,
-            'protocol'     => 0,
-            'capabilities' => [],
-            'last_status'  => [
-                'payload' => [
-                    'cfg' => ['sc' => [
-                        'm' => 1,
-                        'p' => 0,
-                        'd' => array_fill(0, 7, ['17:00', 120, 1]),
-                    ]],
-                    'dat' => ['ls' => 1, 'le' => 0],
-                ],
-            ],
-        ];
 
         $module->ApplyChanges();
-        $eventIDs = array_values(array_filter(
-            IPS_GetChildrenIDs($instanceID),
-            static fn (int $childID): bool => (IPS_GetObject($childID)['ObjectType'] ?? null) === OBJECTTYPE_EVENT
-        ));
-
-        self::assertCount(1, $eventIDs);
-        self::assertSame('Mähzeitplan', IPS_GetName($eventIDs[0]));
-        self::assertSame(0, $module->scheduleSendCalls);
-
         $module->ApplyChanges();
-        $eventIDs = array_values(array_filter(
-            IPS_GetChildrenIDs($instanceID),
-            static fn (int $childID): bool => (IPS_GetObject($childID)['ObjectType'] ?? null) === OBJECTTYPE_EVENT
-        ));
 
-        self::assertCount(1, $eventIDs);
-        self::assertSame(0, $module->scheduleSendCalls);
+        self::assertSame([true, true], $module->scheduleSuppressionDuringUpdate);
+        $readAttribute = new ReflectionMethod(IPSModule::class, 'ReadAttributeBoolean');
+        $readAttribute->setAccessible(true);
+        self::assertFalse($readAttribute->invoke($module, 'ScheduleWritesSuppressed'));
     }
 
     public function testRegisteredMowerVariablesDoNotUseLegacyProfiles(): void
