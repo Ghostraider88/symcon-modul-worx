@@ -40,11 +40,18 @@ final class WorxMowerProfileTest extends TestCase
         $method->invoke($module);
 
         $variableID = IPS_GetObjectIDByIdent('TimeExtensionSet', $instanceID);
+        $userVariableID = IPS_CreateVariable(1);
+        IPS_SetParent($userVariableID, $instanceID);
+        IPS_SetIdent($userVariableID, 'UserAddedVariable');
         $profile = 'WorxMower.ProfileMigrationTest';
+        $userProfile = 'WorxMower.ProfileMigrationUserTest';
         IPS_CreateVariableProfile($profile, 1);
+        IPS_CreateVariableProfile($userProfile, 1);
         try {
             IPS_SetVariableCustomProfile($variableID, $profile);
+            IPS_SetVariableCustomProfile($userVariableID, $userProfile);
             self::assertSame($profile, IPS_GetVariable($variableID)['VariableCustomProfile']);
+            self::assertSame($userProfile, IPS_GetVariable($userVariableID)['VariableCustomProfile']);
 
             $method->invoke($module);
 
@@ -55,11 +62,17 @@ final class WorxMowerProfileTest extends TestCase
             self::assertSame(-100, $variable['VariablePresentation']['MIN']);
             self::assertSame(100, $variable['VariablePresentation']['MAX']);
             self::assertSame(' %', $variable['VariablePresentation']['SUFFIX']);
+            self::assertSame($userProfile, IPS_GetVariable($userVariableID)['VariableCustomProfile']);
         } finally {
             if (IPS_GetVariable($variableID)['VariableCustomProfile'] !== '') {
                 IPS_SetVariableCustomProfile($variableID, '');
             }
+            if (IPS_GetVariable($userVariableID)['VariableCustomProfile'] !== '') {
+                IPS_SetVariableCustomProfile($userVariableID, '');
+            }
+            IPS_DeleteVariable($userVariableID);
             IPS_DeleteVariableProfile($profile);
+            IPS_DeleteVariableProfile($userProfile);
         }
     }
 

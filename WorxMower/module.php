@@ -34,6 +34,14 @@ class WorxMower extends IPSModule
 
     private const COMMANDS = [1 => 'Start', 2 => 'Pause', 3 => 'Heimfahrt', 4 => 'Kantenschnitt'];
     private const STANDARD_COMMANDS = [1 => 'Start', 2 => 'Pause', 3 => 'Heimfahrt'];
+    private const VARIABLE_IDENTS = [
+        'State', 'StateText', 'Error', 'ErrorText', 'Online', 'LastUpdate', 'Control', 'LastCommand',
+        'CommandStatus', 'Locked', 'LockCommand', 'AutoSchedule', 'AutoScheduleSet', 'TimeExtension',
+        'TimeExtensionSet', 'RainDelay', 'RainDelaySet', 'Rain', 'SettingStatus', 'ScheduleSyncStatus',
+        'Battery', 'Charging', 'BatteryTemp', 'BatteryVoltage', 'ChargeCycles', 'WifiSignal', 'Distance',
+        'WorkTime', 'BladeTime', 'Zone', 'Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet',
+        'DeviceDiagnostics', 'Schedule', 'SchedulePreview',
+    ];
 
     public function Create()
     {
@@ -1315,7 +1323,8 @@ class WorxMower extends IPSModule
     private function clearCustomVariableProfiles(): void
     {
         foreach (IPS_GetChildrenIDs($this->InstanceID) as $childID) {
-            if (IPS_GetObject($childID)['ObjectType'] !== 2) {
+            $object = IPS_GetObject($childID);
+            if ($object['ObjectType'] !== 2 || !in_array($object['ObjectIdent'] ?? '', self::VARIABLE_IDENTS, true)) {
                 continue;
             }
 
