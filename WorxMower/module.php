@@ -137,7 +137,9 @@ class WorxMower extends IPSModule
             if (!is_bool($Value)) {
                 throw new InvalidArgumentException('FirmwareAutoUpgradeSet erwartet true oder false.');
             }
-            $this->SetFirmwareAutoUpgrade($Value);
+            if (!$this->SetFirmwareAutoUpgrade($Value)) {
+                $this->restoreSettingInput('FirmwareAutoUpgradeSet', 'FirmwareAutoUpgrade');
+            }
             return;
         }
 
@@ -146,7 +148,9 @@ class WorxMower extends IPSModule
                 throw new InvalidArgumentException('AutoScheduleSet erwartet true oder false.');
             }
             $this->SetValueSafe('AutoScheduleSet', $Value);
-            $this->SetAutoSchedule($Value);
+            if (!$this->SetAutoSchedule($Value)) {
+                $this->restoreSettingInput('AutoScheduleSet', 'AutoSchedule');
+            }
             return;
         }
         if ($Ident === 'LockCommand') {
@@ -154,19 +158,25 @@ class WorxMower extends IPSModule
                 throw new InvalidArgumentException('LockCommand erwartet true für sperren oder false für entsperren.');
             }
             $this->SetValueSafe('LockCommand', $Value);
-            $this->SetLock($Value);
+            if (!$this->SetLock($Value)) {
+                $this->restoreSettingInput('LockCommand', 'Locked');
+            }
             return;
         }
         if ($Ident === 'RainDelaySet') {
             $minutes = $this->validatedRainDelay($Value);
             $this->SetValueSafe('RainDelaySet', $minutes);
-            $this->SetRainDelay($minutes);
+            if (!$this->SetRainDelay($minutes)) {
+                $this->restoreSettingInput('RainDelaySet', 'RainDelay');
+            }
             return;
         }
         if ($Ident === 'TimeExtensionSet') {
             $percent = $this->validatedInteger($Value, -100, 100, 'Tägliche Arbeitszeit');
             $this->SetValueSafe('TimeExtensionSet', $percent);
-            $this->SetTimeExtension($percent);
+            if (!$this->SetTimeExtension($percent)) {
+                $this->restoreSettingInput('TimeExtensionSet', 'TimeExtension');
+            }
             return;
         }
         throw new InvalidArgumentException('Invalid Ident: ' . $Ident);
@@ -346,6 +356,7 @@ class WorxMower extends IPSModule
         $this->WriteAttributeString('PendingAutoSchedule', '');
         $this->WriteAttributeString('PendingAutoScheduleSerial', '');
         $this->SetTimerInterval('AutoScheduleConfirmationTimeout', 0);
+        $this->restoreSettingInput('AutoScheduleSet', 'AutoSchedule');
         $this->SetValueSafe('SettingStatus', 'Keine Bestätigung des automatischen Zeitplans innerhalb von 120 Sekunden.');
         $this->Update();
     }
@@ -647,6 +658,7 @@ class WorxMower extends IPSModule
         $this->WriteAttributeString('PendingRainDelay', '');
         $this->WriteAttributeString('PendingRainDelaySerial', '');
         $this->SetTimerInterval('RainDelayConfirmationTimeout', 0);
+        $this->restoreSettingInput('RainDelaySet', 'RainDelay');
         $this->SetValueSafe('SettingStatus', 'Keine Mäher-Bestätigung der Regenverzögerung innerhalb von 120 Sekunden.');
         $this->Update();
     }
@@ -658,6 +670,7 @@ class WorxMower extends IPSModule
         $this->WriteAttributeString('PendingLock', '');
         $this->WriteAttributeString('PendingLockSerial', '');
         $this->SetTimerInterval('LockConfirmationTimeout', 0);
+        $this->restoreSettingInput('LockCommand', 'Locked');
         $this->SetValueSafe('SettingStatus', 'Keine Mäher-Bestätigung der Sperrung innerhalb von 120 Sekunden.');
         $this->Update();
     }
@@ -669,6 +682,9 @@ class WorxMower extends IPSModule
         $this->WriteAttributeString('FailedSchedule', $this->ReadAttributeString('PendingSchedule'));
         $this->WriteAttributeString('FailedScheduleSerial', $this->ReadAttributeString('PendingScheduleSerial'));
         $purpose = $this->ReadAttributeString('PendingSchedulePurpose');
+        if ($purpose === 'time_extension') {
+            $this->restoreSettingInput('TimeExtensionSet', 'TimeExtension');
+        }
         $this->WriteAttributeString('PendingSchedule', '');
         $this->WriteAttributeString('PendingScheduleSerial', '');
         $this->WriteAttributeString('PendingSchedulePurpose', 'schedule');
@@ -1476,5 +1492,19 @@ class WorxMower extends IPSModule
         $id = $this->GetIDForIdent($ident);
         if ($id === false || $id === 0) return;
         if (GetValue($id) !== $value) SetValue($id, $value);
+    }
+
+    private function restoreSettingInput(string $inputIdent, string $confirmedIdent): void
+    {
+        $inputID = $this->GetIDForIdent($inputIdent);
+        $confirmedID = $this->GetIDForIdent($confirmedIdent);
+        if ($inputID === false || $inputID <= 0 || $confirmedID === false || $confirmedID <= 0) {
+            return;
+        }
+
+        $confirmedValue = GetValue($confirmedID);
+        if (GetValue($inputID) !== $confirmedValue) {
+            SetValue($inputID, $confirmedValue);
+        }
     }
 }

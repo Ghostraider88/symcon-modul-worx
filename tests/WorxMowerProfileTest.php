@@ -527,6 +527,91 @@ final class WorxMowerProfileTest extends TestCase
         self::assertSame(-40, GetValue($variableID));
     }
 
+    public function testUnsentAndTimedOutSettingsRestoreTheLastConfirmedInputs(): void
+    {
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $module = new WorxMower($instanceID);
+        $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
+        $registerVariables->setAccessible(true);
+        $registerVariables->invoke($module);
+
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        foreach ([
+            'PendingSchedule', 'PendingScheduleSerial', 'PendingSchedulePurpose',
+            'PendingRainDelay', 'PendingRainDelaySerial', 'PendingLock', 'PendingLockSerial',
+            'PendingAutoSchedule', 'PendingAutoScheduleSerial',
+            'PendingFirmwareAutoUpgrade', 'PendingFirmwareAutoUpgradeSerial',
+            'FailedSchedule', 'FailedScheduleSerial',
+        ] as $attribute) {
+            $registerAttribute->invoke($module, $attribute, $attribute === 'PendingSchedulePurpose' ? 'schedule' : '');
+        }
+        $registerTimer = new ReflectionMethod(IPSModule::class, 'RegisterTimer');
+        $registerTimer->setAccessible(true);
+        foreach (['RainDelayConfirmationTimeout', 'LockConfirmationTimeout', 'AutoScheduleConfirmationTimeout', 'ScheduleConfirmationTimeout'] as $timer) {
+            $registerTimer->invoke($module, $timer, 0, '');
+        }
+
+        $variables = [
+            'AutoSchedule' => false,
+            'AutoScheduleSet' => false,
+            'Locked' => false,
+            'LockCommand' => false,
+            'RainDelay' => 180,
+            'RainDelaySet' => 180,
+            'TimeExtension' => -40,
+            'TimeExtensionSet' => -40,
+            'FirmwareAutoUpgrade' => false,
+            'FirmwareAutoUpgradeSet' => false,
+        ];
+        $ids = [];
+        foreach ($variables as $ident => $value) {
+            $ids[$ident] = IPS_GetObjectIDByIdent($ident, $instanceID);
+            SetValue($ids[$ident], $value);
+        }
+
+        // With no cloud parent these actions are rejected before sending.
+        $module->RequestAction('AutoScheduleSet', true);
+        $module->RequestAction('LockCommand', true);
+        $module->RequestAction('RainDelaySet', 330);
+        $module->RequestAction('TimeExtensionSet', 60);
+        $module->RequestAction('FirmwareAutoUpgradeSet', true);
+        foreach ([
+            'AutoScheduleSet' => false,
+            'LockCommand' => false,
+            'RainDelaySet' => 180,
+            'TimeExtensionSet' => -40,
+            'FirmwareAutoUpgradeSet' => false,
+        ] as $ident => $expected) {
+            self::assertSame($expected, GetValue($ids[$ident]), $ident . ' should revert after an unsent action.');
+        }
+
+        foreach ([
+            ['attribute' => 'PendingAutoSchedule', 'value' => '{"desired":true,"previous":false}', 'input' => 'AutoScheduleSet', 'desired' => true, 'confirmed' => 'AutoSchedule', 'timeout' => 'AutoScheduleConfirmationTimeout'],
+            ['attribute' => 'PendingLock', 'value' => '{"desired":true,"previous":false}', 'input' => 'LockCommand', 'desired' => true, 'confirmed' => 'Locked', 'timeout' => 'LockConfirmationTimeout'],
+            ['attribute' => 'PendingRainDelay', 'value' => '{"desired":330,"previous":180}', 'input' => 'RainDelaySet', 'desired' => 330, 'confirmed' => 'RainDelay', 'timeout' => 'RainDelayConfirmationTimeout'],
+        ] as $case) {
+            $attribute = $case['attribute'];
+
+            $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+            $writeAttribute->setAccessible(true);
+            $writeAttribute->invoke($module, $attribute, $case['value']);
+            $writeAttribute->invoke($module, $attribute . 'Serial', 'SERIAL-TEST');
+            SetValue($ids[$case['input']], $case['desired']);
+            $module->{$case['timeout']}();
+            self::assertSame(GetValue($ids[$case['confirmed']]), GetValue($ids[$case['input']]), $case['input'] . ' should revert after timeout.');
+        }
+
+        $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeAttribute->setAccessible(true);
+        $writeAttribute->invoke($module, 'PendingSchedule', '{"p":60,"d":[]}');
+        $writeAttribute->invoke($module, 'PendingScheduleSerial', 'SERIAL-TEST');
+        $writeAttribute->invoke($module, 'PendingSchedulePurpose', 'time_extension');
+        SetValue($ids['TimeExtensionSet'], 60);
+        $module->ScheduleConfirmationTimeout();
+        self::assertSame(-40, GetValue($ids['TimeExtensionSet']));
+    }
+
     private function controlOptions(int $controlID): array
     {
         $presentation = IPS_GetVariable($controlID)['VariablePresentation'];
