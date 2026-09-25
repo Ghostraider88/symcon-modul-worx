@@ -56,6 +56,8 @@ class WorxMower extends IPSModule
         $this->RegisterAttributeString('PendingLockSerial', '');
         $this->RegisterAttributeString('PendingAutoSchedule', '');
         $this->RegisterAttributeString('PendingAutoScheduleSerial', '');
+        $this->RegisterAttributeString('PendingFirmwareAutoUpgrade', '');
+        $this->RegisterAttributeString('PendingFirmwareAutoUpgradeSerial', '');
         $this->RegisterAttributeString('ScheduleEventSnapshot', '');
         $this->RegisterAttributeBoolean('ScheduleEventSyncing', false);
         $this->RegisterAttributeInteger('ScheduleEventListener', 0);
@@ -66,6 +68,7 @@ class WorxMower extends IPSModule
         $this->RegisterTimer('RainDelayConfirmationTimeout', 0, 'WORXMOWER_RainDelayConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('LockConfirmationTimeout', 0, 'WORXMOWER_LockConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('AutoScheduleConfirmationTimeout', 0, 'WORXMOWER_AutoScheduleConfirmationTimeout($_IPS[\'TARGET\']);');
+        $this->RegisterTimer('FirmwareAutoUpgradeConfirmationTimeout', 0, 'WORXMOWER_FirmwareAutoUpgradeConfirmationTimeout($_IPS[\'TARGET\']);');
 
         $this->registerVariables();
         $this->EnableAction('Control');
@@ -73,6 +76,7 @@ class WorxMower extends IPSModule
         $this->EnableAction('RainDelaySet');
         $this->EnableAction('LockCommand');
         $this->EnableAction('AutoScheduleSet');
+        $this->EnableAction('FirmwareAutoUpgradeSet');
     }
 
     public function ApplyChanges()
@@ -80,6 +84,7 @@ class WorxMower extends IPSModule
         parent::ApplyChanges();
         // Re-register presentations so an update replaces legacy profiles on existing variables.
         $this->registerVariables();
+        $this->EnableAction('FirmwareAutoUpgradeSet');
         $this->clearPendingForDifferentMower();
         foreach (['Schedule', 'SchedulePreview'] as $obsoleteIdent) {
             $obsoleteID = $this->GetIDForIdent($obsoleteIdent);
@@ -91,6 +96,7 @@ class WorxMower extends IPSModule
             $this->SetTimerInterval('CommandConfirmationTimeout', 0);
             $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
             $this->SetTimerInterval('AutoScheduleConfirmationTimeout', 0);
+            $this->SetTimerInterval('FirmwareAutoUpgradeConfirmationTimeout', 0);
             $this->SetStatus(104);
             return;
         }
@@ -115,6 +121,14 @@ class WorxMower extends IPSModule
             }
             $this->Command($command);
             $this->SetValueSafe('Control', 0);
+            return;
+        }
+
+        if ($Ident === 'FirmwareAutoUpgradeSet') {
+            if (!is_bool($Value)) {
+                throw new InvalidArgumentException('FirmwareAutoUpgradeSet erwartet true oder false.');
+            }
+            $this->SetFirmwareAutoUpgrade($Value);
             return;
         }
 
@@ -199,7 +213,7 @@ class WorxMower extends IPSModule
     /** Update the cloud automatic-schedule switch and wait for its reported state. */
     public function SetAutoSchedule(bool $enabled): bool
     {
-        if ($this->ReadAttributeString('PendingAutoSchedule') !== '' || $this->ReadAttributeString('PendingLock') !== ''
+        if ($this->ReadAttributeString('PendingFirmwareAutoUpgrade') !== '' || $this->ReadAttributeString('PendingAutoSchedule') !== '' || $this->ReadAttributeString('PendingLock') !== ''
             || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingSchedule') !== '') {
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
             return false;
@@ -240,6 +254,81 @@ class WorxMower extends IPSModule
         return true;
     }
 
+    /** Change the cloud preference and wait for its separately reported product-item value. */
+    public function SetFirmwareAutoUpgrade(bool $enabled): bool
+    {
+        if ($this->ReadAttributeString('PendingFirmwareAutoUpgrade') !== ''
+            || $this->ReadAttributeString('PendingAutoSchedule') !== ''
+            || $this->ReadAttributeString('PendingLock') !== ''
+            || $this->ReadAttributeString('PendingRainDelay') !== ''
+            || $this->ReadAttributeString('PendingSchedule') !== '') {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
+            return false;
+        }
+        $device = $this->getDevice();
+        if ($device === null || !in_array('ota_upgrade', $device['capabilities'] ?? [], true)
+            || !array_key_exists('firmware_auto_upgrade', $device)
+            || !is_bool($device['firmware_auto_upgrade'])) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Automatische Firmware-Updates sind für dieses Gerät nicht belegt.');
+            return false;
+        }
+        if (empty($device['online'])) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Der Mäher ist offline.');
+            return false;
+        }
+        $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
+        if ($parent === 0) {
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Worx-Cloud-Verbindung fehlt.');
+            return false;
+        }
+        $reportedID = $this->GetIDForIdent('FirmwareAutoUpgrade');
+        $previous = $reportedID === false || $reportedID === 0
+            ? $device['firmware_auto_upgrade']
+            : (bool) GetValue($reportedID);
+        if ($enabled === $previous) {
+            $this->SetValueSafe('FirmwareAutoUpgradeSet', $previous);
+            $this->SetValueSafe('SettingStatus', 'Firmware-Auto-Update-Einstellung ist bereits bestätigt.');
+            return true;
+        }
+        $serial = $this->ReadPropertyString('Serial');
+        $this->WriteAttributeString('PendingFirmwareAutoUpgrade', json_encode(['desired' => $enabled, 'previous' => $previous]));
+        $this->WriteAttributeString('PendingFirmwareAutoUpgradeSerial', $serial);
+        $this->SetValueSafe('FirmwareAutoUpgradeSet', $enabled);
+        $this->SetValueSafe('SettingStatus', 'Firmware-Auto-Update-Einstellung an die Worx-Cloud gesendet; Rückmeldung steht aus.');
+        $this->SetTimerInterval('FirmwareAutoUpgradeConfirmationTimeout', 120000);
+        $response = $this->SendDataToParent(json_encode([
+            'DataID'  => self::IF_CLOUD,
+            'Command' => 'SetFirmwareAutoUpgrade',
+            'Serial'  => $serial,
+            'Enabled' => $enabled,
+        ]));
+        if (!filter_var(json_decode((string) $response, true), FILTER_VALIDATE_BOOLEAN)) {
+            $this->WriteAttributeString('PendingFirmwareAutoUpgrade', '');
+            $this->WriteAttributeString('PendingFirmwareAutoUpgradeSerial', '');
+            $this->SetTimerInterval('FirmwareAutoUpgradeConfirmationTimeout', 0);
+            $this->SetValueSafe('FirmwareAutoUpgradeSet', $previous);
+            $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Worx-Cloud hat die Einstellung abgelehnt oder ist nicht erreichbar.');
+            return false;
+        }
+        return true;
+    }
+
+    public function FirmwareAutoUpgradeConfirmationTimeout(): void
+    {
+        if ($this->ReadAttributeString('PendingFirmwareAutoUpgrade') === '') {
+            return;
+        }
+        $this->WriteAttributeString('PendingFirmwareAutoUpgrade', '');
+        $this->WriteAttributeString('PendingFirmwareAutoUpgradeSerial', '');
+        $this->SetTimerInterval('FirmwareAutoUpgradeConfirmationTimeout', 0);
+        $reportedID = $this->GetIDForIdent('FirmwareAutoUpgrade');
+        if ($reportedID !== false && $reportedID > 0) {
+            $this->SetValueSafe('FirmwareAutoUpgradeSet', (bool) GetValue($reportedID));
+        }
+        $this->SetValueSafe('SettingStatus', 'Keine Cloud-Bestätigung der Firmware-Auto-Update-Einstellung innerhalb von 120 Sekunden.');
+        $this->Update();
+    }
+
     public function AutoScheduleConfirmationTimeout(): void
     {
         if ($this->ReadAttributeString('PendingAutoSchedule') === '') {
@@ -255,7 +344,7 @@ class WorxMower extends IPSModule
     /** Send a lock state and keep the reported mower state separate. */
     public function SetLock(bool $locked): bool
     {
-        if ($this->ReadAttributeString('PendingAutoSchedule') !== '' || $this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingSchedule') !== '') {
+        if ($this->ReadAttributeString('PendingFirmwareAutoUpgrade') !== '' || $this->ReadAttributeString('PendingAutoSchedule') !== '' || $this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingSchedule') !== '') {
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
             return false;
         }
@@ -316,7 +405,7 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Der Mäher ist offline.');
             return false;
         }
-        if ($this->ReadAttributeString('PendingSchedule') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingAutoSchedule') !== '') {
+        if ($this->ReadAttributeString('PendingSchedule') !== '' || $this->ReadAttributeString('PendingFirmwareAutoUpgrade') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingAutoSchedule') !== '') {
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
             return false;
         }
@@ -355,7 +444,7 @@ class WorxMower extends IPSModule
         if ($percent < -100 || $percent > 100) {
             throw new InvalidArgumentException('Tägliche Arbeitszeit muss zwischen -100 und 100 Prozent liegen.');
         }
-        if ($this->ReadAttributeString('PendingSchedule') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingAutoSchedule') !== '') {
+        if ($this->ReadAttributeString('PendingSchedule') !== '' || $this->ReadAttributeString('PendingFirmwareAutoUpgrade') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingAutoSchedule') !== '') {
             $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
             return false;
         }
@@ -460,7 +549,7 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Eine Zeitplanübertragung wartet noch auf Rückmeldung.');
             return false;
         }
-        if ($this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingAutoSchedule') !== '') {
+        if ($this->ReadAttributeString('PendingFirmwareAutoUpgrade') !== '' || $this->ReadAttributeString('PendingRainDelay') !== '' || $this->ReadAttributeString('PendingLock') !== '' || $this->ReadAttributeString('PendingAutoSchedule') !== '') {
             $this->SetValueSafe('ScheduleSyncStatus', 'Nicht gesendet: Eine andere Geräteeinstellung wartet noch auf Rückmeldung.');
             return false;
         }
@@ -797,6 +886,12 @@ class WorxMower extends IPSModule
             $this->SetTimerInterval('RainDelayConfirmationTimeout', 0);
             $this->SetValueSafe('SettingStatus', 'Rückmeldung verworfen: Seriennummer der Instanz wurde geändert.');
         }
+        if ($this->ReadAttributeString('PendingFirmwareAutoUpgrade') !== '' && $this->ReadAttributeString('PendingFirmwareAutoUpgradeSerial') !== $serial) {
+            $this->WriteAttributeString('PendingFirmwareAutoUpgrade', '');
+            $this->WriteAttributeString('PendingFirmwareAutoUpgradeSerial', '');
+            $this->SetTimerInterval('FirmwareAutoUpgradeConfirmationTimeout', 0);
+            $this->SetValueSafe('SettingStatus', 'Rückmeldung verworfen: Seriennummer der Instanz wurde geändert.');
+        }
         if ($this->ReadAttributeString('PendingAutoSchedule') !== '' && $this->ReadAttributeString('PendingAutoScheduleSerial') !== $serial) {
             $this->WriteAttributeString('PendingAutoSchedule', '');
             $this->WriteAttributeString('PendingAutoScheduleSerial', '');
@@ -923,11 +1018,44 @@ class WorxMower extends IPSModule
     private function updateFirmwareAutoUpgrade(array $device): void
     {
         $firmwareAutoUpdateID = $this->GetIDForIdent('FirmwareAutoUpgrade');
+        $firmwareAutoUpdateSetID = $this->GetIDForIdent('FirmwareAutoUpgradeSet');
         $supported = in_array('ota_upgrade', $device['capabilities'] ?? [], true)
             && array_key_exists('firmware_auto_upgrade', $device) && is_bool($device['firmware_auto_upgrade']);
-        if ($firmwareAutoUpdateID === false || $firmwareAutoUpdateID <= 0) return;
+        if ($firmwareAutoUpdateID === false || $firmwareAutoUpdateID <= 0
+            || $firmwareAutoUpdateSetID === false || $firmwareAutoUpdateSetID <= 0) return;
         IPS_SetHidden($firmwareAutoUpdateID, !$supported);
-        if ($supported) $this->SetValueSafe('FirmwareAutoUpgrade', $device['firmware_auto_upgrade']);
+        IPS_SetHidden($firmwareAutoUpdateSetID, !$supported);
+        if (!$supported) return;
+        $reported = $device['firmware_auto_upgrade'];
+        $this->SetValueSafe('FirmwareAutoUpgrade', $reported);
+        $this->confirmFirmwareAutoUpgrade($reported);
+        if ($this->ReadAttributeString('PendingFirmwareAutoUpgrade') === '') {
+            $this->SetValueSafe('FirmwareAutoUpgradeSet', $reported);
+        }
+    }
+
+    private function confirmFirmwareAutoUpgrade(bool $reported): void
+    {
+        $pending = $this->ReadAttributeString('PendingFirmwareAutoUpgrade');
+        if ($pending === '' || $this->ReadAttributeString('PendingFirmwareAutoUpgradeSerial') !== $this->ReadPropertyString('Serial')) {
+            return;
+        }
+        $command = json_decode($pending, true);
+        if (!is_array($command) || !isset($command['desired'], $command['previous'])) {
+            return;
+        }
+        if ((bool) $command['desired'] === $reported) {
+            $this->WriteAttributeString('PendingFirmwareAutoUpgrade', '');
+            $this->WriteAttributeString('PendingFirmwareAutoUpgradeSerial', '');
+            $this->SetTimerInterval('FirmwareAutoUpgradeConfirmationTimeout', 0);
+            $this->SetValueSafe('SettingStatus', 'Firmware-Auto-Update-Einstellung aus der Worx-Cloud zurückgelesen und bestätigt.');
+        } elseif ((bool) $command['previous'] !== $reported) {
+            $this->WriteAttributeString('PendingFirmwareAutoUpgrade', '');
+            $this->WriteAttributeString('PendingFirmwareAutoUpgradeSerial', '');
+            $this->SetTimerInterval('FirmwareAutoUpgradeConfirmationTimeout', 0);
+            $this->SetValueSafe('FirmwareAutoUpgradeSet', $reported);
+            $this->SetValueSafe('SettingStatus', 'Abweichende Firmware-Auto-Update-Einstellung aus der Worx-Cloud übernommen.');
+        }
     }
     private function confirmCommand(int $state, int $error): void
     {
@@ -1154,7 +1282,8 @@ class WorxMower extends IPSModule
         $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', $this->valuePresentation(' h'), $p++);
         $this->RegisterVariableInteger('Zone', 'Aktuelle Zone', '', $p++);
         $this->RegisterVariableString('Firmware', 'Firmware', '', $p++);
-        $this->RegisterVariableBoolean('FirmwareAutoUpgrade', 'Firmware-Update automatisch (Cloud)', $this->booleanValuePresentation('Aus', 'Ein'), $p++);
+        $this->RegisterVariableBoolean('FirmwareAutoUpgrade', 'Firmware-Update automatisch (Cloud, bestätigt)', $this->booleanValuePresentation('Aus', 'Ein'), $p++);
+        $this->RegisterVariableBoolean('FirmwareAutoUpgradeSet', 'Automatische Firmware-Updates setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);
 
         // Redacted development diagnostic is intentionally last in the object tree.
         $this->RegisterVariableString('DeviceDiagnostics', 'Gerätenachweis (redigiert)', '', $p++);
@@ -1166,7 +1295,7 @@ class WorxMower extends IPSModule
             'Control', 'LastCommand', 'CommandStatus', 'Locked', 'LockCommand', 'AutoSchedule', 'AutoScheduleSet',
             'TimeExtension', 'TimeExtensionSet', 'RainDelay', 'RainDelaySet', 'Rain', 'SettingStatus', 'ScheduleSyncStatus',
             'Battery', 'Charging', 'BatteryTemp', 'BatteryVoltage', 'ChargeCycles', 'WifiSignal', 'Distance', 'WorkTime',
-            'BladeTime', 'Zone', 'Firmware', 'FirmwareAutoUpgrade', 'DeviceDiagnostics',
+            'BladeTime', 'Zone', 'Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet', 'DeviceDiagnostics',
         ];
         foreach ($orderedIdents as $position => $ident) {
             $variableID = $this->GetIDForIdent($ident);

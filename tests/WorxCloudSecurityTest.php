@@ -29,4 +29,33 @@ final class WorxCloudSecurityTest extends TestCase
 
         self::assertSame('/api/v2/product-items?status=1', $method->invoke($module, '/api/v2/product-items?status=1'));
     }
+
+    public function testFirmwareAutoUpgradeWriteRequiresCapabilityBooleanAndOnlineDevice(): void
+    {
+        IPS\Kernel::reset();
+        $module = new WorxCloud(1);
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        $registerAttribute->invoke($module, 'Devices', '[]');
+        $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeAttribute->setAccessible(true);
+        $device = [
+            'serial_number'         => 'SERIAL-TEST',
+            'online'                => true,
+            'capabilities'          => [],
+            'firmware_auto_upgrade' => false,
+        ];
+        $writeAttribute->invoke($module, 'Devices', json_encode([$device]));
+        self::assertFalse($module->SetFirmwareAutoUpgrade('SERIAL-TEST', true));
+
+        $device['capabilities'] = ['ota_upgrade'];
+        $device['firmware_auto_upgrade'] = 'false';
+        $writeAttribute->invoke($module, 'Devices', json_encode([$device]));
+        self::assertFalse($module->SetFirmwareAutoUpgrade('SERIAL-TEST', true));
+
+        $device['firmware_auto_upgrade'] = false;
+        $device['online'] = false;
+        $writeAttribute->invoke($module, 'Devices', json_encode([$device]));
+        self::assertFalse($module->SetFirmwareAutoUpgrade('SERIAL-TEST', true));
+    }
 }

@@ -16,7 +16,13 @@
             "Der bestätigte Mäherplan wird als natives, deaktiviertes Symcon-Wochenplan-Ereignis „Mähzeitplan“ angezeigt. Änderungen am Ereignis werden an Worx übertragen; der zurückgemeldete Mäherplan bestätigt die Übertragung.": "The confirmed mower schedule is shown in the native Symcon weekly event “Mowing schedule”. Event edits are sent to Worx and confirmed by the schedule returned by the mower.",
             "Der Worx-App-Schalter „Ganzer Tag“ änderte den redigierten Gerätestatus im Vorher-/Nachher-Vergleich nicht und ist deshalb hier nicht bedienbar.": "The redacted device state was unchanged before and after toggling the all-day switch in the Worx app, so this option is not editable here.",
             "Befehlsstatus und bestätigter Mäherzustand sind getrennt. MQTT-Publish ist keine Gerätebestätigung.": "Command status and confirmed mower state are shown separately. An MQTT publish is not device confirmation.",
-            "Aktiv": "Active",
+            "Firmware-Auto-Update (bestätigt)": "Automatic firmware update (confirmed)",
+            "Firmware-Auto-Update setzen": "Set automatic firmware update",
+            "Firmware-Auto-Update-Einstellung an die Worx-Cloud gesendet; Rückmeldung steht aus.": "Firmware auto-update preference sent to Worx Cloud; awaiting confirmation.",
+            "Firmware-Auto-Update-Einstellung ist bereits bestätigt.": "Firmware auto-update preference is already confirmed.",
+            "Firmware-Auto-Update-Einstellung aus der Worx-Cloud zurückgelesen und bestätigt.": "Firmware auto-update preference read back from Worx Cloud and confirmed.",
+            "Abweichende Firmware-Auto-Update-Einstellung aus der Worx-Cloud übernommen.": "Different firmware auto-update preference received from Worx Cloud.",
+            "Keine Cloud-Bestätigung der Firmware-Auto-Update-Einstellung innerhalb von 120 Sekunden.": "No confirmation of the firmware auto-update preference from the cloud within 120 seconds.",            "Aktiv": "Active",
             "Seriennummer fehlt": "Serial number missing"
         }
     }

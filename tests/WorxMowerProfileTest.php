@@ -73,13 +73,18 @@ final class WorxMowerProfileTest extends TestCase
         self::assertArrayNotHasKey('OPTIONS', $presentation);
     }
 
-    public function testFirmwareAutoUpdateIsDisplayedAsCapabilityGatedReadOnlyCloudState(): void
+    public function testFirmwareAutoUpdateHasSeparateCapabilityGatedConfirmedAndCommandVariables(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
         $module = new WorxMower($instanceID);
         $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
         $registerVariables->setAccessible(true);
         $registerVariables->invoke($module);
+        $module->EnableAction('FirmwareAutoUpgradeSet');
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        $registerAttribute->invoke($module, 'PendingFirmwareAutoUpgrade', '');
+        $registerAttribute->invoke($module, 'PendingFirmwareAutoUpgradeSerial', '');
         $updateFirmwareAutoUpgrade = new ReflectionMethod(WorxMower::class, 'updateFirmwareAutoUpgrade');
         $updateFirmwareAutoUpgrade->setAccessible(true);
         $device = [
@@ -90,17 +95,22 @@ final class WorxMowerProfileTest extends TestCase
         ];
 
         $updateFirmwareAutoUpgrade->invoke($module, $device);
-        $variableID = IPS_GetObjectIDByIdent('FirmwareAutoUpgrade', $instanceID);
-        self::assertTrue(GetValueBoolean($variableID));
-        self::assertFalse(IPS_GetObject($variableID)['ObjectIsHidden']);
-        self::assertFalse(HasAction($variableID));
-        $presentation = IPS_GetVariable($variableID)['VariablePresentation'];
-        self::assertSame(VARIABLE_PRESENTATION_VALUE_PRESENTATION, $presentation['PRESENTATION']);
+        $confirmedID = IPS_GetObjectIDByIdent('FirmwareAutoUpgrade', $instanceID);
+        $commandID = IPS_GetObjectIDByIdent('FirmwareAutoUpgradeSet', $instanceID);
+        self::assertTrue(GetValueBoolean($confirmedID));
+        self::assertTrue(GetValueBoolean($commandID));
+        self::assertFalse(IPS_GetObject($confirmedID)['ObjectIsHidden']);
+        self::assertFalse(IPS_GetObject($commandID)['ObjectIsHidden']);
+        self::assertFalse(HasAction($confirmedID));
+        self::assertTrue(HasAction($commandID));
+        self::assertSame(VARIABLE_PRESENTATION_VALUE_PRESENTATION, IPS_GetVariable($confirmedID)['VariablePresentation']['PRESENTATION']);
+        self::assertSame(VARIABLE_PRESENTATION_SWITCH, IPS_GetVariable($commandID)['VariablePresentation']['PRESENTATION']);
 
         $device['capabilities'] = [];
         $device['firmware_auto_upgrade'] = false;
         $updateFirmwareAutoUpgrade->invoke($module, $device);
-        self::assertTrue(IPS_GetObject($variableID)['ObjectIsHidden']);
+        self::assertTrue(IPS_GetObject($confirmedID)['ObjectIsHidden']);
+        self::assertTrue(IPS_GetObject($commandID)['ObjectIsHidden']);
     }
 
     public function testConfirmedTimeExtensionUsesValuePresentationWithLiteralPercentSuffix(): void

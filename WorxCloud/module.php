@@ -335,6 +335,39 @@ class WorxCloud extends IPSModule
         return false;
     }
 
+    /** Update the cloud auto-upgrade preference; this does not start a firmware upgrade. */
+    public function SetFirmwareAutoUpgrade(string $serial, bool $enabled): bool
+    {
+        foreach (json_decode($this->ReadAttributeString('Devices'), true) ?: [] as $device) {
+            if (($device['serial_number'] ?? '') !== $serial) {
+                continue;
+            }
+            if (!in_array('ota_upgrade', $device['capabilities'] ?? [], true)
+                || !array_key_exists('firmware_auto_upgrade', $device)
+                || !is_bool($device['firmware_auto_upgrade'])
+                || empty($device['online'])) {
+                return false;
+            }
+            $token = $this->getToken();
+            if ($token === '') {
+                return false;
+            }
+            $response = $this->request(
+                'PUT',
+                '/api/v2/product-items/' . rawurlencode($serial),
+                ['firmware_auto_upgrade' => $enabled],
+                $token
+            );
+            if (!is_array($response)) {
+                return false;
+            }
+            // The cloud value received after Poll, not the successful PUT, is the confirmation.
+            $this->Poll();
+            return true;
+        }
+        return false;
+    }
+
     /** Lock or unlock a supported protocol-0 mower. */
     public function SetLock(string $serial, bool $locked): bool
     {
@@ -430,6 +463,12 @@ class WorxCloud extends IPSModule
                 ));
             case 'SetAutoSchedule':
                 return json_encode($this->SetAutoSchedule(
+                    (string) ($data['Serial'] ?? ''),
+                    (bool) ($data['Enabled'] ?? false)
+                ));
+
+            case 'SetFirmwareAutoUpgrade':
+                return json_encode($this->SetFirmwareAutoUpgrade(
                     (string) ($data['Serial'] ?? ''),
                     (bool) ($data['Enabled'] ?? false)
                 ));

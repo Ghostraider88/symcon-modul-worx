@@ -23,6 +23,9 @@ Die Variable „Gerätenachweis (redigiert)“ zeigt Modellfähigkeiten sowie au
 `Zeiterweiterung setzen`, `Regenverzögerung setzen` und `Sperre setzen` sind getrennte Eingaben. Daneben zeigen `Zeiterweiterung (bestätigt)`, `Regenverzögerung (bestätigt)` und `Gesperrt (bestätigt)` den zuletzt vom Gerät gemeldeten Zustand. Die Befehle werden nur bei passender Capability und Protokoll 0 angeboten; `Einstellungsrückmeldung` meldet den Geräteecho oder einen Timeout. Die Schreibwege sind implementiert, im WR105SI.1-Docker-Test aber noch nicht vom Nutzer bestätigt.
 
 
+## Firmware-Auto-Update
+
+`Firmware-Auto-Update (bestätigt)` zeigt die gemeldete Cloud-Einstellung. `Firmware-Auto-Update setzen` wird nur eingeblendet, wenn Worx `ota_upgrade` und das Boolean-Feld `firmware_auto_upgrade` für das gewählte Gerät meldet. Das Umschalten setzt ausschließlich diese Präferenz; ein Firmware-Update wird dadurch nicht gestartet. Die Änderung gilt erst nach erneutem Lesen desselben Cloud-Werts als bestätigt. Der Schreibweg basiert auf reverse-engineerter Protokollrecherche und benötigt noch einen kontrollierten Echo-Test in der Docker-Instanz.
 ## Automatischer Zeitplan
 
 Die Variable „Automatischer Zeitplan (bestätigt)“ zeigt den Boolean aus dem Worx-Cloud-Gerätedatensatz. „Automatischen Zeitplan setzen“ wird nur eingeblendet, wenn dieser Boolean tatsächlich gemeldet wird. Der Sollwert wird per Worx-Cloud-API gesendet; als bestätigt gilt er erst, wenn eine anschließende Abfrage denselben Wert zurückliefert. Der Schreibweg ist implementiert, im WR105SI.1-Docker-Test aber noch nicht vom Nutzer geprüft.
