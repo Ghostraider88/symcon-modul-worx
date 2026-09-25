@@ -90,5 +90,15 @@ final class WorxMowerProfileTest extends TestCase
         ]);
 
         self::assertSame(-40, GetValue($variableID));
+        // The account inventory exposes the same configuration at the device root.
+        $method->invoke($module, [
+            'online'       => true,
+            'protocol'     => 0,
+            'capabilities' => ['unrestricted_mowing_time'],
+            'cfg'          => ['sc' => ['p' => 30]],
+            'last_status'  => ['payload' => ['dat' => ['ls' => 0, 'le' => 0]]],
+        ]);
+
+        self::assertSame(-40, GetValue($variableID));
     }
 }
