@@ -59,6 +59,53 @@ final class WorxMowerProfileTest extends TestCase
         self::assertSame(' %', $presentation['SUFFIX']);
     }
 
+    public function testPresentationOptionsProvideSymconEditorDefaults(): void
+    {
+        $module = new WorxMower(1);
+        $requiredKeys = ['IconActive', 'IconValue', 'ColorActive', 'ColorValue', 'ContentColorActive', 'ContentColorValue'];
+
+        foreach ([
+            ['booleanValuePresentation', ['Aus', 'Ein']],
+            ['enumerationPresentation', [[0 => 'Aus', 1 => 'Ein']]],
+        ] as [$methodName, $arguments]) {
+            $method = new ReflectionMethod(WorxMower::class, $methodName);
+            $method->setAccessible(true);
+            $presentation = $method->invokeArgs($module, $arguments);
+            $options = json_decode($presentation['OPTIONS'], true, 512, JSON_THROW_ON_ERROR);
+
+            foreach ($options as $option) {
+                foreach ($requiredKeys as $key) {
+                    self::assertArrayHasKey($key, $option, $methodName . ' option is missing ' . $key);
+                }
+                self::assertFalse($option['IconActive']);
+                self::assertFalse($option['ColorActive']);
+                self::assertFalse($option['ContentColorActive']);
+            }
+        }
+    }
+
+    public function testStatusAndErrorTextVariablesContainReadableConfirmedLabels(): void
+    {
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $module = new WorxMower($instanceID);
+        $module->Create();
+        $method = new ReflectionMethod(WorxMower::class, 'applyDevice');
+        $method->setAccessible(true);
+        $method->invoke($module, [
+            'online'       => true,
+            'protocol'     => 0,
+            'capabilities' => [],
+            'last_status'  => ['payload' => ['dat' => ['ls' => 1, 'le' => 0]]],
+        ]);
+
+        $stateTextID = IPS_GetObjectIDByIdent('StateText', $instanceID);
+        $errorTextID = IPS_GetObjectIDByIdent('ErrorText', $instanceID);
+        self::assertSame(VARIABLETYPE_STRING, IPS_GetVariable($stateTextID)['VariableType']);
+        self::assertSame(VARIABLETYPE_STRING, IPS_GetVariable($errorTextID)['VariableType']);
+        self::assertSame('In der Ladestation', GetValue($stateTextID));
+        self::assertSame('Kein Fehler', GetValue($errorTextID));
+    }
+
     public function testMowerReportStoresNegativeAppScaleInConfirmedVariable(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
