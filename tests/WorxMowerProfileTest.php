@@ -77,13 +77,14 @@ final class WorxMowerProfileTest extends TestCase
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
         $module = new WorxMower($instanceID);
+        $module->Create();
         $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
         $applyDevice->setAccessible(true);
         $device = [
-            'online' => true,
-            'capabilities' => ['ota_upgrade'],
+            'online'                => true,
+            'capabilities'          => ['ota_upgrade'],
             'firmware_auto_upgrade' => true,
-            'last_status' => ['payload' => ['dat' => []]],
+            'last_status'           => ['payload' => ['dat' => []]],
         ];
 
         $applyDevice->invoke($module, $device);
