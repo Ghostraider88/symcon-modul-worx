@@ -820,13 +820,7 @@ class WorxMower extends IPSModule
         $this->SetValueSafe('Online', (bool) ($device['online'] ?? false));
         $this->SetValueSafe('DeviceDiagnostics', WorxScheduleCodec::canonicalJson(WorxScheduleCodec::sanitizedDeviceRecord($device)));
         $this->updateControlPresentation($device);
-        $firmwareAutoUpdateID = $this->GetIDForIdent('FirmwareAutoUpgrade');
-        $supportsFirmwareAutoUpdate = in_array('ota_upgrade', $device['capabilities'] ?? [], true)
-            && array_key_exists('firmware_auto_upgrade', $device) && is_bool($device['firmware_auto_upgrade']);
-        if ($firmwareAutoUpdateID !== false && $firmwareAutoUpdateID > 0) {
-            IPS_SetHidden($firmwareAutoUpdateID, !$supportsFirmwareAutoUpdate);
-            if ($supportsFirmwareAutoUpdate) $this->SetValueSafe('FirmwareAutoUpgrade', $device['firmware_auto_upgrade']);
-        }
+        $this->updateFirmwareAutoUpgrade($device);
         if (isset($device['firmware_version'])) {
             $this->SetValueSafe('Firmware', (string) $device['firmware_version']);
         }
@@ -926,6 +920,15 @@ class WorxMower extends IPSModule
         $this->SetSummary($summary);
     }
 
+    private function updateFirmwareAutoUpgrade(array $device): void
+    {
+        $firmwareAutoUpdateID = $this->GetIDForIdent('FirmwareAutoUpgrade');
+        $supported = in_array('ota_upgrade', $device['capabilities'] ?? [], true)
+            && array_key_exists('firmware_auto_upgrade', $device) && is_bool($device['firmware_auto_upgrade']);
+        if ($firmwareAutoUpdateID === false || $firmwareAutoUpdateID <= 0) return;
+        IPS_SetHidden($firmwareAutoUpdateID, !$supported);
+        if ($supported) $this->SetValueSafe('FirmwareAutoUpgrade', $device['firmware_auto_upgrade']);
+    }
     private function confirmCommand(int $state, int $error): void
     {
         $command = (int) $this->ReadAttributeString('PendingCommand');

@@ -77,9 +77,11 @@ final class WorxMowerProfileTest extends TestCase
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
         $module = new WorxMower($instanceID);
-        $module->Create();
-        $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
-        $applyDevice->setAccessible(true);
+        $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
+        $registerVariables->setAccessible(true);
+        $registerVariables->invoke($module);
+        $updateFirmwareAutoUpgrade = new ReflectionMethod(WorxMower::class, 'updateFirmwareAutoUpgrade');
+        $updateFirmwareAutoUpgrade->setAccessible(true);
         $device = [
             'online'                => true,
             'capabilities'          => ['ota_upgrade'],
@@ -87,7 +89,7 @@ final class WorxMowerProfileTest extends TestCase
             'last_status'           => ['payload' => ['dat' => []]],
         ];
 
-        $applyDevice->invoke($module, $device);
+        $updateFirmwareAutoUpgrade->invoke($module, $device);
         $variableID = IPS_GetObjectIDByIdent('FirmwareAutoUpgrade', $instanceID);
         self::assertTrue(GetValueBoolean($variableID));
         self::assertFalse(IPS_GetObject($variableID)['ObjectIsHidden']);
@@ -97,7 +99,7 @@ final class WorxMowerProfileTest extends TestCase
 
         $device['capabilities'] = [];
         $device['firmware_auto_upgrade'] = false;
-        $applyDevice->invoke($module, $device);
+        $updateFirmwareAutoUpgrade->invoke($module, $device);
         self::assertTrue(IPS_GetObject($variableID)['ObjectIsHidden']);
     }
 
