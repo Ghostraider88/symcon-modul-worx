@@ -50,14 +50,14 @@ final class WorxScheduleCodecTest extends TestCase
         self::assertFalse(WorxScheduleCodec::matchesEditableSlots($expected, $reported));
     }
 
-    public function testMapsDailyWorkPercentageBetweenAppAndProtocolScales(): void
+    public function testPreservesSignedDailyWorkPercentageFromProtocol(): void
     {
         $cases = [
-            [-100, 0],
-            [-40, 30],
-            [0, 50],
-            [30, 65],
-            [60, 80],
+            [-100, -100],
+            [-40, -40],
+            [0, 0],
+            [30, 30],
+            [60, 60],
             [100, 100],
         ];
 
@@ -66,13 +66,12 @@ final class WorxScheduleCodecTest extends TestCase
             self::assertEquals($protocolValue, WorxScheduleCodec::timeExtensionToProtocol($appPercent));
         }
 
-        self::assertSame(91, WorxScheduleCodec::timeExtensionFromProtocol(95.5));
-        self::assertSame(95.5, WorxScheduleCodec::timeExtensionToProtocol(91));
+        self::assertSame(-40, WorxScheduleCodec::timeExtensionFromProtocol(-40));
     }
 
     public function testRejectsTimeExtensionValuesOutsideProtocolRange(): void
     {
-        self::assertNull(WorxScheduleCodec::timeExtensionFromProtocol(-0.1));
+        self::assertNull(WorxScheduleCodec::timeExtensionFromProtocol(-100.1));
         self::assertNull(WorxScheduleCodec::timeExtensionFromProtocol(100.1));
 
         try {

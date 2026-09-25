@@ -64,7 +64,7 @@ final class WorxScheduleCodec
         return self::scheduleFromDevice($device) !== null;
     }
 
-    /** Convert the protocol-0 raw schedule percentage (0..100) to app percentage (-100..100). */
+    /** Validate and read the signed protocol-0/app time-extension percentage (-100..100). */
     public static function timeExtensionFromProtocol($value): ?int
     {
         if (!is_numeric($value)) {
@@ -72,22 +72,21 @@ final class WorxScheduleCodec
         }
 
         $raw = (float) $value;
-        if ($raw < 0 || $raw > 100) {
+        if ($raw < -100 || $raw > 100) {
             return null;
         }
 
-        return (int) round(($raw * 2) - 100);
+        return (int) round($raw);
     }
 
-    /** Convert the app percentage (-100..100) to protocol-0 raw schedule value (0..100). */
+    /** Keep the app percentage unchanged in the signed protocol-0 schedule field (-100..100). */
     public static function timeExtensionToProtocol(int $percent)
     {
         if ($percent < -100 || $percent > 100) {
             throw new InvalidArgumentException('Tägliche Arbeitszeit muss zwischen -100 und 100 Prozent liegen.');
         }
 
-        $raw = $percent + 100;
-        return $raw % 2 === 0 ? intdiv($raw, 2) : $raw / 2;
+        return $percent;
     }
 
     /**

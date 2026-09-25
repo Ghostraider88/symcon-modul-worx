@@ -83,7 +83,7 @@ final class WorxMowerProfileTest extends TestCase
             'capabilities' => ['unrestricted_mowing_time'],
             'last_status'  => [
                 'payload' => [
-                    'cfg' => ['sc' => ['p' => 30]],
+                    'cfg' => ['sc' => ['p' => -40]],
                     'dat' => ['ls' => 0, 'le' => 0],
                 ],
             ],
@@ -95,7 +95,7 @@ final class WorxMowerProfileTest extends TestCase
             'online'       => true,
             'protocol'     => 0,
             'capabilities' => ['unrestricted_mowing_time'],
-            'cfg'          => ['sc' => ['p' => 30]],
+            'cfg'          => ['sc' => ['p' => -40]],
             'last_status'  => ['payload' => ['dat' => ['ls' => 0, 'le' => 0]]],
         ]);
 

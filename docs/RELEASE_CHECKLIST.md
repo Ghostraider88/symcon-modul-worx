@@ -38,9 +38,9 @@ Gerätesteuerungen nur einzeln und mit sichtbarer Sollwert-/Rückmeldungsprüfun
 
 Nach Aktualisierung des Testbranches und erneutem Anwenden der Mower-Konfiguration:
 
-1. In der Worx-App −40 % einstellen. Die Konfiguration der Mower-Instanz muss unter „Vom Mäher gemeldete tägliche Arbeitszeitänderung“ −40 % zeigen, und „Tägliche Arbeitszeit (bestätigt)“ muss ebenfalls −40 % anzeigen; im redigierten Gerätenachweis muss `cfg.sc.p` den Rohwert 30 enthalten. Falls die beiden Symcon-Anzeigen abweichen, beide Werte samt `cfg.sc.p` notieren.
-2. In Symcon „Tägliche Arbeitszeit setzen“ auf −40 % stellen. Die Worx-App und die bestätigte Symcon-Variable müssen nach dem Geräteecho beide −40 % anzeigen; der zurückgelesene Rohwert muss wieder 30 sein.
-3. Danach den ursprünglichen Wert in der App wiederherstellen.
+1. Nach Modulupdate und erneutem Anwenden der Mower-Konfiguration den nächsten Cloud-Status abwarten. Im vorliegenden Gerätezustand muss „Tägliche Arbeitszeit (bestätigt)“ den aus `cfg.sc.p=-40` gelesenen Wert −40 % anzeigen. Die Instanzkonfiguration zeigt denselben Wert als „Vom Mäher gemeldete tägliche Arbeitszeitänderung“. Fehlt eine der Anzeigen oder weicht sie ab, den redigierten `cfg.sc.p`-Wert und die bestätigte Variable vergleichen.
+2. Für den Schreibrundlauf in Symcon „Tägliche Arbeitszeit setzen“ auf einen von der aktuellen App-Einstellung abweichenden negativen Wert setzen. Erst wenn die Worx-App und „Zeiterweiterung (bestätigt)“ denselben Wert zurückmelden, gilt das ausgehende Mapping als bestätigt; anschließend den notierten Ausgangswert wiederherstellen.
+3. Vor dem Test den aktuellen App-Wert notieren. Nach dem Echo den gewünschten Ausgangswert gezielt wiederherstellen, falls er geändert wurde.
 
 Die Werte müssen jeweils aus demselben Rückmeldezeitpunkt stammen. Eine bloße Publish-Meldung zählt nicht als Gerätebestätigung.
 ## Veröffentlichung
