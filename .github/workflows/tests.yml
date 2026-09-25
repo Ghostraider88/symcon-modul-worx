@@ -3,7 +3,6 @@ name: Run Tests
 on: [push, pull_request]
 
 jobs:
-
   test:
     runs-on: ubuntu-latest
     steps:
@@ -13,3 +12,16 @@ jobs:
           submodules: true
       - name: Run tests
         uses: symcon/action-tests@master
+
+  php74_syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout module
+        uses: actions/checkout@v4
+      - name: Set up PHP 7.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          coverage: none
+      - name: Lint production PHP files on PHP 7.4
+        run: find WorxCloud WorxConfigurator WorxMower libs -name '*.php' -print0 | xargs -0 -n1 php -l
