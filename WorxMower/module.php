@@ -66,39 +66,7 @@ class WorxMower extends IPSModule
         $this->RegisterTimer('LockConfirmationTimeout', 0, 'WORXMOWER_LockConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('AutoScheduleConfirmationTimeout', 0, 'WORXMOWER_AutoScheduleConfirmationTimeout($_IPS[\'TARGET\']);');
 
-        $this->registerProfiles();
-
-        $p = 0;
-        $this->RegisterVariableInteger('Control', 'Steuerung', 'WORX.Control', $p++);
-        $this->RegisterVariableInteger('State', 'Status', 'WORX.State', $p++);
-        $this->RegisterVariableInteger('Error', 'Fehler', 'WORX.Error', $p++);
-        $this->RegisterVariableBoolean('Online', 'Online', '~Alert.Reversed', $p++);
-        $this->RegisterVariableInteger('Battery', 'Akku', '~Battery.100', $p++);
-        $this->RegisterVariableBoolean('Charging', 'Lädt', '~Switch', $p++);
-        $this->RegisterVariableFloat('BatteryTemp', 'Akkutemperatur', '~Temperature', $p++);
-        $this->RegisterVariableFloat('BatteryVoltage', 'Akkuspannung', '~Volt', $p++);
-        $this->RegisterVariableInteger('ChargeCycles', 'Ladezyklen', '', $p++);
-        $this->RegisterVariableInteger('WifiSignal', 'WLAN-Signal', 'WORX.dBm', $p++);
-        $this->RegisterVariableFloat('Distance', 'Gesamtstrecke', 'WORX.km', $p++);
-        $this->RegisterVariableFloat('WorkTime', 'Mähzeit gesamt', 'WORX.Hours', $p++);
-        $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', 'WORX.Hours', $p++);
-        $this->RegisterVariableBoolean('Rain', 'Regen erkannt', '~Alert', $p++);
-        $this->RegisterVariableInteger('TimeExtension', 'Tägliche Arbeitszeit (bestätigt)', 'WORXMOWER.TimeExtension', $p++);
-        $this->RegisterVariableInteger('TimeExtensionSet', 'Tägliche Arbeitszeit setzen', 'WORXMOWER.TimeExtension', $p++);
-        $this->RegisterVariableInteger('RainDelay', 'Regenverzögerung (bestätigt)', 'WORX.Minutes', $p++);
-        $this->RegisterVariableInteger('RainDelaySet', 'Regenverzögerung setzen', 'WORX.Minutes', $p++);
-        $this->RegisterVariableString('SettingStatus', 'Einstellungsrückmeldung', '', $p++);
-        $this->RegisterVariableBoolean('Locked', 'Gesperrt (bestätigt)', '~Lock', $p++);
-        $this->RegisterVariableBoolean('LockCommand', 'Sperre setzen', '~Lock', $p++);
-        $this->RegisterVariableBoolean('AutoSchedule', 'Automatischer Zeitplan (bestätigt)', '~Switch', $p++);
-        $this->RegisterVariableBoolean('AutoScheduleSet', 'Automatischen Zeitplan setzen', '~Switch', $p++);
-        $this->RegisterVariableInteger('Zone', 'Aktuelle Zone', '', $p++);
-        $this->RegisterVariableString('Firmware', 'Firmware', '', $p++);
-        $this->RegisterVariableInteger('LastUpdate', 'Letzte Meldung', '~UnixTimestamp', $p++);
-        $this->RegisterVariableString('LastCommand', 'Letzter Befehl', '', $p++);
-        $this->RegisterVariableString('CommandStatus', 'Befehlsrückmeldung', '', $p++);
-        $this->RegisterVariableString('ScheduleSyncStatus', 'Zeitplanrückmeldung', '', $p++);
-        $this->RegisterVariableString('DeviceDiagnostics', 'Gerätenachweis (redigiert)', '', $p++);
+        $this->registerVariables();
         $this->EnableAction('Control');
         $this->EnableAction('TimeExtensionSet');
         $this->EnableAction('RainDelaySet');
@@ -106,12 +74,46 @@ class WorxMower extends IPSModule
         $this->EnableAction('AutoScheduleSet');
     }
 
+    private function registerVariables(): void
+    {
+        $p = 0;
+        $this->RegisterVariableInteger('Control', 'Steuerung', $this->enumerationPresentation([0 => 'Befehl wählen'] + self::COMMANDS), $p++);
+        $this->RegisterVariableInteger('State', 'Status', $this->enumerationPresentation(self::STATES), $p++);
+        $this->RegisterVariableInteger('Error', 'Fehler', $this->enumerationPresentation(self::ERRORS), $p++);
+        $this->RegisterVariableBoolean('Online', 'Online', $this->booleanValuePresentation('Offline', 'Online'), $p++);
+        $this->RegisterVariableInteger('Battery', 'Akku', $this->valuePresentation(' %'), $p++);
+        $this->RegisterVariableBoolean('Charging', 'Lädt', $this->booleanValuePresentation('Nein', 'Ja'), $p++);
+        $this->RegisterVariableFloat('BatteryTemp', 'Akkutemperatur', $this->valuePresentation(' °C'), $p++);
+        $this->RegisterVariableFloat('BatteryVoltage', 'Akkuspannung', $this->valuePresentation(' V'), $p++);
+        $this->RegisterVariableInteger('ChargeCycles', 'Ladezyklen', '', $p++);
+        $this->RegisterVariableInteger('WifiSignal', 'WLAN-Signal', $this->valuePresentation(' dBm'), $p++);
+        $this->RegisterVariableFloat('Distance', 'Gesamtstrecke', $this->valuePresentation(' km'), $p++);
+        $this->RegisterVariableFloat('WorkTime', 'Mähzeit gesamt', $this->valuePresentation(' h'), $p++);
+        $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', $this->valuePresentation(' h'), $p++);
+        $this->RegisterVariableBoolean('Rain', 'Regen erkannt', $this->booleanValuePresentation('Nein', 'Ja'), $p++);
+        $this->RegisterVariableInteger('TimeExtension', 'Tägliche Arbeitszeit (bestätigt)', $this->valuePresentation(' %'), $p++);
+        $this->RegisterVariableInteger('TimeExtensionSet', 'Tägliche Arbeitszeit setzen', $this->sliderPresentation(-100, 100, ' %'), $p++);
+        $this->RegisterVariableInteger('RainDelay', 'Regenverzögerung (bestätigt)', $this->valuePresentation(' min'), $p++);
+        $this->RegisterVariableInteger('RainDelaySet', 'Regenverzögerung setzen', $this->sliderPresentation(0, self::MAX_RAIN_DELAY_MINUTES, ' min'), $p++);
+        $this->RegisterVariableString('SettingStatus', 'Einstellungsrückmeldung', '', $p++);
+        $this->RegisterVariableBoolean('Locked', 'Gesperrt (bestätigt)', $this->booleanValuePresentation('Entsperrt', 'Gesperrt'), $p++);
+        $this->RegisterVariableBoolean('LockCommand', 'Sperre setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);
+        $this->RegisterVariableBoolean('AutoSchedule', 'Automatischer Zeitplan (bestätigt)', $this->booleanValuePresentation('Aus', 'Ein'), $p++);
+        $this->RegisterVariableBoolean('AutoScheduleSet', 'Automatischen Zeitplan setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);
+        $this->RegisterVariableInteger('Zone', 'Aktuelle Zone', '', $p++);
+        $this->RegisterVariableString('Firmware', 'Firmware', '', $p++);
+        $this->RegisterVariableInteger('LastUpdate', 'Letzte Meldung', ['PRESENTATION' => VARIABLE_PRESENTATION_DATE_TIME, 'DATE' => 0, 'TIME' => 1], $p++);
+        $this->RegisterVariableString('LastCommand', 'Letzter Befehl', '', $p++);
+        $this->RegisterVariableString('CommandStatus', 'Befehlsrückmeldung', '', $p++);
+        $this->RegisterVariableString('ScheduleSyncStatus', 'Zeitplanrückmeldung', '', $p++);
+        $this->RegisterVariableString('DeviceDiagnostics', 'Gerätenachweis (redigiert)', '', $p++);
+    }
+
     public function ApplyChanges()
     {
         parent::ApplyChanges();
-        // Refresh the dedicated profile on instances created before the app-scale mapping.
-        $this->registerProfiles();
-        $this->applyTimeExtensionProfiles();
+        // Re-register presentations so an update replaces legacy profiles on existing variables.
+        $this->registerVariables();
         $this->clearPendingForDifferentMower();
         foreach (['Schedule', 'SchedulePreview'] as $obsoleteIdent) {
             $obsoleteID = $this->GetIDForIdent($obsoleteIdent);
@@ -1128,70 +1130,60 @@ class WorxMower extends IPSModule
         return is_array($device) ? $device : null;
     }
 
-    private function applyTimeExtensionProfiles(): void
+    /**
+     * Build a modern Symcon value presentation for a variable that is display-only.
+     */
+    private function valuePresentation(string $suffix): array
     {
-        foreach (['TimeExtension', 'TimeExtensionSet'] as $ident) {
-            $variableID = $this->GetIDForIdent($ident);
-            if ($variableID === false || $variableID === 0) {
-                continue;
-            }
-            if (IPS_SetVariableCustomProfile($variableID, 'WORXMOWER.TimeExtension') === false) {
-                throw new RuntimeException('Das Arbeitszeitprofil konnte Variable ' . $ident . ' nicht zugeordnet werden.');
-            }
-        }
+        return [
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'SUFFIX' => $suffix,
+        ];
     }
 
-    private function registerProfiles(): void
+    /**
+     * Build a modern value presentation that gives Boolean status values readable labels.
+     */
+    private function booleanValuePresentation(string $falseCaption, string $trueCaption): array
     {
-        if (!IPS_VariableProfileExists('WORX.Control')) {
-            IPS_CreateVariableProfile('WORX.Control', VARIABLETYPE_INTEGER);
-            IPS_SetVariableProfileIcon('WORX.Control', 'Motor');
-        }
-        IPS_SetVariableProfileAssociation('WORX.Control', 0, 'Befehl wählen', '', -1);
-        IPS_SetVariableProfileAssociation('WORX.Control', 1, 'Start', 'Play', 0x00AA00);
-        IPS_SetVariableProfileAssociation('WORX.Control', 2, 'Pause', 'Pause', 0xCC8800);
-        IPS_SetVariableProfileAssociation('WORX.Control', 3, 'Ladestation', 'Home', 0x0066CC);
+        return [
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'OPTIONS' => json_encode([
+                ['Value' => false, 'Caption' => $falseCaption],
+                ['Value' => true, 'Caption' => $trueCaption],
+            ], JSON_THROW_ON_ERROR),
+        ];
+    }
 
-        if (!IPS_VariableProfileExists('WORX.State')) {
-            IPS_CreateVariableProfile('WORX.State', VARIABLETYPE_INTEGER);
-            IPS_SetVariableProfileIcon('WORX.State', 'Motor');
-            foreach (self::STATES as $code => $name) IPS_SetVariableProfileAssociation('WORX.State', $code, $name, '', -1);
+    /**
+     * Build a modern Symcon enumeration from an integer-to-caption map.
+     */
+    private function enumerationPresentation(array $values): array
+    {
+        $options = [];
+        foreach ($values as $value => $caption) {
+            $options[] = ['Value' => (int) $value, 'Caption' => $caption];
         }
-        if (!IPS_VariableProfileExists('WORX.Error')) {
-            IPS_CreateVariableProfile('WORX.Error', VARIABLETYPE_INTEGER);
-            IPS_SetVariableProfileIcon('WORX.Error', 'Warning');
-            foreach (self::ERRORS as $code => $name) IPS_SetVariableProfileAssociation('WORX.Error', $code, $name, '', $code === 0 ? 0x00FF00 : 0xFF0000);
-        }
-        if (!IPS_VariableProfileExists('WORX.km')) {
-            IPS_CreateVariableProfile('WORX.km', VARIABLETYPE_FLOAT);
-            IPS_SetVariableProfileText('WORX.km', '', ' km');
-            IPS_SetVariableProfileDigits('WORX.km', 1);
-            IPS_SetVariableProfileIcon('WORX.km', 'Distance');
-        }
-        if (!IPS_VariableProfileExists('WORX.Hours')) {
-            IPS_CreateVariableProfile('WORX.Hours', VARIABLETYPE_FLOAT);
-            IPS_SetVariableProfileText('WORX.Hours', '', ' h');
-            IPS_SetVariableProfileDigits('WORX.Hours', 1);
-            IPS_SetVariableProfileIcon('WORX.Hours', 'Clock');
-        }
-        if (!IPS_VariableProfileExists('WORXMOWER.TimeExtension')) {
-            IPS_CreateVariableProfile('WORXMOWER.TimeExtension', VARIABLETYPE_INTEGER);
-            IPS_SetVariableProfileText('WORXMOWER.TimeExtension', '', ' %');
-            IPS_SetVariableProfileIcon('WORXMOWER.TimeExtension', 'Clock');
-        }
-        IPS_SetVariableProfileValues('WORXMOWER.TimeExtension', -100, 100, 1);
-        if (!IPS_VariableProfileExists('WORX.Minutes')) {
-            IPS_CreateVariableProfile('WORX.Minutes', VARIABLETYPE_INTEGER);
-            IPS_SetVariableProfileText('WORX.Minutes', '', ' min');
-            IPS_SetVariableProfileValues('WORX.Minutes', 0, self::MAX_RAIN_DELAY_MINUTES, 1);
-            IPS_SetVariableProfileIcon('WORX.Minutes', 'Rain');
-        }
-        if (!IPS_VariableProfileExists('WORX.dBm')) {
-            IPS_CreateVariableProfile('WORX.dBm', VARIABLETYPE_INTEGER);
-            IPS_SetVariableProfileText('WORX.dBm', '', ' dBm');
-            IPS_SetVariableProfileValues('WORX.dBm', -100, 0, 1);
-            IPS_SetVariableProfileIcon('WORX.dBm', 'Network');
-        }
+
+        return [
+            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+            'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR),
+        ];
+    }
+
+    /**
+     * Build a modern, bounded slider presentation for an actionable integer setting.
+     */
+    private function sliderPresentation(int $minimum, int $maximum, string $suffix): array
+    {
+        return [
+            'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+            'MIN' => $minimum,
+            'MAX' => $maximum,
+            'STEP_SIZE' => 1,
+            'SUFFIX' => $suffix,
+            'PERCENTAGE' => false,
+        ];
     }
 
     private function SetValueSafe(string $ident, $value): void

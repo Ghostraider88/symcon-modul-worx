@@ -10,6 +10,7 @@
 - Zugangsdaten, Token, Seriennummern, UUIDs, MAC-Adressen, Standorte und vollständige Cloud-Antworten dürfen nicht in veröffentlichte Dateien oder Logs.
 - ApplyChanges() darf keinen Mäh- oder Zeitplanbefehl senden. Wiederholte Konfigurationsanwendung darf keine Objektduplikate erzeugen.
 - Symcon-Kompatibilität, Modulstruktur, Lokalisierungen, Manifestdateien und Qualitätsprüfungen müssen konsistent bleiben.
+- Für alle Statusvariablen moderne Symcon-Darstellungen per Presentation-Array verwenden. Keine Legacy-Profile, keine Tilde-Systemprofile und keine benutzerdefinierten Variablenprofile; Einheiten, Bereiche und Wertbeschriftungen direkt über die passende Darstellung konfigurieren.
 
 ## Modulidentitäten
 
