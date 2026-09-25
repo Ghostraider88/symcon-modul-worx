@@ -104,4 +104,26 @@ final class WorxCloudSecurityTest extends TestCase
         ], $module->requests);
         self::assertTrue($module->pollCalled);
     }
+
+    public function testRainDelayCloudCommandRejectsValuesOutsideTheDeviceSteps(): void
+    {
+        IPS\Kernel::reset();
+        $module = new WorxCloud(1);
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        $registerAttribute->invoke($module, 'Devices', '[]');
+        $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeAttribute->setAccessible(true);
+        $writeAttribute->invoke($module, 'Devices', json_encode([[
+            'serial_number' => 'SERIAL-TEST',
+            'protocol' => 0,
+            'capabilities' => ['rain_delay'],
+            'online' => true,
+            'mqtt_topics' => ['command_in' => 'test/topic'],
+        ]]));
+
+        foreach ([-30, 1, 15, 31, 721] as $minutes) {
+            self::assertFalse($module->SetRainDelay('SERIAL-TEST', $minutes));
+        }
+    }
 }

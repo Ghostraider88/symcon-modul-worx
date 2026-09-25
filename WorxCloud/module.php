@@ -33,7 +33,8 @@ class WorxCloud extends IPSModule
 
     private const CLOUD_API = 'api.worxlandroid.com';
     private const CLOUD_PREFIX = 'WX';
-    private const MAX_RAIN_DELAY_MINUTES = 300;
+    private const MAX_RAIN_DELAY_MINUTES = 720;
+    private const RAIN_DELAY_STEP_MINUTES = 30;
 
     public function Create()
     {
@@ -285,7 +286,8 @@ class WorxCloud extends IPSModule
     /** Set the protocol-0 rain delay in minutes, after validating model capability. */
     public function SetRainDelay(string $serial, int $minutes): bool
     {
-        if ($minutes < 0 || $minutes > self::MAX_RAIN_DELAY_MINUTES) {
+        if ($minutes < 0 || $minutes > self::MAX_RAIN_DELAY_MINUTES
+            || ($minutes !== 0 && $minutes % self::RAIN_DELAY_STEP_MINUTES !== 0)) {
             return false;
         }
         foreach (json_decode($this->ReadAttributeString('Devices'), true) ?: [] as $device) {

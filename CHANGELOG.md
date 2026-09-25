@@ -2,11 +2,14 @@
 
 ## Unveröffentlicht
 
+- Auch der Cloud-Transport validiert Regenverzögerungen ausschließlich als 0 oder Vielfache von 30 Minuten bis 720 Minuten; zuvor hatte die Transportgrenze Werte über 300 Minuten abgewiesen.
+
+
 - Regenverzögerung auf den dokumentierten Landroid-Drahtgerätebereich 0 bis 720 Minuten in 30-Minuten-Schritten erweitert; Eingabevalidierung und Slider begrenzen die Werte entsprechend. Geräteecho am WR105SI.1 bleibt ausstehend.
 
 - Bestehende, vom Mower-Modul verwaltete Variablen entfernen veraltete benutzerdefinierte Profilzuweisungen vor dem erneuten Anwenden der modernen Variablenpräsentationen; benutzerdefinierte Zusatzvariablen bleiben unberührt.
 
-- Library-Build auf 6 angehoben, damit die auf Modulvariablen begrenzte Profilbereinigung als Update erkennbar ist.
+- Library-Build auf 7 angehoben, damit die auf Modulvariablen begrenzte Profilbereinigung als Update erkennbar ist.
 
 - Mindestversion auf IP-Symcon 9.0 angehoben; Produktionsdateien werden in CI mit PHP 8.5 auf Syntax geprüft.
 - Seriennummern in dynamischen Worx-API-Pfaden werden vor der Debug-Protokollierung maskiert.
