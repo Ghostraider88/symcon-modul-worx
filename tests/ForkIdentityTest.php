@@ -37,6 +37,18 @@ final class ForkIdentityTest extends TestCase
         }
 
         self::assertCount(count($forkGuids), array_unique($observedGuids), 'Fork manifest GUIDs must be unique');
+        $expectedPrefixes = [
+            'WorxCloud'        => 'WORX',
+            'WorxConfigurator' => 'WORXCONF',
+            'WorxMower'        => 'WORXMOWER',
+        ];
+        foreach ($expectedPrefixes as $module => $prefix) {
+            self::assertSame(
+                $prefix,
+                $manifests[$module]['prefix'] ?? null,
+                $module . ' prefix must remain stable for updates'
+            );
+        }
 
         $forkInterfaceGuids = [
             'WorxCloud'        => ['{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}', '{F925090C-4AED-407D-8B80-F1730A55717E}'],
