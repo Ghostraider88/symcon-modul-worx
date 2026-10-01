@@ -58,6 +58,11 @@ final class WorxCloudHttpTestDouble extends WorxCloud
 {
     public array $httpResponses = [];
 
+    protected function getTime()
+    {
+        return time();
+    }
+
     protected function executeHttpRequest(string $url, string $method, array $headers, ?string $body): array
     {
         return array_shift($this->httpResponses);
