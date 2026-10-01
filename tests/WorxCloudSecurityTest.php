@@ -54,6 +54,15 @@ final class WorxCloudMqttParentTestDouble extends IPSModule
     }
 }
 
+final class WorxCloudWsTestDouble extends IPSModule
+{
+    public function Create()
+    {
+        parent::Create();
+        $this->RegisterPropertyBoolean('Active', true);
+    }
+}
+
 final class WorxCloudHttpTestDouble extends WorxCloud
 {
     public array $httpResponses = [];
@@ -385,5 +394,76 @@ final class WorxCloudSecurityTest extends TestCase
             self::assertFalse($module->SetRainDelay('SERIAL-TEST', 30));
             self::assertSame([], $mqtt->messages);
         }
+    }
+
+    public function testManagedWorxTransportIsDisabledWhenMqttOrCredentialsAreDisabled(): void
+    {
+        foreach ([
+            ['Cloud' => 'worx', 'UseMQTT' => false, 'Email' => 'user@example.invalid', 'Password' => 'secret'],
+            ['Cloud' => 'worx', 'UseMQTT' => true, 'Email' => '', 'Password' => 'secret'],
+            ['Cloud' => 'other', 'UseMQTT' => true, 'Email' => 'user@example.invalid', 'Password' => 'secret'],
+        ] as $configuration) {
+            IPS\Kernel::reset();
+            IPS\InstanceManager::createInstance(1, [
+                'Class'      => WorxCloudRequestTestDouble::class,
+                'ModuleID'   => '{2A3889B6-AD03-4B1E-8782-BEB0E6CABCC1}',
+                'ModuleName' => 'Worx Cloud Test',
+                'ModuleType' => 2,
+            ]);
+            IPS\InstanceManager::createInstance(2, [
+                'Class'      => WorxCloudMqttParentTestDouble::class,
+                'ModuleID'   => '{F7A0DD2E-7684-95C0-64C2-D2A9DC47577B}',
+                'ModuleName' => 'Worx MQTT Test',
+                'ModuleType' => 2,
+            ]);
+            IPS\InstanceManager::createInstance(3, [
+                'Class'      => WorxCloudWsTestDouble::class,
+                'ModuleID'   => '{D68FD31F-0E90-7019-F16C-1949BD3079EF}',
+                'ModuleName' => 'Worx WS Test',
+                'ModuleType' => 1,
+            ]);
+            IPS\InstanceManager::connectInstance(2, 3);
+            IPS\InstanceManager::connectInstance(1, 2);
+            $module = IPS\InstanceManager::getInstanceInterface(1);
+            foreach ($configuration as $name => $value) {
+                $module->SetProperty($name, $value);
+            }
+
+            $module->ApplyChanges();
+
+            self::assertFalse(IPS_GetProperty(3, 'Active'));
+        }
+    }
+
+    public function testDoesNotDisableTransportOutsideManagedWorxChain(): void
+    {
+        IPS\Kernel::reset();
+        IPS\InstanceManager::createInstance(1, [
+            'Class'      => WorxCloudRequestTestDouble::class,
+            'ModuleID'   => '{2A3889B6-AD03-4B1E-8782-BEB0E6CABCC1}',
+            'ModuleName' => 'Worx Cloud Test',
+            'ModuleType' => 2,
+        ]);
+        IPS\InstanceManager::createInstance(2, [
+            'Class'      => WorxCloudMqttParentTestDouble::class,
+            'ModuleID'   => '{00000000-0000-0000-0000-000000000001}',
+            'ModuleName' => 'Other MQTT Test',
+            'ModuleType' => 2,
+        ]);
+        IPS\InstanceManager::createInstance(3, [
+            'Class'      => WorxCloudWsTestDouble::class,
+            'ModuleID'   => '{D68FD31F-0E90-7019-F16C-1949BD3079EF}',
+            'ModuleName' => 'Worx WS Test',
+            'ModuleType' => 1,
+        ]);
+        IPS\InstanceManager::connectInstance(2, 3);
+        IPS\InstanceManager::connectInstance(1, 2);
+        $module = IPS\InstanceManager::getInstanceInterface(1);
+        $module->SetProperty('UseMQTT', false);
+        $module->SetProperty('Email', 'user@example.invalid');
+        $module->SetProperty('Password', 'secret');
+        $module->ApplyChanges();
+
+        self::assertTrue(IPS_GetProperty(3, 'Active'));
     }
 }

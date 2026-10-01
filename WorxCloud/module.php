@@ -67,12 +67,14 @@ class WorxCloud extends IPSModule
         if ($this->ReadPropertyString('Cloud') !== 'worx') {
             $this->SetTimerInterval('WorxPoll', 0);
             $this->SetTimerInterval('WorxAuth', 0);
+            $this->disableManagedTransport();
             $this->SetStatus(203);
             return false;
         }
         if ($this->ReadPropertyString('Email') === '' || $this->ReadPropertyString('Password') === '') {
             $this->SetTimerInterval('WorxPoll', 0);
             $this->SetTimerInterval('WorxAuth', 0);
+            $this->disableManagedTransport();
             $this->SetStatus(104);
             return;
         }
@@ -89,6 +91,9 @@ class WorxCloud extends IPSModule
         }
         if ($this->ReadPropertyBoolean('UseMQTT')) {
             $this->ensureParent();
+        }
+        if (!$this->ReadPropertyBoolean('UseMQTT')) {
+            $this->disableManagedTransport();
         }
         if ($this->Poll() && $this->ReadPropertyBoolean('UseMQTT')) {
             $this->RefreshTransport();
@@ -641,6 +646,32 @@ class WorxCloud extends IPSModule
         IPS_SetName($ws, 'Worx WebSocket');
         IPS_ConnectInstance($mqtt, $ws);
         $this->SendDebug('MQTT', "Worx-Transportkette angelegt: WS $ws → MQTT $mqtt", 0);
+    }
+
+    private function disableManagedTransport(): void
+    {
+        $mqtt = $this->getParent();
+        if ($mqtt === 0) {
+            return;
+        }
+
+        $mqttInstance = IPS_GetInstance($mqtt);
+        if (($mqttInstance['ModuleInfo']['ModuleID'] ?? '') !== self::GUID_MQTT) {
+            return;
+        }
+
+        $ws = (int) ($mqttInstance['ConnectionID'] ?? 0);
+        if ($ws === 0) {
+            return;
+        }
+
+        $wsInstance = IPS_GetInstance($ws);
+        if (($wsInstance['ModuleInfo']['ModuleID'] ?? '') !== self::GUID_WS) {
+            return;
+        }
+
+        $this->setIfChanged($ws, ['Active' => false]);
+        $this->SendDebug('MQTT', 'Verwalteter Worx-WebSocket deaktiviert: MQTT ist ausgeschaltet oder die Konfiguration ungültig.', 0);
     }
 
     private function publish(string $topic, string $payload): bool
