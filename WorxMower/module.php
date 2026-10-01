@@ -41,7 +41,7 @@ class WorxMower extends IPSModule
         'TimeExtensionSet', 'RainDelay', 'RainDelaySet', 'Rain', 'SettingStatus', 'ScheduleSyncStatus', 'NextScheduleStart',
         'Battery', 'Charging', 'BatteryTemp', 'BatteryVoltage', 'ChargeCycles', 'WifiSignal', 'Distance',
         'WorkTime', 'BladeTime', 'Zone', 'Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet',
-        'DeviceDiagnostics', 'Schedule', 'SchedulePreview',
+        'FirmwareUpgradeStatus', 'FirmwareUpgradeAction', 'DeviceDiagnostics', 'Schedule', 'SchedulePreview',
     ];
 
     public function Create()
@@ -87,6 +87,7 @@ class WorxMower extends IPSModule
         $this->EnableAction('LockCommand');
         $this->EnableAction('AutoScheduleSet');
         $this->EnableAction('FirmwareAutoUpgradeSet');
+        $this->EnableAction('FirmwareUpgradeAction');
     }
 
     public function ApplyChanges()
@@ -95,6 +96,7 @@ class WorxMower extends IPSModule
         // Re-register presentations so an update replaces legacy profiles on existing variables.
         $this->registerVariables();
         $this->EnableAction('FirmwareAutoUpgradeSet');
+        $this->EnableAction('FirmwareUpgradeAction');
         $this->clearPendingForDifferentMower();
         // Optional variables from older builds may not exist in a fresh installation.
         foreach (IPS_GetChildrenIDs($this->InstanceID) as $childID) {
@@ -144,6 +146,17 @@ class WorxMower extends IPSModule
             }
             if (!$this->SetFirmwareAutoUpgrade($Value)) {
                 $this->restoreSettingInput('FirmwareAutoUpgradeSet', 'FirmwareAutoUpgrade');
+            }
+            return;
+        }
+
+        if ($Ident === 'FirmwareUpgradeAction') {
+            $action = $this->validatedInteger($Value, 0, 2, 'Firmwareaktion');
+            $this->SetValueSafe('FirmwareUpgradeAction', 0);
+            if ($action === 1) {
+                $this->CheckFirmwareUpgrade();
+            } elseif ($action === 2) {
+                $this->StartFirmwareUpgrade();
             }
             return;
         }
@@ -322,6 +335,85 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Worx-Cloud hat die Einstellung abgelehnt oder ist nicht erreichbar.');
             return false;
         }
+        return true;
+    }
+
+    /** Query available firmware explicitly; ApplyChanges never triggers this request. */
+    public function CheckFirmwareUpgrade(): bool
+    {
+        $device = $this->getDevice();
+        if ($device === null || !in_array('ota_upgrade', $device['capabilities'] ?? [], true)) {
+            $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Firmware-Update für dieses Gerät nicht belegt.'));
+            return false;
+        }
+        $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
+        if ($parent === 0) {
+            $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Firmwareprüfung nicht möglich: Worx-Cloud-Verbindung fehlt.'));
+            return false;
+        }
+        $response = $this->SendDataToParent(json_encode([
+            'DataID'  => self::IF_CLOUD,
+            'Command' => 'GetFirmwareUpgradeInfo',
+            'Serial'  => $this->ReadPropertyString('Serial'),
+        ]));
+        $info = json_decode((string) $response, true);
+        if (!is_array($info)) {
+            $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Firmwareverfügbarkeit konnte nicht aus der Worx-Cloud gelesen werden.'));
+            return false;
+        }
+
+        $current = (string) ($info['current_version'] ?? '');
+        $latest = (string) ($info['latest_version'] ?? '');
+        if (($info['ota_supported'] ?? null) !== true) {
+            $status = $this->Translate('Worx-Cloud meldet OTA für dieses Gerät als nicht unterstützt.');
+        } elseif (($info['update_available'] ?? null) === true) {
+            $status = $this->Translate('Firmware-Update verfügbar: ') . $current . ' → ' . $latest . '.';
+        } elseif (($info['update_available'] ?? null) === false) {
+            $status = $this->Translate('Firmware ist aktuell: ') . $current . '.';
+        } else {
+            $status = $this->Translate('Firmwarestatus unvollständig; kein Update angeboten.');
+        }
+        if (($info['upgrade_failed'] ?? false) === true) {
+            $status .= ' ' . $this->Translate('Der letzte Firmware-Updateversuch ist fehlgeschlagen.');
+        }
+        $this->SetValueSafe('FirmwareUpgradeStatus', trim($status));
+        return true;
+    }
+
+    /** Start OTA only after explicit action, dock/charge safety and a fresh cloud availability check. */
+    public function StartFirmwareUpgrade(): bool
+    {
+        $device = $this->getDevice();
+        $stateID = $this->GetIDForIdent('State');
+        $batteryID = $this->GetIDForIdent('Battery');
+        $chargingID = $this->GetIDForIdent('Charging');
+        $safeState = $stateID !== false && $stateID > 0 && GetValueInteger($stateID) === 1;
+        $charging = $chargingID !== false && $chargingID > 0 && GetValueBoolean($chargingID);
+        $battery = $batteryID !== false && $batteryID > 0 ? GetValueInteger($batteryID) : 0;
+
+        if ($device === null || !in_array('ota_upgrade', $device['capabilities'] ?? [], true)) {
+            $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Firmware-Update für dieses Gerät nicht belegt.'));
+            return false;
+        }
+        if (empty($device['online']) || (!$safeState && !$charging) || $battery < 50) {
+            $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Update gesperrt: Mäher muss online, in der Ladestation oder beim Laden und mit mindestens 50 % Akku bereit sein.'));
+            return false;
+        }
+        $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
+        if ($parent === 0) {
+            $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Firmware-Update nicht angefordert: Worx-Cloud-Verbindung fehlt.'));
+            return false;
+        }
+        $response = $this->SendDataToParent(json_encode([
+            'DataID'  => self::IF_CLOUD,
+            'Command' => 'StartFirmwareUpgrade',
+            'Serial'  => $this->ReadPropertyString('Serial'),
+        ]));
+        if (!filter_var(json_decode((string) $response, true), FILTER_VALIDATE_BOOLEAN)) {
+            $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Kein Firmware-Update gestartet: Cloud meldet kein verfügbares und unterstütztes Update.'));
+            return false;
+        }
+        $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Firmware-Update wurde von der Worx-Cloud zur Ausführung angenommen; Gerätestatus anschließend erneut prüfen.'));
         return true;
     }
 
@@ -956,6 +1048,7 @@ class WorxMower extends IPSModule
         $this->SetValueSafe('DeviceDiagnostics', WorxScheduleCodec::canonicalJson(WorxScheduleCodec::sanitizedDeviceRecord($device)));
         $this->updateControlPresentation();
         $this->updateFirmwareAutoUpgrade($device);
+        $this->updateFirmwareUpgradeAvailability($device);
         if (isset($device['firmware_version'])) {
             $this->SetValueSafe('Firmware', (string) $device['firmware_version']);
         }
@@ -1074,6 +1167,21 @@ class WorxMower extends IPSModule
         $summary = sprintf('%s · %d%%', $stateText, (int) ($dat['bt']['p'] ?? 0));
         if ($error > 0) $summary .= ' · ' . $errorText;
         $this->SetSummary($summary);
+    }
+
+    private function updateFirmwareUpgradeAvailability(array $device): void
+    {
+        $statusID = $this->GetIDForIdent('FirmwareUpgradeStatus');
+        $actionID = $this->GetIDForIdent('FirmwareUpgradeAction');
+        if ($statusID === false || $statusID <= 0 || $actionID === false || $actionID <= 0) {
+            return;
+        }
+        $supported = in_array('ota_upgrade', $device['capabilities'] ?? [], true);
+        IPS_SetHidden($statusID, !$supported);
+        IPS_SetHidden($actionID, !$supported);
+        if ($supported && GetValueString($statusID) === '') {
+            $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Firmwareverfügbarkeit noch nicht abgefragt.'));
+        }
     }
 
     private function updateFirmwareAutoUpgrade(array $device): void
@@ -1382,6 +1490,14 @@ class WorxMower extends IPSModule
         $this->RegisterVariableString('Firmware', 'Firmware', '', $p++);
         $this->RegisterVariableBoolean('FirmwareAutoUpgrade', 'Firmware-Update automatisch (Cloud, bestätigt)', $this->booleanValuePresentation('Aus', 'Ein'), $p++);
         $this->RegisterVariableBoolean('FirmwareAutoUpgradeSet', 'Automatische Firmware-Updates setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);
+        $this->RegisterVariableString('FirmwareUpgradeStatus', 'Firmware-Update-Status', '', $p++);
+        $this->RegisterVariableInteger('FirmwareUpgradeAction', 'Firmware-Update-Aktion', $this->enumerationPresentation([
+            0 => $this->Translate('Aktion wählen'),
+            1 => $this->Translate('Firmwareverfügbarkeit prüfen'),
+            2 => $this->Translate('Firmware-Update jetzt anfordern'),
+        ]), $p++);
+        IPS_SetHidden($this->GetIDForIdent('FirmwareUpgradeStatus'), true);
+        IPS_SetHidden($this->GetIDForIdent('FirmwareUpgradeAction'), true);
 
         // Redacted development diagnostic is intentionally last in the object tree.
         $this->RegisterVariableString('DeviceDiagnostics', 'Gerätenachweis (redigiert)', '', $p++);
@@ -1394,7 +1510,8 @@ class WorxMower extends IPSModule
             'TimeExtension', 'TimeExtensionSet', 'RainDelay', 'RainDelaySet', 'Rain', 'SettingStatus', 'ScheduleSyncStatus',
             'NextScheduleStart',
             'Battery', 'Charging', 'BatteryTemp', 'BatteryVoltage', 'ChargeCycles', 'WifiSignal', 'Distance', 'WorkTime',
-            'BladeTime', 'Zone', 'Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet', 'DeviceDiagnostics',
+            'BladeTime', 'Zone', 'Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet',
+            'FirmwareUpgradeStatus', 'FirmwareUpgradeAction', 'DeviceDiagnostics',
         ];
         foreach ($orderedIdents as $position => $ident) {
             $variableID = $this->GetIDForIdent($ident);

@@ -245,6 +245,36 @@ final class WorxMowerProfileTest extends TestCase
         self::assertTrue(IPS_GetObject($commandID)['ObjectIsHidden']);
     }
 
+    public function testFirmwareUpgradeControlsAreHiddenUntilCapabilityIsReported(): void
+    {
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        $module = new WorxMower($instanceID);
+        $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
+        $registerVariables->setAccessible(true);
+        $registerVariables->invoke($module);
+        $enableAction = new ReflectionMethod(IPSModule::class, 'EnableAction');
+        $enableAction->setAccessible(true);
+        $enableAction->invoke($module, 'FirmwareUpgradeAction');
+
+        $statusID = IPS_GetObjectIDByIdent('FirmwareUpgradeStatus', $instanceID);
+        $actionID = IPS_GetObjectIDByIdent('FirmwareUpgradeAction', $instanceID);
+        self::assertSame(3, IPS_GetVariable($statusID)['VariableType']);
+        self::assertSame(1, IPS_GetVariable($actionID)['VariableType']);
+        self::assertTrue(HasAction($actionID));
+        self::assertTrue(IPS_GetObject($statusID)['ObjectIsHidden']);
+        self::assertTrue(IPS_GetObject($actionID)['ObjectIsHidden']);
+
+        $update = new ReflectionMethod(WorxMower::class, 'updateFirmwareUpgradeAvailability');
+        $update->setAccessible(true);
+        $update->invoke($module, ['capabilities' => ['ota_upgrade']]);
+        self::assertFalse(IPS_GetObject($statusID)['ObjectIsHidden']);
+        self::assertFalse(IPS_GetObject($actionID)['ObjectIsHidden']);
+
+        $update->invoke($module, ['capabilities' => []]);
+        self::assertTrue(IPS_GetObject($statusID)['ObjectIsHidden']);
+        self::assertTrue(IPS_GetObject($actionID)['ObjectIsHidden']);
+    }
+
     public function testConfirmedTimeExtensionUsesValuePresentationWithLiteralPercentSuffix(): void
     {
         $module = new WorxMower(1);

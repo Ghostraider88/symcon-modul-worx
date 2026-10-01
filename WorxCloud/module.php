@@ -375,6 +375,78 @@ class WorxCloud extends IPSModule
         return false;
     }
 
+    /** Read a sanitized firmware-upgrade status from the Worx Cloud. */
+    public function GetFirmwareUpgradeInfo(string $serial)
+    {
+        $device = null;
+        foreach (json_decode($this->ReadAttributeString('Devices'), true) ?: [] as $candidate) {
+            if (($candidate['serial_number'] ?? '') === $serial) {
+                $device = $candidate;
+                break;
+            }
+        }
+        if ($device === null || !in_array('ota_upgrade', $device['capabilities'] ?? [], true)) {
+            return false;
+        }
+
+        $token = $this->getToken();
+        if ($token === '') {
+            return false;
+        }
+        $info = $this->request(
+            'GET',
+            '/api/v2/product-items/' . rawurlencode($serial) . '/firmware-upgrade',
+            null,
+            $token
+        );
+        if (!is_array($info)) {
+            return false;
+        }
+
+        $currentVersion = $info['current_version'] ?? ($device['firmware_version'] ?? '');
+        $latestVersion = $info['latest_version'] ?? '';
+        return [
+            'current_version'  => is_scalar($currentVersion) ? substr((string) $currentVersion, 0, 80) : '',
+            'latest_version'   => is_scalar($latestVersion) ? substr((string) $latestVersion, 0, 80) : '',
+            'ota_supported'    => is_bool($info['ota_supported'] ?? null) ? $info['ota_supported'] : null,
+            'update_available' => is_bool($info['update_available'] ?? null) ? $info['update_available'] : null,
+            'upgrade_failed'   => is_bool($info['upgrade_failed'] ?? null) ? $info['upgrade_failed'] : null,
+        ];
+    }
+
+    /** Queue a firmware upgrade only after a fresh cloud availability check. */
+    public function StartFirmwareUpgrade(string $serial): bool
+    {
+        $device = null;
+        foreach (json_decode($this->ReadAttributeString('Devices'), true) ?: [] as $candidate) {
+            if (($candidate['serial_number'] ?? '') === $serial) {
+                $device = $candidate;
+                break;
+            }
+        }
+        if ($device === null || empty($device['online'])
+            || !in_array('ota_upgrade', $device['capabilities'] ?? [], true)) {
+            return false;
+        }
+
+        $info = $this->GetFirmwareUpgradeInfo($serial);
+        if (!is_array($info) || ($info['ota_supported'] ?? null) !== true
+            || ($info['update_available'] ?? null) !== true) {
+            return false;
+        }
+
+        $token = $this->getToken();
+        if ($token === '') {
+            return false;
+        }
+        $response = $this->request(
+            'POST',
+            '/api/v2/product-items/' . rawurlencode($serial) . '/firmware-upgrade',
+            [],
+            $token
+        );
+        return is_array($response);
+    }
     /** Lock or unlock a supported protocol-0 mower. */
     public function SetLock(string $serial, bool $locked): bool
     {
@@ -480,6 +552,11 @@ class WorxCloud extends IPSModule
                     (bool) ($data['Enabled'] ?? false)
                 ));
 
+            case 'GetFirmwareUpgradeInfo':
+                return json_encode($this->GetFirmwareUpgradeInfo((string) ($data['Serial'] ?? '')));
+
+            case 'StartFirmwareUpgrade':
+                return json_encode($this->StartFirmwareUpgrade((string) ($data['Serial'] ?? '')));
             case 'SetLock':
                 return json_encode($this->SetLock(
                     (string) ($data['Serial'] ?? ''),

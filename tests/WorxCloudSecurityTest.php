@@ -9,6 +9,7 @@ require_once __DIR__ . '/../WorxCloud/module.php';
 final class WorxCloudRequestTestDouble extends WorxCloud
 {
     public array $requests = [];
+    public array $requestResponses = [];
     public bool $pollCalled = false;
 
     public function Poll(): bool
@@ -30,7 +31,7 @@ final class WorxCloudRequestTestDouble extends WorxCloud
     protected function request(string $method, string $path, $body, string $token)
     {
         $this->requests[] = [$method, $path, $body, $token];
-        return ['accepted' => true];
+        return count($this->requestResponses) > 0 ? array_shift($this->requestResponses) : ['accepted' => true];
     }
 }
 
@@ -294,6 +295,79 @@ final class WorxCloudSecurityTest extends TestCase
             ['PUT', '/api/v2/product-items/SERIAL-TEST', ['firmware_auto_upgrade' => true], 'test-token'],
         ], $module->requests);
         self::assertTrue($module->pollCalled);
+    }
+
+    public function testFirmwareUpgradeInfoRequiresCapabilityAndReturnsOnlySanitizedFields(): void
+    {
+        IPS\Kernel::reset();
+        $module = new WorxCloudRequestTestDouble(1);
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        $registerAttribute->invoke($module, 'Devices', '[]');
+        $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeAttribute->setAccessible(true);
+        $device = ['serial_number' => 'SERIAL-TEST', 'capabilities' => []];
+        $writeAttribute->invoke($module, 'Devices', json_encode([$device]));
+        self::assertFalse($module->GetFirmwareUpgradeInfo('SERIAL-TEST'));
+        self::assertSame([], $module->requests);
+
+        $device['capabilities'] = ['ota_upgrade'];
+        $device['firmware_version'] = '3.52.0+1';
+        $writeAttribute->invoke($module, 'Devices', json_encode([$device]));
+        $module->requestResponses = [[
+            'latest_version' => '3.53.0',
+            'ota_supported' => true,
+            'update_available' => true,
+            'upgrade_failed' => false,
+            'changelog' => 'not exposed',
+            'serial_number' => 'must not leak',
+        ]];
+        self::assertSame([
+            'current_version' => '3.52.0+1',
+            'latest_version' => '3.53.0',
+            'ota_supported' => true,
+            'update_available' => true,
+            'upgrade_failed' => false,
+        ], $module->GetFirmwareUpgradeInfo('SERIAL-TEST'));
+        self::assertSame([
+            ['GET', '/api/v2/product-items/SERIAL-TEST/firmware-upgrade', null, 'test-token'],
+        ], $module->requests);
+    }
+
+    public function testFirmwareUpgradeStartRequiresOnlineCapableDeviceAndFreshAvailableOta(): void
+    {
+        IPS\Kernel::reset();
+        $module = new WorxCloudRequestTestDouble(1);
+        $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
+        $registerAttribute->setAccessible(true);
+        $registerAttribute->invoke($module, 'Devices', '[]');
+        $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeAttribute->setAccessible(true);
+        $device = ['serial_number' => 'SERIAL-TEST', 'online' => true, 'capabilities' => ['ota_upgrade']];
+        $writeAttribute->invoke($module, 'Devices', json_encode([$device]));
+
+        $module->requestResponses = [['ota_supported' => true, 'update_available' => false]];
+        self::assertFalse($module->StartFirmwareUpgrade('SERIAL-TEST'));
+        self::assertSame([
+            ['GET', '/api/v2/product-items/SERIAL-TEST/firmware-upgrade', null, 'test-token'],
+        ], $module->requests);
+
+        $module->requests = [];
+        $module->requestResponses = [
+            ['ota_supported' => true, 'update_available' => true],
+            [],
+        ];
+        self::assertTrue($module->StartFirmwareUpgrade('SERIAL-TEST'));
+        self::assertSame([
+            ['GET', '/api/v2/product-items/SERIAL-TEST/firmware-upgrade', null, 'test-token'],
+            ['POST', '/api/v2/product-items/SERIAL-TEST/firmware-upgrade', [], 'test-token'],
+        ], $module->requests);
+
+        $module->requests = [];
+        $device['online'] = false;
+        $writeAttribute->invoke($module, 'Devices', json_encode([$device]));
+        self::assertFalse($module->StartFirmwareUpgrade('SERIAL-TEST'));
+        self::assertSame([], $module->requests);
     }
 
     public function testAutoScheduleWriteRequiresReportedBooleanAndOnlineDevice(): void
