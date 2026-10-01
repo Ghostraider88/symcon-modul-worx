@@ -61,6 +61,18 @@ Zugangsdaten, Seriennummern, UUIDs, MAC-Adressen, Standorte und vollständige Cl
 
 Der dokumentierte SSH-Zugang zum Docker-Server ist erreichbar. Die gezielte Modulaktualisierung über Module Control führte von installiertem Build 8 auf Build 11 (Commit `9aca11c`). Der Docker-Kernel meldet 9.0; Cloud und Mower melden Status 102. Beim Zwischenstand Build 10 erzeugte ApplyChanges Warnungen, weil die optionalen Altvariablen `Schedule` und `SchedulePreview` fehlten. Build 11 sucht diese nur unter tatsächlich vorhandenen Kindern. Zwei anschließende ApplyChanges-Aufrufe liefen ohne Warnungen; alle 35 Kindobjekt-IDs und das native deaktivierte Wochenplanereignis mit sieben Gruppen blieben unverändert. Alle 34 Variablen sind weiterhin ohne Standard- oder benutzerdefinierte Profile. Cloud- und Mower-Formular liefern gültiges JSON. Der Wert von `LastCommand` blieb unverändert; es wurden keine Geräteaktionen aufgerufen. Diese Abnahme bestätigt das Update und die wiederholte Konfiguration, nicht die noch offenen Geräte-Schreibechos oder eine gerenderte Formularansicht.
 
+### Bestätigte Geräte-Rundläufe und Wiederanlauf
+
+Am 2026-10-01 wurden die folgenden Tests nach Nutzerfreigabe über die Docker-Testinstanz ausgeführt:
+
+- Regenverzögerung: 30 → 330 → 30 Minuten; bestätigte Variable und `cfg.rd` stimmten jeweils überein.
+- Tägliche Arbeitszeit: 0 → −40 → +60 → 0 %; bestätigte Variable und `cfg.sc.p` stimmten jeweils überein. Das Wochenplanereignis blieb unverändert.
+- Sperre: entsperrt → gesperrt → entsperrt. Das Modul bestätigte den MQTT-Rohwert `dat.lk` 0/1/0. Das top-level Cloud-Feld `locked` blieb währenddessen veraltet. Build 12 ergänzt deshalb das aktuelle `dat.lk` im redigierten Gerätenachweis; der erneut ausgeführte Test bestätigte sowohl die Variable als auch den Rohwert. Alle Ausgangswerte wurden wiederhergestellt.
+- Leere Installation: neue Cloud ohne Zugangsdaten, zwei Mower ohne Serial und ein leerer Configurator wurden erfolgreich angelegt und jeweils zweimal konfiguriert. Beide Mower hatten jeweils 34 unabhängige Variablen ohne Profile. Alle eigens angelegten Testobjekte wurden anschließend entfernt.
+- Wiederanlauf: Nach Neustart ausschließlich des Containers `symcon-test` wurden Cloud und Mower wieder aktiv. Alle 35 Kindobjekt-IDs und die sieben Tagesgruppen mit ihren Zeitplanpunkten blieben erhalten. In den Ereignisaktionen wurde lediglich ein Kommentar ergänzt; ausführbarer Mähcode ist dort nicht hinterlegt.
+
+Build 12 auf Commit `b292772` ist in Docker installiert; Branch- und PR-Prüfungen für Tests, Style und PHP-8.5-Syntax sind erfolgreich. Nicht ausgeführt wurden Start/Pause/Heimfahrt, manueller Kantenschnitt, automatischer Zeitplan oder Änderungen der Firmware-Auto-Update-Präferenz. Die Geräteechos bestätigen keine zusätzliche Sichtprüfung der Worx-App.
+
 ## Fortschritt nach Ausführungsplan
 
 | Phase | Stand | Beleg / offene Arbeit |
@@ -74,4 +86,4 @@ Der dokumentierte SSH-Zugang zum Docker-Server ist erreichbar. Die gezielte Modu
 
 ### Nächster Schritt
 
-Nächster Schritt: die Geräteeinstellungen einzeln am WR105SI.1 prüfen: zuerst automatischer Zeitplan, danach Regenverzögerung, Zeiterweiterung und Sperre. „Ganzer Tag“ ergab im Vorher-/Nachher-Datensatz keine sichtbare Änderung; Mähfenster über Mitternacht bleiben gesondert zu belegen.
+Nächster Schritt: die Geräteeinstellungen einzeln am WR105SI.1 prüfen: automatischer Zeitplan und Firmware-Auto-Update-Präferenz stehen noch aus; Regenverzögerung, Zeiterweiterung und Sperre sind bestätigt. „Ganzer Tag“ ergab im Vorher-/Nachher-Datensatz keine sichtbare Änderung; Mähfenster über Mitternacht bleiben gesondert zu belegen.
