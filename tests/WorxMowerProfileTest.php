@@ -258,7 +258,8 @@ final class WorxMowerProfileTest extends TestCase
 
         $statusID = IPS_GetObjectIDByIdent('FirmwareUpgradeStatus', $instanceID);
         $actionID = IPS_GetObjectIDByIdent('FirmwareUpgradeAction', $instanceID);
-        $getActionValues = static function () use ($actionID): array {
+        $getActionValues = static function () use ($actionID): array
+        {
             $options = json_decode(IPS_GetVariablePresentation($actionID)['OPTIONS'] ?? '[]', true, 512, JSON_THROW_ON_ERROR);
             return array_column($options, 'Value');
         };
