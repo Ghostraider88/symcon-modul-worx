@@ -709,12 +709,18 @@ class WorxMower extends IPSModule
         $reportedSchedule = $configuration['sc'] ?? [];
         $scheduleMode = is_array($reportedSchedule) ? ($reportedSchedule['m'] ?? null) : null;
         if (is_numeric($scheduleMode)) {
-            $elements[] = ['type' => 'Label', 'caption' => 'Zeitplanmodus (m, Rohwert): ' . (int) $scheduleMode . ' (Bedeutung noch nicht belegt)'];
+            $elements[] = ['type' => 'Label', 'caption' => sprintf(
+                $this->Translate('Zeitplanmodus (m, Rohwert): %d (Bedeutung noch nicht belegt)'),
+                (int) $scheduleMode
+            )];
         }
         $timeExtension = is_array($reportedSchedule) ? WorxScheduleCodec::timeExtensionFromProtocol($reportedSchedule['p'] ?? null) : null;
         if ($timeExtension !== null) {
             $extensionText = rtrim(rtrim(sprintf('%.1f', (float) $timeExtension), '0'), '.');
-            $elements[] = ['type' => 'Label', 'caption' => 'Vom Mäher gemeldete tägliche Arbeitszeitänderung: ' . str_replace('.', ',', $extensionText) . ' %'];
+            $elements[] = ['type' => 'Label', 'caption' => sprintf(
+                $this->Translate('Vom Mäher gemeldete tägliche Arbeitszeitänderung: %s %%'),
+                str_replace('.', ',', $extensionText)
+            )];
         }
         $actions = [
             ['type' => 'RowLayout', 'items' => [
@@ -726,7 +732,7 @@ class WorxMower extends IPSModule
         ];
         if ($device !== null && (int) ($device['protocol'] ?? -1) === 0
             && in_array('follow_border', $device['capabilities'] ?? [], true)) {
-            $actions[] = ['type' => 'Button', 'caption' => 'Kantenschnitt starten', 'onClick' => 'WORXMOWER_FollowBorder($id);'];
+            $actions[] = ['type' => 'Button', 'caption' => $this->Translate('Kantenschnitt starten'), 'onClick' => 'WORXMOWER_FollowBorder($id);'];
         }
 
         if ($schedule === null) {

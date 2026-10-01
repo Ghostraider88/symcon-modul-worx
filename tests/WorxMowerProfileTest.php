@@ -668,6 +668,9 @@ final class WorxMowerProfileTest extends TestCase
             'Tägliche Arbeitszeitänderung nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.',
             'Vom Mäher bestätigt: ',
             'Zeitplan gesendet; warte auf die passende Rückmeldung des Mähers.',
+            'Kantenschnitt starten',
+            'Zeitplanmodus (m, Rohwert): %d (Bedeutung noch nicht belegt)',
+            'Vom Mäher gemeldete tägliche Arbeitszeitänderung: %s %%',
             'Keine passende Mäher-Rückmeldung; die bearbeitete Symcon-Zeit bleibt erhalten.',
             'Zeitplan nach Verzögerung vom Mäher zurückgelesen und bestätigt.',
             'Sperre vom Mäher zurückgelesen und bestätigt.',
@@ -692,6 +695,18 @@ final class WorxMowerProfileTest extends TestCase
             $directStatusMatches
         );
         self::assertNotEmpty($directStatusMatches[1], 'No direct user-facing status messages were found.');
+        preg_match_all("/'caption'\\s*=>\\s*'([^']*)'/", $moduleSource, $formCaptionMatches);
+        self::assertNotEmpty($formCaptionMatches[1], 'No literal configuration captions were found.');
+        foreach (array_unique($formCaptionMatches[1]) as $caption) {
+            self::assertArrayHasKey($caption, $locale['translations']['en'], 'Missing English translation for form caption: ' . $caption);
+        }
+        foreach ([
+            'Kantenschnitt starten',
+            'Zeitplanmodus (m, Rohwert): %d (Bedeutung noch nicht belegt)',
+            'Vom Mäher gemeldete tägliche Arbeitszeitänderung: %s %%',
+        ] as $translatedFormText) {
+            self::assertStringContainsString('$this->Translate(' . var_export($translatedFormText, true) . ')', $moduleSource);
+        }
         foreach (array_unique($directStatusMatches[1]) as $translationKey) {
             self::assertArrayHasKey($translationKey, $locale['translations']['en'], 'Missing English translation for status: ' . $translationKey);
         }

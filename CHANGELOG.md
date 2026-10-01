@@ -2,6 +2,8 @@
 
 ## Unveröffentlicht
 
+- Build 19: Dynamische Mower-Formularhinweise verwenden lokalisierte Platzhalter; Regressionstests prüfen alle festen Status- und Formularbeschriftungen gegen die englische Locale.
+
 - Einstellungs-Sollwerte springen bei abgelehntem Senden oder ausbleibender Gerätebestätigung auf den zuletzt bestätigten Wert zurück; Tests decken Rückfall und Timeout für die unterstützten Einstellungsvariablen ab.
 
 - Die lesbaren Mäherstatus- und Fehlertexte sowie die Instanzzusammenfassung verwenden Symcon-Übersetzungen; englische Status-/Fehlerlabels ergänzt.
