@@ -684,6 +684,17 @@ final class WorxMowerProfileTest extends TestCase
             self::assertArrayHasKey($translationKey, $locale['translations']['en']);
         }
 
+        $moduleSource = file_get_contents(__DIR__ . '/../WorxMower/module.php');
+        self::assertIsString($moduleSource);
+        preg_match_all(
+            "/SetValueSafe\\('(?:CommandStatus|SettingStatus|ScheduleSyncStatus|LastCommand)',\\s*'([^']*)'/",
+            $moduleSource,
+            $directStatusMatches
+        );
+        self::assertNotEmpty($directStatusMatches[1], 'No direct user-facing status messages were found.');
+        foreach (array_unique($directStatusMatches[1]) as $translationKey) {
+            self::assertArrayHasKey($translationKey, $locale['translations']['en'], 'Missing English translation for status: ' . $translationKey);
+        }
         $setValueSafe = new ReflectionMethod(WorxMower::class, 'SetValueSafe');
         $setValueSafe->setAccessible(true);
         $setValueSafe->invoke($module, 'CommandStatus', 'Nicht gesendet: Der Mäher ist offline.');
