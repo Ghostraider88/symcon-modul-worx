@@ -315,19 +315,19 @@ final class WorxCloudSecurityTest extends TestCase
         $device['firmware_version'] = '3.52.0+1';
         $writeAttribute->invoke($module, 'Devices', json_encode([$device]));
         $module->requestResponses = [[
-            'latest_version' => '3.53.0',
-            'ota_supported' => true,
+            'latest_version'  => '3.53.0',
+            'ota_supported'   => true,
             'update_available' => true,
-            'upgrade_failed' => false,
-            'changelog' => 'not exposed',
-            'serial_number' => 'must not leak',
+            'upgrade_failed'  => false,
+            'changelog'       => 'not exposed',
+            'serial_number'   => 'must not leak',
         ]];
         self::assertSame([
             'current_version' => '3.52.0+1',
-            'latest_version' => '3.53.0',
-            'ota_supported' => true,
+            'latest_version'  => '3.53.0',
+            'ota_supported'   => true,
             'update_available' => true,
-            'upgrade_failed' => false,
+            'upgrade_failed'  => false,
         ], $module->GetFirmwareUpgradeInfo('SERIAL-TEST'));
         self::assertSame([
             ['GET', '/api/v2/product-items/SERIAL-TEST/firmware-upgrade', null, 'test-token'],
