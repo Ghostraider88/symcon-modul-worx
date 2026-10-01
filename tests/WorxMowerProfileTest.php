@@ -889,6 +889,36 @@ final class WorxMowerProfileTest extends TestCase
         }
     }
 
+    public function testNextScheduleStartUsesOnlyEnabledConfirmedRowsAndBerlinLocalTime(): void
+    {
+        $module = new WorxMower(1);
+        $method = new ReflectionMethod(WorxMower::class, 'findNextScheduleStart');
+        $method->setAccessible(true);
+        $timezone = new DateTimeZone('Europe/Berlin');
+        $schedule = [
+            'm' => 1,
+            'p' => 0,
+            'd' => array_fill(0, 7, ['00:00', 0, 0]),
+        ];
+        $schedule['d'][1] = ['17:00', 120, 0];
+        $schedule['d'][3] = ['08:30', 45, 0];
+
+        foreach ([
+            ['2026-09-28 16:59:59', '2026-09-28 17:00'],
+            ['2026-09-28 17:00:01', '2026-09-30 08:30'],
+            ['2026-09-30 08:31:00', '2026-10-05 17:00'],
+        ] as [$nowValue, $expected]) {
+            $now = new DateTimeImmutable($nowValue, $timezone);
+            $next = $method->invoke($module, $schedule, $now);
+
+            self::assertInstanceOf(DateTimeImmutable::class, $next);
+            self::assertSame($expected, $next->format('Y-m-d H:i'));
+        }
+
+        $schedule['d'] = array_fill(0, 7, ['00:00', 0, 0]);
+        self::assertNull($method->invoke($module, $schedule, new DateTimeImmutable('2026-09-28 16:00', $timezone)));
+    }
+
     private function controlOptions(int $controlID): array
     {
         $presentation = IPS_GetVariable($controlID)['VariablePresentation'];

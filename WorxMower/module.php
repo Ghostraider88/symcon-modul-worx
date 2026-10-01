@@ -38,7 +38,7 @@ class WorxMower extends IPSModule
     private const VARIABLE_IDENTS = [
         'State', 'StateText', 'Error', 'ErrorText', 'Online', 'LastUpdate', 'Control', 'LastCommand',
         'CommandStatus', 'Locked', 'LockCommand', 'AutoSchedule', 'AutoScheduleSet', 'TimeExtension',
-        'TimeExtensionSet', 'RainDelay', 'RainDelaySet', 'Rain', 'SettingStatus', 'ScheduleSyncStatus',
+        'TimeExtensionSet', 'RainDelay', 'RainDelaySet', 'Rain', 'SettingStatus', 'ScheduleSyncStatus', 'NextScheduleStart',
         'Battery', 'Charging', 'BatteryTemp', 'BatteryVoltage', 'ChargeCycles', 'WifiSignal', 'Distance',
         'WorkTime', 'BladeTime', 'Zone', 'Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet',
         'DeviceDiagnostics', 'Schedule', 'SchedulePreview',
@@ -74,6 +74,7 @@ class WorxMower extends IPSModule
         $this->RegisterTimer('CommandConfirmationTimeout', 0, 'WORXMOWER_CommandConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('ScheduleConfirmationTimeout', 0, 'WORXMOWER_ScheduleConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('ScheduleEditDebounce', 0, 'WORXMOWER_ScheduleEditDebounce($_IPS[\'TARGET\']);');
+        $this->RegisterTimer('NextScheduleStart', 0, 'WORXMOWER_UpdateNextScheduleStart($_IPS[\'TARGET\']);');
         $this->RegisterTimer('RainDelayConfirmationTimeout', 0, 'WORXMOWER_RainDelayConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('LockConfirmationTimeout', 0, 'WORXMOWER_LockConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('AutoScheduleConfirmationTimeout', 0, 'WORXMOWER_AutoScheduleConfirmationTimeout($_IPS[\'TARGET\']);');
@@ -107,9 +108,12 @@ class WorxMower extends IPSModule
             $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
             $this->SetTimerInterval('AutoScheduleConfirmationTimeout', 0);
             $this->SetTimerInterval('FirmwareAutoUpgradeConfirmationTimeout', 0);
+            $this->SetTimerInterval('NextScheduleStart', 0);
+            $this->SetValueSafe('NextScheduleStart', $this->Translate('Kein bestätigter Zeitplan'));
             $this->SetStatus(104);
             return;
         }
+        $this->SetTimerInterval('NextScheduleStart', 60 * 1000);
         $this->SetStatus(102);
         $this->SetValueSafe('Control', 0);
         if (IPS_GetKernelRunlevel() === KR_READY) {
@@ -522,6 +526,24 @@ class WorxMower extends IPSModule
     public function FollowBorder(): bool
     {
         return $this->Command(4);
+    }
+
+    public function UpdateNextScheduleStart(): void
+    {
+        $schedule = json_decode($this->ReadAttributeString('ReportedSchedule'), true);
+        if (!is_array($schedule)) {
+            $this->SetValueSafe('NextScheduleStart', $this->Translate('Kein bestätigter Zeitplan'));
+            return;
+        }
+
+        $timezone = new DateTimeZone('Europe/Berlin');
+        $next = $this->findNextScheduleStart($schedule, new DateTimeImmutable('now', $timezone));
+        if ($next === null) {
+            $this->SetValueSafe('NextScheduleStart', $this->Translate('Kein geplanter Einsatz'));
+            return;
+        }
+
+        $this->SetValueSafe('NextScheduleStart', $next->format('d.m.Y H:i'));
     }
 
     /** Refresh the Worx inventory and receive the latest device state. */
@@ -1274,6 +1296,7 @@ class WorxMower extends IPSModule
         }
 
         $this->WriteAttributeString('ReportedSchedule', $current);
+        $this->UpdateNextScheduleStart();
         $this->syncScheduleEvent($schedule, $forceEventUpdate);
 
         $eventID = $this->scheduleEventID();
@@ -1282,6 +1305,38 @@ class WorxMower extends IPSModule
             $this->SendSchedule();
         }
     }
+    private function findNextScheduleStart(array $schedule, DateTimeImmutable $now): ?DateTimeImmutable
+    {
+        try {
+            $rows = WorxScheduleCodec::toRows($schedule);
+        } catch (InvalidArgumentException $exception) {
+            return null;
+        }
+
+        $timezone = new DateTimeZone('Europe/Berlin');
+        $localNow = $now->setTimezone($timezone);
+        $today = $localNow->setTime(0, 0, 0);
+        $next = null;
+        foreach ($rows as $row) {
+            if (!$row['Enabled']) {
+                continue;
+            }
+
+            $daysUntil = ((int) $row['Day'] - (int) $localNow->format('w') + 7) % 7;
+            $day = $today->modify('+' . $daysUntil . ' days');
+            [$hour, $minute] = array_map('intval', explode(':', $row['Start']));
+            $candidate = $day->setTime($hour, $minute, 0);
+            if ($candidate < $localNow) {
+                $candidate = $candidate->modify('+7 days');
+            }
+            if ($next === null || $candidate < $next) {
+                $next = $candidate;
+            }
+        }
+
+        return $next;
+    }
+
     private function currentSchedule(): ?array
     {
         $device = $this->getDevice();
@@ -1334,6 +1389,7 @@ class WorxMower extends IPSModule
         $this->RegisterVariableBoolean('Rain', 'Regen erkannt', $this->booleanValuePresentation('Nein', 'Ja'), $p++);
         $this->RegisterVariableString('SettingStatus', 'Einstellungsrückmeldung', '', $p++);
         $this->RegisterVariableString('ScheduleSyncStatus', 'Zeitplanrückmeldung', '', $p++);
+        $this->RegisterVariableString('NextScheduleStart', 'Nächster Planstart', '', $p++);
 
         // Battery and mower statistics.
         $this->RegisterVariableInteger('Battery', 'Akku', $this->valuePresentation(' %'), $p++);
@@ -1359,6 +1415,7 @@ class WorxMower extends IPSModule
             'State', 'StateText', 'Error', 'ErrorText', 'Online', 'LastUpdate',
             'Control', 'LastCommand', 'CommandStatus', 'Locked', 'LockCommand', 'AutoSchedule', 'AutoScheduleSet',
             'TimeExtension', 'TimeExtensionSet', 'RainDelay', 'RainDelaySet', 'Rain', 'SettingStatus', 'ScheduleSyncStatus',
+            'NextScheduleStart',
             'Battery', 'Charging', 'BatteryTemp', 'BatteryVoltage', 'ChargeCycles', 'WifiSignal', 'Distance', 'WorkTime',
             'BladeTime', 'Zone', 'Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet', 'DeviceDiagnostics',
         ];
