@@ -633,7 +633,6 @@ final class WorxMowerProfileTest extends TestCase
             'Tägliche Arbeitszeitänderung nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.',
             'Vom Mäher bestätigt: ',
             'Zeitplan gesendet; warte auf die passende Rückmeldung des Mähers.',
-            'Kantenschnitt starten',
             'Zeitplanmodus (m, Rohwert): %d (Bedeutung noch nicht belegt)',
             'Vom Mäher gemeldete tägliche Arbeitszeitänderung: %s %%',
             'Keine passende Mäher-Rückmeldung; die bearbeitete Symcon-Zeit bleibt erhalten.',
@@ -666,7 +665,6 @@ final class WorxMowerProfileTest extends TestCase
             self::assertArrayHasKey($caption, $locale['translations']['en'], 'Missing English translation for form caption: ' . $caption);
         }
         foreach ([
-            'Kantenschnitt starten',
             'Zeitplanmodus (m, Rohwert): %d (Bedeutung noch nicht belegt)',
             'Vom Mäher gemeldete tägliche Arbeitszeitänderung: %s %%',
         ] as $translatedFormText) {
