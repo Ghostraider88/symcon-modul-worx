@@ -5,7 +5,7 @@ Zielrepository: [`Ghostraider88/symcon-modul-worx`](https://github.com/Ghostraid
 ## Aktueller Arbeitsstand (2026-10-01)
 
 - Arbeitsbranch: `codex/worx-wr105si` (laufender Entwicklungs- und Testbranch).
-- Der Docker-Testkernel wurde zuletzt mit Library 2.0 / Build 20 aus `753b00c` geprüft. Der lokale Branch enthält inzwischen zusätzlich eine read-only Anzeige des nächsten Planstarts; diese Änderung ist noch nicht in Docker installiert oder dort verifiziert.
+- Der Docker-Testkernel wurde zuletzt mit Library 2.0 / Build 20 aus `753b00c` geprüft. Der Modul-Checkout im Docker wurde auf `d3824f6` aktualisiert; die Anzeige des nächsten Planstarts ist in der Symcon-Laufzeit noch nicht geprüft.
 - GitHub Actions für den aktuellen Branch: sechs Prüfungen erfolgreich (PHP-Syntax, Style und Tests auf beiden Runnern).
 - PR #1 ist offen und als Entwurf markiert. `main` ist noch nicht veröffentlicht.
 - Der zuletzt dokumentierte Docker-Zustand: Kernel 9.0, Cloud und Mower aktiv, Mäher in der Ladestation, Fehler 0, Mähzeitplan täglich 17:00–19:00 mit den ursprünglichen Kantenschnitt-Tagen. Keine Fahraktion beim Build-20-Check.
