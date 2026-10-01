@@ -735,4 +735,32 @@ final class WorxMowerProfileTest extends TestCase
         return array_map(static fn (array $option): int => (int) $option['Value'], $options);
     }
 
+    public function testApplyDeviceReadsZoneFromRawLzAndNestedCutFallback(): void
+    {
+        IPS\Kernel::reset();
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        IPS\InstanceManager::createInstance($instanceID, [
+            'Class'      => WorxMowerTestDouble::class,
+            'ModuleID'   => '{39CA7807-D252-4375-8D05-1C5F918552C0}',
+            'ModuleName' => 'Worx Mower Test',
+            'ModuleType' => 3,
+        ]);
+        $module = IPS\InstanceManager::getInstanceInterface($instanceID);
+        $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
+        $applyDevice->setAccessible(true);
+        $zoneID = IPS_GetObjectIDByIdent('Zone', $instanceID);
+
+        foreach ([
+            [['ls' => 1, 'le' => 0, 'lz' => 3], 3],
+            [['ls' => 1, 'le' => 0, 'cut' => ['z' => 2]], 2],
+        ] as [$dat, $expected]) {
+            $applyDevice->invoke($module, [
+                'online' => true,
+                'protocol' => 0,
+                'capabilities' => [],
+                'last_status' => ['payload' => ['dat' => $dat]],
+            ]);
+            self::assertSame($expected, GetValueInteger($zoneID));
+        }
+    }
 }

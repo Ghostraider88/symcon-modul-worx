@@ -1045,7 +1045,9 @@ class WorxMower extends IPSModule
                 }
             }
         }
-        if (isset($dat['cut']['z'])) $this->SetValueSafe('Zone', (int) $dat['cut']['z']);
+        // Protocol 0 reports the current zone as dat.lz; accept the nested form as a compatibility fallback.
+        $zone = $dat['lz'] ?? ($dat['cut']['z'] ?? null);
+        if (is_numeric($zone)) $this->SetValueSafe('Zone', (int) $zone);
         if (isset($dat['tm'])) {
             $timestamp = strtotime((string) $dat['tm']);
             if ($timestamp !== false) $this->SetValueSafe('LastUpdate', $timestamp);
