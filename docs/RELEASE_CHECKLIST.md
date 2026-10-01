@@ -13,7 +13,7 @@ Zielrepository: [`Ghostraider88/symcon-modul-worx`](https://github.com/Ghostraid
 
 ## Noch zu erledigen – in dieser Reihenfolge
 
-1. **Manueller Kantenschnitt:** Code und Bestätigungspfad sind durch Tests abgesichert; ein Live-Echo `cmd=4` / Mäherstatus 32 am WR105SI.1 fehlt. Vor diesem Bewegungstest die konkrete Aktion und Zielinstanz bestätigen lassen.
+1. **Manueller Kantenschnitt (abgeschlossen):** Worx führt den WR105SI.1 nicht unter den Modellen für den manuellen Einzel-Kantenschnitt. Die Aktion ist deshalb nicht bedienbar; geplanter Kantenschnitt bleibt im Wochenplan verfügbar.
 2. **Einstellungs-Rückrichtung:** mindestens eine unabhängige Änderung in der Worx-App vornehmen und prüfen, dass Sollwert und bestätigter Istwert in Symcon korrekt auseinandergehalten und danach synchronisiert werden. Frühere Symcon→Cloud-Schreibrundläufe sind bereits belegt.
 3. **Mehrzonen:** das Modell meldet `multi_zone` und `multi_zone_percentage`, der Nutzer verwendet aber nur eine Zone. Die nichtnullige `cfg.mz`-/`cfg.mzv`-Abbildung und ein sicherer Schreib-Rundlauf fehlen. Keine Bedienelemente oder Payloads raten; erst mit einem echten Mehrzonen-Gerätebeleg implementieren.
 4. **Installationshärtung:** kontrollierte vollständige Neuinstallation mit Kontoeinrichtung und Repository-Deinstallation; Live-Fehlerfälle für Cloud/MQTT, Token-Erneuerung und Rate-Limit. Bestehende Unit-Tests decken HTTP-/Parserfehler bereits ab.

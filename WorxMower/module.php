@@ -33,7 +33,7 @@ class WorxMower extends IPSModule
         22 => 'Fehler Antriebssystem', 23 => 'Fehler Höhenverstellung', 24 => 'Fehler RFID',
     ];
 
-    private const COMMANDS = [1 => 'Start', 2 => 'Pause', 3 => 'Heimfahrt', 4 => 'Kantenschnitt'];
+    private const COMMANDS = [1 => 'Start', 2 => 'Pause', 3 => 'Heimfahrt'];
     private const STANDARD_COMMANDS = [1 => 'Start', 2 => 'Pause', 3 => 'Heimfahrt'];
     private const VARIABLE_IDENTS = [
         'State', 'StateText', 'Error', 'ErrorText', 'Online', 'LastUpdate', 'Control', 'LastCommand',
@@ -131,7 +131,7 @@ class WorxMower extends IPSModule
         if ($Ident === 'Control') {
             $command = (int) $Value;
             if (!isset(self::COMMANDS[$command])) {
-                throw new InvalidArgumentException('Control erwartet Start (1), Pause (2), Heimfahrt (3) oder den vom Gerät unterstützten Kantenschnitt (4).');
+                throw new InvalidArgumentException('Control erwartet Start (1), Pause (2) oder Heimfahrt (3).');
             }
             $this->Command($command);
             $this->SetValueSafe('Control', 0);
@@ -192,18 +192,6 @@ class WorxMower extends IPSModule
     {
         if (!isset(self::COMMANDS[$Command])) {
             return false;
-        }
-        if ($Command === 4) {
-            $device = $this->getDevice();
-            if ($device === null || (int) ($device['protocol'] ?? -1) !== 0
-                || !in_array('follow_border', $device['capabilities'] ?? [], true)) {
-                $this->SetValueSafe('CommandStatus', 'Nicht gesendet: Manueller Kantenschnitt wird für dieses Gerät nicht unterstützt.');
-                return false;
-            }
-            if (empty($device['online'])) {
-                $this->SetValueSafe('CommandStatus', 'Nicht gesendet: Der Mäher ist offline.');
-                return false;
-            }
         }
         if ($this->ReadAttributeString('PendingCommand') !== '') {
             $this->SetValueSafe('CommandStatus', 'Ein anderer Befehl wartet noch auf Rückmeldung.');
@@ -522,12 +510,6 @@ class WorxMower extends IPSModule
         return $this->Command(3);
     }
 
-    /** Start a manual border-following cut, when the mower reports that capability. */
-    public function FollowBorder(): bool
-    {
-        return $this->Command(4);
-    }
-
     public function UpdateNextScheduleStart(): void
     {
         $schedule = json_decode($this->ReadAttributeString('ReportedSchedule'), true);
@@ -752,10 +734,6 @@ class WorxMower extends IPSModule
             ]],
             ['type' => 'Button', 'caption' => 'Jetzt aktualisieren', 'onClick' => 'WORXMOWER_Update($id);'],
         ];
-        if ($device !== null && (int) ($device['protocol'] ?? -1) === 0
-            && in_array('follow_border', $device['capabilities'] ?? [], true)) {
-            $actions[] = ['type' => 'Button', 'caption' => $this->Translate('Kantenschnitt starten'), 'onClick' => 'WORXMOWER_FollowBorder($id);'];
-        }
 
         if ($schedule === null) {
             $elements[] = ['type' => 'Label', 'caption' => 'Kein unterstützter Zeitplan empfangen. Der Editor benötigt Protokoll 0 und sieben empfangene Tagesfelder.'];
@@ -976,7 +954,7 @@ class WorxMower extends IPSModule
     {
         $this->SetValueSafe('Online', (bool) ($device['online'] ?? false));
         $this->SetValueSafe('DeviceDiagnostics', WorxScheduleCodec::canonicalJson(WorxScheduleCodec::sanitizedDeviceRecord($device)));
-        $this->updateControlPresentation($device);
+        $this->updateControlPresentation();
         $this->updateFirmwareAutoUpgrade($device);
         if (isset($device['firmware_version'])) {
             $this->SetValueSafe('Firmware', (string) $device['firmware_version']);
@@ -1156,8 +1134,7 @@ class WorxMower extends IPSModule
         }
         $confirmed = ($command === 1 && in_array($state, [2, 3, 4, 6, 7, 31, 32, 33], true))
             || ($command === 2 && $state === 34)
-            || ($command === 3 && in_array($state, [1, 5, 30], true))
-            || ($command === 4 && $state === 32);
+            || ($command === 3 && in_array($state, [1, 5, 30], true));
         if ($confirmed) {
             $this->WriteAttributeString('PendingCommand', '');
             $this->WriteAttributeString('PendingCommandSerial', '');
@@ -1452,7 +1429,7 @@ class WorxMower extends IPSModule
         }
     }
 
-    private function updateControlPresentation(array $device): void
+    private function updateControlPresentation(): void
     {
         $controlID = $this->GetIDForIdent('Control');
         if ($controlID === false || $controlID <= 0) {
@@ -1460,10 +1437,6 @@ class WorxMower extends IPSModule
         }
 
         $commands = [0 => 'Befehl wählen'] + self::STANDARD_COMMANDS;
-        if ((int) ($device['protocol'] ?? -1) === 0
-            && in_array('follow_border', $device['capabilities'] ?? [], true)) {
-            $commands[4] = self::COMMANDS[4];
-        }
         $presentation = $this->enumerationPresentation($commands);
         $current = IPS_GetVariable($controlID)['VariablePresentation'] ?? [];
         if (($current['PRESENTATION'] ?? null) === $presentation['PRESENTATION']
@@ -1471,7 +1444,7 @@ class WorxMower extends IPSModule
             return;
         }
 
-        // Update action choices when device capability evidence changes without creating another variable.
+        // Keep the fixed, supported command set synchronized without creating another variable.
         $this->RegisterVariableInteger('Control', 'Steuerung', $presentation, 6);
     }
     private function valuePresentation(string $suffix): array

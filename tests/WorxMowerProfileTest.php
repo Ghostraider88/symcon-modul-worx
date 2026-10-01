@@ -98,33 +98,6 @@ final class WorxMowerProfileTest extends TestCase
         self::assertSame('Vom Mäher bestätigt: Heimfahrt.', GetValue(IPS_GetObjectIDByIdent('CommandStatus', $instanceID)));
     }
 
-    public function testManualEdgeCutWaitsForSpecificMowerState32Confirmation(): void
-    {
-        $instanceID = IPS\ObjectManager::registerObject(1);
-        IPS\InstanceManager::createInstance($instanceID, [
-            'Class'      => WorxMowerTestDouble::class,
-            'ModuleID'   => '{39CA7807-D252-4375-8D05-1C5F918552C0}',
-            'ModuleName' => 'Worx Mower Test',
-            'ModuleType' => 3,
-        ]);
-        $module = IPS\InstanceManager::getInstanceInterface($instanceID);
-        $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
-        $writeAttribute->setAccessible(true);
-        $writeAttribute->invoke($module, 'PendingCommand', '4');
-        $writeAttribute->invoke($module, 'PendingCommandSerial', 'SERIAL-TEST');
-        $confirm = new ReflectionMethod(WorxMower::class, 'confirmCommand');
-        $confirm->setAccessible(true);
-
-        foreach ([1, 5, 6, 7, 34] as $unrelatedState) {
-            $confirm->invoke($module, $unrelatedState, 0);
-            self::assertSame('4', $module->readAttributeForTest('PendingCommand'));
-        }
-
-        $confirm->invoke($module, 32, 0);
-        self::assertSame('', $module->readAttributeForTest('PendingCommand'));
-        self::assertSame('', $module->readAttributeForTest('PendingCommandSerial'));
-        self::assertSame('Vom Mäher bestätigt: Kantenschnitt.', GetValue(IPS_GetObjectIDByIdent('CommandStatus', $instanceID)));
-    }
     public function testRegisteredMowerVariablesDoNotUseLegacyProfiles(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
@@ -551,7 +524,7 @@ final class WorxMowerProfileTest extends TestCase
         }
     }
 
-    public function testManualEdgeCutAppearsOnlyWhenProtocolAndCapabilitySupportIt(): void
+    public function testManualEdgeCutIsNeverOfferedForWr105EvenWhenCapabilityIsReported(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
         $module = new WorxMower($instanceID);
@@ -562,19 +535,11 @@ final class WorxMowerProfileTest extends TestCase
         $apply->setAccessible(true);
         $controlID = IPS_GetObjectIDByIdent('Control', $instanceID);
 
-        $apply->invoke($module, ['protocol' => 1, 'capabilities' => ['follow_border']]);
-        self::assertNotContains(4, $this->controlOptions($controlID));
-
-        $apply->invoke($module, ['protocol' => 0, 'capabilities' => []]);
-        self::assertNotContains(4, $this->controlOptions($controlID));
-
         $apply->invoke($module, ['protocol' => 0, 'capabilities' => ['follow_border']]);
-        self::assertContains(4, $this->controlOptions($controlID));
-
-        $apply->invoke($module, ['protocol' => 0, 'capabilities' => []]);
         self::assertNotContains(4, $this->controlOptions($controlID));
+        $this->expectException(InvalidArgumentException::class);
+        $module->RequestAction('Control', 4);
     }
-
     public function testStatusAndErrorTextVariablesContainReadableConfirmedLabels(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
