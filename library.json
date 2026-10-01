@@ -1,12 +1,12 @@
 {
-    "id": "{D41E48F5-1BCC-4527-9C46-AB3113FCC1D7}",
-    "author": "Ghostraider88",
-    "name": "Worx Landroid",
-    "url": "https://github.com/Ghostraider88/symcon-modul-worx",
-    "compatibility": {
-        "version": "9.0"
-    },
-    "version": "2.0",
-    "build": 13,
-    "date": 0
+  "id": "{D41E48F5-1BCC-4527-9C46-AB3113FCC1D7}",
+  "author": "Ghostraider88",
+  "name": "Worx Landroid",
+  "url": "https://github.com/Ghostraider88/symcon-modul-worx",
+  "compatibility": {
+    "version": "9.0"
+  },
+  "version": "2.0",
+  "build": 14,
+  "date": 0
 }
