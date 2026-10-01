@@ -5,7 +5,7 @@ Zielrepository: [`Ghostraider88/symcon-modul-worx`](https://github.com/Ghostraid
 ## Aktueller Arbeitsstand (2026-10-01)
 
 - Arbeitsbranch: `codex/worx-wr105si` (laufender Entwicklungs- und Testbranch).
-- Der Docker-Testkernel wurde zuletzt mit Library 2.0 / Build 20 aus `753b00c` geprüft. Der Modul-Checkout im Docker wurde auf `d3824f6` aktualisiert; die Anzeige des nächsten Planstarts ist in der Symcon-Laufzeit noch nicht geprüft.
+- Der Docker-Testkernel wurde zuletzt mit Library 2.0 / Build 20 aus `753b00c` geprüft. Der Modul-Checkout im Docker wurde auf `d3824f6` aktualisiert. Die Anzeige des nächsten Planstarts wurde am 2026-10-01 in der Symcon-Laufzeit mit `01.10.2026 17:00` bestätigt.
 - GitHub Actions für den aktuellen Branch: sechs Prüfungen erfolgreich (PHP-Syntax, Style und Tests auf beiden Runnern).
 - PR #1 ist offen und als Entwurf markiert. `main` ist noch nicht veröffentlicht.
 - Der zuletzt dokumentierte Docker-Zustand: Kernel 9.0, Cloud und Mower aktiv, Mäher in der Ladestation, Fehler 0, Mähzeitplan täglich 17:00–19:00 mit den ursprünglichen Kantenschnitt-Tagen. Keine Fahraktion beim Build-20-Check.
@@ -18,7 +18,7 @@ Zielrepository: [`Ghostraider88/symcon-modul-worx`](https://github.com/Ghostraid
 3. **Mehrzonen:** das Modell meldet `multi_zone` und `multi_zone_percentage`, der Nutzer verwendet aber nur eine Zone. Die nichtnullige `cfg.mz`-/`cfg.mzv`-Abbildung und ein sicherer Schreib-Rundlauf fehlen. Keine Bedienelemente oder Payloads raten; erst mit einem echten Mehrzonen-Gerätebeleg implementieren.
 4. **Installationshärtung:** kontrollierte vollständige Neuinstallation mit Kontoeinrichtung und Repository-Deinstallation; Live-Fehlerfälle für Cloud/MQTT, Token-Erneuerung und Rate-Limit. Bestehende Unit-Tests decken HTTP-/Parserfehler bereits ab.
 5. **Nicht belegte App-Felder:** „Ganzer Tag“ und Zeitfenster über Mitternacht bleiben ohne nachgewiesene verlustfreie Protokollabbildung dokumentiert und werden nicht als bedienbar ausgegeben. Einmaliger Einsatz und Party-Modus sind für dieses Modell nicht belegt.
-6. **Nächster Planstart:** die neue read-only Anzeige aus dem bestätigten Zeitplan nach CI in Docker prüfen; sie darf den Zeitplan nicht ändern und keinen Mähbefehl auslösen.
+6. **Nächster Planstart (abgeschlossen):** read-only Anzeige in Docker geprüft; mit unverändertem Plan wird `01.10.2026 17:00` angezeigt. Es wurde kein Mähbefehl ausgelöst.
 7. **Veröffentlichung:** Matrix, Dokumentation und Teststand abgleichen, alle CI-Prüfungen grün halten und PR #1 nach Abschluss der notwendigen Abnahme zur Veröffentlichung über `main` freigeben.
 
 ## Abgeschlossene Kernabnahme
