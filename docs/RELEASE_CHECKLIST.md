@@ -4,8 +4,8 @@ Zielrepository: [`Ghostraider88/symcon-modul-worx`](https://github.com/Ghostraid
 
 ## Aktueller Arbeitsstand (2026-10-01)
 
-- Arbeitsbranch: `codex/worx-wr105si`; letzter Commit `1084fa0` (`Guard stable Worx module prefixes`).
-- Der Docker-Testkernel läuft mit Library 2.0 / Build 20 aus `753b00c`. `1084fa0` ergänzt ausschließlich Identitäts-Regressionstests; es enthält keine Moduländerung.
+- Arbeitsbranch: `codex/worx-wr105si` (laufender Entwicklungs- und Testbranch).
+- Der Docker-Testkernel läuft mit Library 2.0 / Build 20 aus `753b00c`. Die nachfolgenden Branch-Änderungen betreffen nur Tests und Dokumentation, nicht den Laufzeitcode.
 - GitHub Actions für den aktuellen Branch: sechs Prüfungen erfolgreich (PHP-Syntax, Style und Tests auf beiden Runnern).
 - PR #1 ist offen und als Entwurf markiert. `main` ist noch nicht veröffentlicht.
 - Der zuletzt dokumentierte Docker-Zustand: Kernel 9.0, Cloud und Mower aktiv, Mäher in der Ladestation, Fehler 0, Mähzeitplan täglich 17:00–19:00 mit den ursprünglichen Kantenschnitt-Tagen. Keine Fahraktion beim Build-20-Check.
