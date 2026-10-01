@@ -67,6 +67,8 @@ class WorxMower extends IPSModule
         $this->RegisterAttributeString('PendingAutoScheduleSerial', '');
         $this->RegisterAttributeString('PendingFirmwareAutoUpgrade', '');
         $this->RegisterAttributeString('PendingFirmwareAutoUpgradeSerial', '');
+        $this->RegisterAttributeBoolean('FirmwareUpgradeAvailable', false);
+        $this->RegisterAttributeString('FirmwareUpgradeAvailableSerial', '');
         $this->RegisterAttributeString('ScheduleEventSnapshot', '');
         $this->RegisterAttributeBoolean('ScheduleEventSyncing', false);
         $this->RegisterAttributeInteger('ScheduleEventListener', 0);
@@ -341,6 +343,9 @@ class WorxMower extends IPSModule
     /** Query available firmware explicitly; ApplyChanges never triggers this request. */
     public function CheckFirmwareUpgrade(): bool
     {
+        $this->WriteAttributeBoolean('FirmwareUpgradeAvailable', false);
+        $this->WriteAttributeString('FirmwareUpgradeAvailableSerial', '');
+        $this->setFirmwareUpgradeActionOptions(false);
         $device = $this->getDevice();
         if ($device === null || !in_array('ota_upgrade', $device['capabilities'] ?? [], true)) {
             $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Firmware-Update für dieses Gerät nicht belegt.'));
@@ -362,6 +367,11 @@ class WorxMower extends IPSModule
             return false;
         }
 
+        $updateAvailable = ($info['ota_supported'] ?? null) === true
+            && ($info['update_available'] ?? null) === true;
+        $this->WriteAttributeBoolean('FirmwareUpgradeAvailable', $updateAvailable);
+        $this->WriteAttributeString('FirmwareUpgradeAvailableSerial', $updateAvailable ? $this->ReadPropertyString('Serial') : '');
+        $this->setFirmwareUpgradeActionOptions($updateAvailable);
         $current = (string) ($info['current_version'] ?? '');
         $latest = (string) ($info['latest_version'] ?? '');
         if (($info['ota_supported'] ?? null) !== true) {
@@ -392,7 +402,14 @@ class WorxMower extends IPSModule
         $battery = $batteryID !== false && $batteryID > 0 ? GetValueInteger($batteryID) : 0;
 
         if ($device === null || !in_array('ota_upgrade', $device['capabilities'] ?? [], true)) {
+            $this->WriteAttributeBoolean('FirmwareUpgradeAvailable', false);
+            $this->setFirmwareUpgradeActionOptions(false);
             $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Firmware-Update für dieses Gerät nicht belegt.'));
+            return false;
+        }
+        if (!$this->ReadAttributeBoolean('FirmwareUpgradeAvailable')
+            || $this->ReadAttributeString('FirmwareUpgradeAvailableSerial') !== $this->ReadPropertyString('Serial')) {
+            $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Firmwareverfügbarkeit zuerst prüfen und bestätigtes Update abwarten.'));
             return false;
         }
         if (empty($device['online']) || (!$safeState && !$charging) || $battery < 50) {
@@ -410,9 +427,15 @@ class WorxMower extends IPSModule
             'Serial'  => $this->ReadPropertyString('Serial'),
         ]));
         if (!filter_var(json_decode((string) $response, true), FILTER_VALIDATE_BOOLEAN)) {
+            $this->WriteAttributeBoolean('FirmwareUpgradeAvailable', false);
+            $this->WriteAttributeString('FirmwareUpgradeAvailableSerial', '');
+            $this->setFirmwareUpgradeActionOptions(false);
             $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Kein Firmware-Update gestartet: Cloud meldet kein verfügbares und unterstütztes Update.'));
             return false;
         }
+        $this->WriteAttributeBoolean('FirmwareUpgradeAvailable', false);
+        $this->WriteAttributeString('FirmwareUpgradeAvailableSerial', '');
+        $this->setFirmwareUpgradeActionOptions(false);
         $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Firmware-Update wurde von der Worx-Cloud zur Ausführung angenommen; Gerätestatus anschließend erneut prüfen.'));
         return true;
     }
@@ -1169,6 +1192,26 @@ class WorxMower extends IPSModule
         $this->SetSummary($summary);
     }
 
+    private function setFirmwareUpgradeActionOptions(bool $canStart): void
+    {
+        $actionID = $this->GetIDForIdent('FirmwareUpgradeAction');
+        if ($actionID === false || $actionID <= 0) {
+            return;
+        }
+        $options = [
+            0 => $this->Translate('Aktion wählen'),
+            1 => $this->Translate('Firmwareverfügbarkeit prüfen'),
+        ];
+        if ($canStart) {
+            $options[2] = $this->Translate('Firmware-Update jetzt anfordern');
+        }
+        $presentation = $this->enumerationPresentation($options);
+        IPS_SetVariableCustomPresentation($actionID, $presentation);
+        if (IPS_GetVariablePresentation($actionID) !== $presentation) {
+            throw new RuntimeException('Firmware-Update-Aktionsdarstellung konnte nicht bestätigt werden.');
+        }
+    }
+
     private function updateFirmwareUpgradeAvailability(array $device): void
     {
         $statusID = $this->GetIDForIdent('FirmwareUpgradeStatus');
@@ -1179,6 +1222,12 @@ class WorxMower extends IPSModule
         $supported = in_array('ota_upgrade', $device['capabilities'] ?? [], true);
         IPS_SetHidden($statusID, !$supported);
         IPS_SetHidden($actionID, !$supported);
+        $serialChanged = $this->ReadAttributeString('FirmwareUpgradeAvailableSerial') !== $this->ReadPropertyString('Serial');
+        if (!$supported || $serialChanged) {
+            $this->WriteAttributeBoolean('FirmwareUpgradeAvailable', false);
+            $this->WriteAttributeString('FirmwareUpgradeAvailableSerial', '');
+            $this->setFirmwareUpgradeActionOptions(false);
+        }
         if ($supported && GetValueString($statusID) === '') {
             $this->SetValueSafe('FirmwareUpgradeStatus', $this->Translate('Firmwareverfügbarkeit noch nicht abgefragt.'));
         }
@@ -1494,8 +1543,8 @@ class WorxMower extends IPSModule
         $this->RegisterVariableInteger('FirmwareUpgradeAction', 'Firmware-Update-Aktion', $this->enumerationPresentation([
             0 => $this->Translate('Aktion wählen'),
             1 => $this->Translate('Firmwareverfügbarkeit prüfen'),
-            2 => $this->Translate('Firmware-Update jetzt anfordern'),
         ]), $p++);
+        $this->setFirmwareUpgradeActionOptions(false);
         IPS_SetHidden($this->GetIDForIdent('FirmwareUpgradeStatus'), true);
         IPS_SetHidden($this->GetIDForIdent('FirmwareUpgradeAction'), true);
 

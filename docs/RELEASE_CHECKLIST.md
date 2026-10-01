@@ -22,7 +22,8 @@ Zielrepository: [`Ghostraider88/symcon-modul-worx`](https://github.com/Ghostraid
 
 1. **Installationshärtung:** Repository-Installation, Branch-Update, Instanzanlage, idempotentes `ApplyChanges()`, Instanzentfernung und Repository-Deinstallation sind im isolierten Kernel geprüft. Kontoeinrichtung mit echtem Worx-Konto und ein Live-Ausfalltest für Cloud/MQTT bleiben offen. Unit-Tests decken Transport-/HTTP-/Parserfehler einschließlich 401, 429 und 503 sowie Refresh-Token-Erneuerung und Passwort-Fallback ab; ein Live-429 wird wegen des Worx-API-Limits nicht absichtlich ausgelöst.
 2. **Nicht belegte App-Felder:** „Ganzer Tag“ und Zeitfenster über Mitternacht bleiben ohne nachgewiesene verlustfreie Protokollabbildung dokumentiert und werden nicht als bedienbar ausgegeben. Einmaliger Einsatz und Party-Modus sind für dieses Modell nicht belegt.
-3. **Veröffentlichung:** Matrix, Dokumentation und Teststand abgleichen, alle CI-Prüfungen grün halten und PR #1 nach Abschluss der notwendigen Abnahme über `main` veröffentlichen.
+3. **Firmware-OTA:** Die read-only Metadatenabfrage lieferte für WR105SI.1 im Livekonto keine verwertbare Antwort. Die Startaktion wird daher nur nach positiver, seriennummergebundener Bestätigung eingeblendet. Eine positive Liveabfrage und ein tatsächliches Update bleiben ungeprüft; ein Update wurde nicht ausgelöst.
+4. **Veröffentlichung:** Matrix, Dokumentation und Teststand abgleichen, alle CI-Prüfungen grün halten und PR #1 nach Abschluss der notwendigen Abnahme über `main` veröffentlichen.
 
 ## Explizite Scope-Entscheidung
 

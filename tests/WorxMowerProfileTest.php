@@ -269,10 +269,26 @@ final class WorxMowerProfileTest extends TestCase
         $update->invoke($module, ['capabilities' => ['ota_upgrade']]);
         self::assertFalse(IPS_GetObject($statusID)['ObjectIsHidden']);
         self::assertFalse(IPS_GetObject($actionID)['ObjectIsHidden']);
+        self::assertSame([0, 1], $this->firmwareUpgradeActionValues($actionID));
+
+        $setOptions = new ReflectionMethod(WorxMower::class, 'setFirmwareUpgradeActionOptions');
+        $setOptions->setAccessible(true);
+        $setOptions->invoke($module, true);
+        self::assertSame([0, 1, 2], $this->firmwareUpgradeActionValues($actionID));
+        $setOptions->invoke($module, false);
+        self::assertSame([0, 1], $this->firmwareUpgradeActionValues($actionID));
 
         $update->invoke($module, ['capabilities' => []]);
         self::assertTrue(IPS_GetObject($statusID)['ObjectIsHidden']);
         self::assertTrue(IPS_GetObject($actionID)['ObjectIsHidden']);
+        self::assertSame([0, 1], $this->firmwareUpgradeActionValues($actionID));
+    }
+
+    private function firmwareUpgradeActionValues(int $actionID): array
+    {
+        $presentation = IPS_GetVariablePresentation($actionID);
+        $options = json_decode($presentation['OPTIONS'] ?? '[]', true, 512, JSON_THROW_ON_ERROR);
+        return array_column($options, 'Value');
     }
 
     public function testConfirmedTimeExtensionUsesValuePresentationWithLiteralPercentSuffix(): void
