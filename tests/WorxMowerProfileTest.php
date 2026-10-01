@@ -686,6 +686,8 @@ final class WorxMowerProfileTest extends TestCase
 
         $setValueSafe = new ReflectionMethod(WorxMower::class, 'SetValueSafe');
         $setValueSafe->setAccessible(true);
+        $setValueSafe->invoke($module, 'CommandStatus', 'Nicht gesendet: Der Mäher ist offline.');
+        self::assertSame('EN:Nicht gesendet: Der Mäher ist offline.', GetValue(IPS_GetObjectIDByIdent('CommandStatus', $instanceID)));
         $setValueSafe->invoke($module, 'Firmware', '3.52.0+1');
         self::assertSame('3.52.0+1', GetValue(IPS_GetObjectIDByIdent('Firmware', $instanceID)));
     }
