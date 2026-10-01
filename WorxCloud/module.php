@@ -545,27 +545,54 @@ class WorxCloud extends IPSModule
         return $this->storeToken($result) ? $this->ReadAttributeString('AccessToken') : '';
     }
 
+    /** Execute one HTTP request and return only its response metadata to the caller. */
+    protected function executeHttpRequest(string $url, string $method, array $headers, ?string $body): array
+    {
+        $ch = curl_init($url);
+        if ($ch === false) {
+            return ['response' => false, 'code' => 0, 'error' => -1];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST  => $method,
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_TIMEOUT        => 30,
+        ]);
+        if ($body !== null) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+        }
+        $response = curl_exec($ch);
+        $error = curl_errno($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        return ['response' => $response, 'code' => $code, 'error' => $error];
+    }
+
     protected function request(string $method, string $path, $body, string $token)
     {
         if ($this->ReadPropertyString('Cloud') !== 'worx') {
             $this->SendDebug('API', 'Anfrage abgelehnt: nur Worx wird unterstützt.', 0);
             return null;
         }
-        $ch = curl_init('https://' . self::CLOUD_API . $path);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CUSTOMREQUEST  => $method,
-            CURLOPT_HTTPHEADER     => array_merge($this->headers(), ['authorization: Bearer ' . $token]),
-            CURLOPT_TIMEOUT        => 30,
-        ]);
-        if ($body !== null) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
-        }
-        $response = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        $encodedBody = $body === null
+            ? null
+            : json_encode($body, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $result = $this->executeHttpRequest(
+            'https://' . self::CLOUD_API . $path,
+            $method,
+            array_merge($this->headers(), ['authorization: Bearer ' . $token]),
+            $encodedBody
+        );
+        $response = $result['response'] ?? false;
+        $code = (int) ($result['code'] ?? 0);
+        $error = (int) ($result['error'] ?? 0);
 
         $this->SendDebug('API', sprintf('%s %s → HTTP %d', $method, $this->sanitizeApiPathForDebug($path), $code), 0);
+        if ($error !== 0 || $response === false) {
+            $this->SendDebug('API', sprintf('Transportfehler (cURL %d).', $error), 0);
+            return null;
+        }
         if ($code === 401) {
             $this->WriteAttributeInteger('TokenExpires', 0);
             return null;
@@ -576,7 +603,15 @@ class WorxCloud extends IPSModule
         if ($body !== null && $response === '') {
             return [];
         }
-        return json_decode((string) $response, true);
+        if (!is_string($response)) {
+            return null;
+        }
+        $decoded = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $this->SendDebug('API', 'Antwort enthält kein gültiges JSON.', 0);
+            return null;
+        }
+        return $decoded;
     }
 
     /**
@@ -667,24 +702,35 @@ class WorxCloud extends IPSModule
 
     private function authRequest(array $body)
     {
-        $ch = curl_init(self::AUTH_URL);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => json_encode($body),
-            CURLOPT_HTTPHEADER     => $this->headers(),
-            CURLOPT_TIMEOUT        => 30,
-        ]);
-        $response = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        $result = $this->executeHttpRequest(
+            self::AUTH_URL,
+            'POST',
+            $this->headers(),
+            json_encode($body, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+        $response = $result['response'] ?? false;
+        $code = (int) ($result['code'] ?? 0);
+        $error = (int) ($result['error'] ?? 0);
 
+        if ($error !== 0 || $response === false) {
+            $this->SendDebug('Auth', sprintf('Anmeldung wegen Transportfehler (cURL %d) fehlgeschlagen.', $error), 0);
+            return null;
+        }
         if ($code !== 200) {
             // Passwort niemals mitloggen — nur der Grund ist interessant
             $this->SendDebug('Auth', sprintf('Anmeldung fehlgeschlagen (HTTP %d).', $code), 0);
             return null;
         }
-        return json_decode((string) $response, true);
+        if (!is_string($response) || $response === '') {
+            $this->SendDebug('Auth', 'Anmeldung fehlgeschlagen: leere Antwort.', 0);
+            return null;
+        }
+        $decoded = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+            $this->SendDebug('Auth', 'Anmeldung fehlgeschlagen: ungültige JSON-Antwort.', 0);
+            return null;
+        }
+        return $decoded;
     }
 
     /** Mask device-specific path segments before writing request paths to debug logs. */

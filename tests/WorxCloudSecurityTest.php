@@ -54,8 +54,108 @@ final class WorxCloudMqttParentTestDouble extends IPSModule
     }
 }
 
+final class WorxCloudHttpTestDouble extends WorxCloud
+{
+    public array $httpResponses = [];
+
+    protected function executeHttpRequest(string $url, string $method, array $headers, ?string $body): array
+    {
+        return array_shift($this->httpResponses);
+    }
+}
+
 final class WorxCloudSecurityTest extends TestCase
 {
+    public function testRequestRejectsTransportHttpAndMalformedReadResponses(): void
+    {
+        $request = new ReflectionMethod(WorxCloud::class, 'request');
+        $request->setAccessible(true);
+        $responses = [
+            ['response' => false, 'code' => 0, 'error' => 28],
+            ['response' => 'service unavailable', 'code' => 503, 'error' => 0],
+            ['response' => '', 'code' => 200, 'error' => 0],
+            ['response' => '{invalid json', 'code' => 200, 'error' => 0],
+        ];
+
+        foreach ($responses as $response) {
+            IPS\Kernel::reset();
+            $module = new WorxCloudHttpTestDouble(1);
+            $module->Create();
+            $module->httpResponses = [$response];
+
+            self::assertNull($request->invoke($module, 'GET', '/api/v2/product-items?status=1', null, 'test-token'));
+        }
+    }
+
+    public function testAuthenticationRejectsTransportHttpAndMalformedResponses(): void
+    {
+        $authentication = new ReflectionMethod(WorxCloud::class, 'authRequest');
+        $authentication->setAccessible(true);
+        $responses = [
+            ['response' => false, 'code' => 0, 'error' => 28],
+            ['response' => '{"error":"unauthorized"}', 'code' => 401, 'error' => 0],
+            ['response' => '', 'code' => 200, 'error' => 0],
+            ['response' => '{invalid json', 'code' => 200, 'error' => 0],
+        ];
+
+        foreach ($responses as $response) {
+            IPS\Kernel::reset();
+            $module = new WorxCloudHttpTestDouble(1);
+            $module->Create();
+            $module->httpResponses = [$response];
+
+            self::assertNull($authentication->invoke($module, ['username' => 'user', 'password' => 'secret']));
+        }
+    }
+
+    public function testAuthenticationParsesSuccessfulTokenResponse(): void
+    {
+        IPS\Kernel::reset();
+        $module = new WorxCloudHttpTestDouble(1);
+        $module->Create();
+        $module->httpResponses = [['response' => '{"access_token":"test-token"}', 'code' => 200, 'error' => 0]];
+        $authentication = new ReflectionMethod(WorxCloud::class, 'authRequest');
+        $authentication->setAccessible(true);
+
+        self::assertSame(['access_token' => 'test-token'], $authentication->invoke($module, ['username' => 'user', 'password' => 'secret']));
+    }
+    public function testRequestAcceptsValidJsonAndEmptySuccessfulMutation(): void
+    {
+        $request = new ReflectionMethod(WorxCloud::class, 'request');
+        $request->setAccessible(true);
+
+        IPS\Kernel::reset();
+        $module = new WorxCloudHttpTestDouble(1);
+        $module->Create();
+        $module->httpResponses = [['response' => '{"auto_schedule":true}', 'code' => 200, 'error' => 0]];
+        self::assertSame(['auto_schedule' => true], $request->invoke($module, 'GET', '/api/v2/product-items', null, 'test-token'));
+
+        IPS\Kernel::reset();
+        $module = new WorxCloudHttpTestDouble(1);
+        $module->Create();
+        $module->httpResponses = [['response' => '', 'code' => 204, 'error' => 0]];
+        self::assertSame([], $request->invoke($module, 'PUT', '/api/v2/product-items/SERIAL', ['auto_schedule' => true], 'test-token'));
+    }
+
+    public function testUnauthorizedResponseExpiresCachedToken(): void
+    {
+        IPS\Kernel::reset();
+        $module = new WorxCloudHttpTestDouble(1);
+        $module->Create();
+        $module->httpResponses = [['response' => '', 'code' => 401, 'error' => 0]];
+        $writeExpires = new ReflectionMethod(IPSModule::class, 'WriteAttributeInteger');
+        $writeExpires->setAccessible(true);
+        $writeExpires->invoke($module, 'TokenExpires', time() + 900);
+
+        $request = new ReflectionMethod(WorxCloud::class, 'request');
+        $request->setAccessible(true);
+        self::assertNull($request->invoke($module, 'GET', '/api/v2/product-items', null, 'test-token'));
+
+        $readExpires = new ReflectionMethod(IPSModule::class, 'ReadAttributeInteger');
+        $readExpires->setAccessible(true);
+        self::assertSame(0, $readExpires->invoke($module, 'TokenExpires'));
+    }
+
     public function testDeviceSerialIsMaskedInApiDebugPath(): void
     {
         $module = new WorxCloud(1);
