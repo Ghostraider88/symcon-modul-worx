@@ -1,26 +1,31 @@
 # Installation and release checklist
 
-## Installation and update
+## Verified so far
 
-- [ ] Install the repository in a clean IP-Symcon test kernel.
-- [ ] Create Worx Cloud, Configurator, and Mower instances with the required parent/transport connections.
-- [ ] Verify missing credentials, invalid credentials, unavailable cloud transport, and empty device inventory.
-- [ ] Apply instance configuration repeatedly and confirm there are no duplicate objects or unintended device commands.
+- The native Symcon weekly event is the single schedule editor. Edits from Symcon are sent and confirmed by device read-back; app-originated schedule changes update the event without a manual refresh.
+- App-originated daily mowing-time adjustments are reflected in Symcon. The signed range is covered by automated tests.
+- Start, pause, and return-home were exercised in a controlled device session; return to the charging station was subsequently confirmed.
+- The current pull-request revision has passing automated tests, style checks, and PHP 8.5 syntax checks in GitHub Actions.
+
+## Remaining before a general release
+
+### Installation and update
+
+- [ ] Install in a clean IP-Symcon test kernel and remove the test instances and repository cleanly.
+- [ ] Verify missing and invalid credentials, unavailable transport, and empty device inventory.
+- [ ] Apply instance configuration repeatedly and confirm no duplicate objects or unintended commands.
 - [ ] Update an existing installation and verify stable module identities and variable identifiers.
-- [ ] Remove test instances and uninstall the repository cleanly.
 
-## Device behavior
+### Device behavior
 
-- [ ] Begin with read-only status and schedule checks.
-- [ ] Confirm each control is backed by reported device capabilities and fields.
-- [ ] Test schedule edits with a saved copy of the original schedule and verify device read-back.
-- [ ] Confirm app-originated schedule changes appear in the Symcon event.
-- [ ] Test timeouts, rejected commands, offline devices, malformed payloads, and cloud rate limits using isolated or mocked tests.
-- [ ] Never trigger firmware installation during routine module tests.
+- [ ] Confirm every visible control is capability-gated and backed by a device field.
+- [ ] Live-check app read-back for each supported setting that has not yet been verified in the test installation.
+- [ ] Keep firmware installation out of routine tests; test only its availability and safety gates unless a separate controlled firmware test is approved.
+- [ ] Continue testing other Worx device and firmware variants before claiming broader compatibility.
 
-## Privacy and quality
+### Privacy and quality
 
-- [ ] Search tracked files and commit metadata for credentials, private email addresses, device identifiers, locations, account data, and real installation settings.
+- [ ] Scan all public branches, tags, PR references, commit metadata, and tracked files for credentials, personal details, device identifiers, locations, and real installation settings.
 - [ ] Keep screenshots and complete cloud responses out of the public repository.
-- [ ] Run PHP syntax, style, and automated tests in CI.
-- [ ] Review the final diff and release notes before publication.
+- [x] Run automated tests, style checks, and PHP syntax checks in CI.
+- [ ] Review the final diff and release notes before removing draft status.
