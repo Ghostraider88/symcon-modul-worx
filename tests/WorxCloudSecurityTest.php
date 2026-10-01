@@ -87,6 +87,7 @@ final class WorxCloudSecurityTest extends TestCase
         $responses = [
             ['response' => false, 'code' => 0, 'error' => 28],
             ['response' => 'service unavailable', 'code' => 503, 'error' => 0],
+            ['response' => '{"error":"rate limit exceeded"}', 'code' => 429, 'error' => 0],
             ['response' => '', 'code' => 200, 'error' => 0],
             ['response' => '{invalid json', 'code' => 200, 'error' => 0],
         ];
@@ -133,6 +134,55 @@ final class WorxCloudSecurityTest extends TestCase
 
         self::assertSame(['access_token' => 'test-token'], $authentication->invoke($module, ['username' => 'user', 'password' => 'secret']));
     }
+    public function testExpiredAccessTokenIsRenewedWithRefreshToken(): void
+    {
+        IPS\Kernel::reset();
+        $module = new WorxCloudHttpTestDouble(1);
+        $module->Create();
+        $writeString = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeString->setAccessible(true);
+        $writeInteger = new ReflectionMethod(IPSModule::class, 'WriteAttributeInteger');
+        $writeInteger->setAccessible(true);
+        $writeString->invoke($module, 'AccessToken', 'expired-access-token');
+        $writeString->invoke($module, 'RefreshToken', 'valid-refresh-token');
+        $writeInteger->invoke($module, 'TokenExpires', time() - 1);
+        $module->httpResponses = [[
+            'response' => '{"access_token":"refreshed-access-token","refresh_token":"rotated-refresh-token","expires_in":3600}',
+            'code' => 200,
+            'error' => 0,
+        ]];
+
+        $getToken = new ReflectionMethod(WorxCloud::class, 'getToken');
+        $getToken->setAccessible(true);
+        self::assertSame('refreshed-access-token', $getToken->invoke($module));
+
+        $readString = new ReflectionMethod(IPSModule::class, 'ReadAttributeString');
+        $readString->setAccessible(true);
+        self::assertSame('rotated-refresh-token', $readString->invoke($module, 'RefreshToken'));
+        self::assertGreaterThan(time(), $readInteger->invoke($module, 'TokenExpires'));
+    }
+
+    public function testRejectedRefreshTokenFallsBackToPasswordGrant(): void
+    {
+        IPS\Kernel::reset();
+        $module = new WorxCloudHttpTestDouble(1);
+        $module->Create();
+        $writeString = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeString->setAccessible(true);
+        $writeInteger = new ReflectionMethod(IPSModule::class, 'WriteAttributeInteger');
+        $writeInteger->setAccessible(true);
+        $writeString->invoke($module, 'RefreshToken', 'rejected-refresh-token');
+        $writeInteger->invoke($module, 'TokenExpires', 0);
+        $module->httpResponses = [
+            ['response' => '{"error":"invalid_grant"}', 'code' => 400, 'error' => 0],
+            ['response' => '{"access_token":"password-grant-token","expires_in":3600}', 'code' => 200, 'error' => 0],
+        ];
+
+        $getToken = new ReflectionMethod(WorxCloud::class, 'getToken');
+        $getToken->setAccessible(true);
+        self::assertSame('password-grant-token', $getToken->invoke($module));
+    }
+
     public function testRequestAcceptsValidJsonAndEmptySuccessfulMutation(): void
     {
         $request = new ReflectionMethod(WorxCloud::class, 'request');

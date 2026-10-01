@@ -19,7 +19,7 @@ Zielrepository: [`Ghostraider88/symcon-modul-worx`](https://github.com/Ghostraid
 
 ## Vor Veröffentlichung noch erforderlich – in dieser Reihenfolge
 
-1. **Installationshärtung:** kontrollierte vollständige Neuinstallation mit Kontoeinrichtung und Repository-Deinstallation; Live-Fehlerfälle für Cloud/MQTT, Token-Erneuerung und Rate-Limit. Bestehende Unit-Tests decken HTTP-/Parserfehler bereits ab.
+1. **Installationshärtung:** kontrollierte vollständige Neuinstallation mit Kontoeinrichtung und Repository-Deinstallation sowie ein Live-Ausfalltest für Cloud/MQTT bleiben offen. Unit-Tests decken Transport-/HTTP-/Parserfehler einschließlich 401, 429 und 503 sowie Refresh-Token-Erneuerung und Passwort-Fallback ab; ein Live-429 wird wegen des Worx-API-Limits nicht absichtlich ausgelöst.
 2. **Nicht belegte App-Felder:** „Ganzer Tag“ und Zeitfenster über Mitternacht bleiben ohne nachgewiesene verlustfreie Protokollabbildung dokumentiert und werden nicht als bedienbar ausgegeben. Einmaliger Einsatz und Party-Modus sind für dieses Modell nicht belegt.
 3. **Veröffentlichung:** Matrix, Dokumentation und Teststand abgleichen, alle CI-Prüfungen grün halten und PR #1 nach Abschluss der notwendigen Abnahme über `main` veröffentlichen.
 
