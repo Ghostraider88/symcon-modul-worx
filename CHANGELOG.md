@@ -2,6 +2,8 @@
 
 ## Unveröffentlicht
 
+- Build 20: Setzt „Letzte Meldung“ auf den lokalen Empfangszeitpunkt, wenn die Worx-Statusmeldung keinen Gerätezeitstempel dat.tm enthält; ein gültiger Gerätezeitstempel bleibt vorrangig. Regressionstest ergänzt.
+
 - Build 19: Dynamische Mower-Formularhinweise verwenden lokalisierte Platzhalter; Regressionstests prüfen alle festen Status- und Formularbeschriftungen gegen die englische Locale.
 
 - Einstellungs-Sollwerte springen bei abgelehntem Senden oder ausbleibender Gerätebestätigung auf den zuletzt bestätigten Wert zurück; Tests decken Rückfall und Timeout für die unterstützten Einstellungsvariablen ab.

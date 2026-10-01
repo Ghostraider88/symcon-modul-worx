@@ -826,6 +826,34 @@ final class WorxMowerProfileTest extends TestCase
         self::assertSame(-40, GetValue($ids['TimeExtensionSet']));
     }
 
+    public function testApplyDeviceSetsLocalLastUpdateWhenMowerOmitsTimestamp(): void
+    {
+        IPS\Kernel::reset();
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        IPS\InstanceManager::createInstance($instanceID, [
+            'Class'      => WorxMowerTestDouble::class,
+            'ModuleID'   => '{39CA7807-D252-4375-8D05-1C5F918552C0}',
+            'ModuleName' => 'Worx Mower Test',
+            'ModuleType' => 3,
+        ]);
+        $module = IPS\InstanceManager::getInstanceInterface($instanceID);
+        $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
+        $applyDevice->setAccessible(true);
+
+        $before = time();
+        $applyDevice->invoke($module, [
+            'online'       => true,
+            'protocol'     => 0,
+            'capabilities' => [],
+            'last_status'  => ['payload' => ['dat' => ['ls' => 1, 'le' => 0]]],
+        ]);
+        $after = time();
+
+        $lastUpdate = GetValueInteger(IPS_GetObjectIDByIdent('LastUpdate', $instanceID));
+        self::assertGreaterThanOrEqual($before, $lastUpdate);
+        self::assertLessThanOrEqual($after, $lastUpdate);
+    }
+
     public function testApplyDeviceReadsZoneFromRawLzAndNestedCutFallback(): void
     {
         IPS\Kernel::reset();

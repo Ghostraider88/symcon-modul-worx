@@ -1055,11 +1055,9 @@ class WorxMower extends IPSModule
         // Protocol 0 reports the current zone as dat.lz; accept the nested form as a compatibility fallback.
         $zone = $dat['lz'] ?? ($dat['cut']['z'] ?? null);
         if (is_numeric($zone)) $this->SetValueSafe('Zone', (int) $zone);
-        if (isset($dat['tm'])) {
-            $timestamp = strtotime((string) $dat['tm']);
-            if ($timestamp !== false) $this->SetValueSafe('LastUpdate', $timestamp);
-        }
-
+        // Prefer the mower timestamp; fall back to local receipt time when protocol 0 omits dat.tm.
+        $timestamp = isset($dat['tm']) ? strtotime((string) $dat['tm']) : false;
+        $this->SetValueSafe('LastUpdate', $timestamp === false ? time() : $timestamp);
         $schedule = WorxScheduleCodec::scheduleFromDevice($device);
         if ($schedule !== null) {
             $this->updateSchedule($schedule);
