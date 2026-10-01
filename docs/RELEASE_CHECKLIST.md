@@ -5,8 +5,8 @@ Zielrepository: [`Ghostraider88/symcon-modul-worx`](https://github.com/Ghostraid
 ## Aktueller Arbeitsstand (2026-10-01)
 
 - Arbeitsbranch: `codex/worx-wr105si` (laufender Entwicklungs- und Testbranch).
-- Der Docker-Testkernel (Symcon Kernel 9.0) läuft mit Library 2.0 / Build 20. Der aktuelle Checkout steht auf Branch `codex/worx-wr105si`, Commit `0ef4698`; der letzte PHP-Code-Commit ist `8741ee9`, spätere Commits enthalten Dokumentations- und Prüfnachweise. Der Nutzer bestätigte auf diesem Code die App→Symcon-Rückmeldung der täglichen Arbeitszeit mit +10 % und Rückstellung auf 0 %. Die Anzeige des nächsten Planstarts `01.10.2026 17:00` wurde ebenfalls bestätigt; bei beiden Prüfungen wurde kein Mähbefehl ausgelöst.
-- GitHub Actions für den aktuellen PR-Commit `0ef4698`: sechs Prüfungen erfolgreich (PHP-Syntax, Style und Tests auf beiden Runnern; per GitHub-API verifiziert).
+- Der Docker-Testkernel (Symcon Kernel 9.0) läuft mit Library 2.0 / Build 20. Der Docker-Checkout folgt dem Arbeitsbranch `codex/worx-wr105si`; der letzte PHP-Code-Commit ist `8741ee9`, spätere Branchcommits enthalten Dokumentations- und Prüfnachweise. Der Nutzer bestätigte auf diesem Code die App→Symcon-Rückmeldung der täglichen Arbeitszeit mit +10 % und Rückstellung auf 0 %. Die Anzeige des nächsten Planstarts `01.10.2026 17:00` wurde ebenfalls bestätigt; bei beiden Prüfungen wurde kein Mähbefehl ausgelöst.
+- Vor dem Merge müssen alle sechs GitHub-Actions-Prüfungen auf dem aktuellen PR-Commit erfolgreich sein (PHP-Syntax, Style und Tests auf beiden Runnern).
 - PR #1 ist offen und als Entwurf markiert. `main` ist noch nicht veröffentlicht.
 - Der zuletzt dokumentierte Docker-Zustand: Kernel 9.0, Cloud und Mower aktiv, Mäher in der Ladestation, Fehler 0, Mähzeitplan täglich 17:00–19:00 mit den ursprünglichen Kantenschnitt-Tagen. Keine Fahraktion beim Build-20-Check.
 - Die Detailbelege, Gerätegrenzen und nicht belegten Funktionen stehen in der [Feature-Matrix](FEATURE_MATRIX.md). Die Architektur und der Updatepfad stehen in [ARCHITECTURE.md](ARCHITECTURE.md).
