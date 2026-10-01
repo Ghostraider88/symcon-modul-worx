@@ -728,13 +728,6 @@ final class WorxMowerProfileTest extends TestCase
         self::assertSame(-40, GetValue($ids['TimeExtensionSet']));
     }
 
-    private function controlOptions(int $controlID): array
-    {
-        $presentation = IPS_GetVariable($controlID)['VariablePresentation'];
-        $options = json_decode($presentation['OPTIONS'], true, 512, JSON_THROW_ON_ERROR);
-        return array_map(static fn (array $option): int => (int) $option['Value'], $options);
-    }
-
     public function testApplyDeviceReadsZoneFromRawLzAndNestedCutFallback(): void
     {
         IPS\Kernel::reset();
@@ -751,16 +744,29 @@ final class WorxMowerProfileTest extends TestCase
         $zoneID = IPS_GetObjectIDByIdent('Zone', $instanceID);
 
         foreach ([
-            [['ls' => 1, 'le' => 0, 'lz' => 3], 3],
-            [['ls' => 1, 'le' => 0, 'cut' => ['z' => 2]], 2],
+            [
+                ['ls' => 1, 'le' => 0, 'lz' => 3],
+                3,
+            ],
+            [
+                ['ls' => 1, 'le' => 0, 'cut' => ['z' => 2]],
+                2,
+            ],
         ] as [$dat, $expected]) {
             $applyDevice->invoke($module, [
-                'online' => true,
-                'protocol' => 0,
+                'online'       => true,
+                'protocol'     => 0,
                 'capabilities' => [],
-                'last_status' => ['payload' => ['dat' => $dat]],
+                'last_status'  => ['payload' => ['dat' => $dat]],
             ]);
             self::assertSame($expected, GetValueInteger($zoneID));
         }
+    }
+
+    private function controlOptions(int $controlID): array
+    {
+        $presentation = IPS_GetVariable($controlID)['VariablePresentation'];
+        $options = json_decode($presentation['OPTIONS'], true, 512, JSON_THROW_ON_ERROR);
+        return array_map(static fn (array $option): int => (int) $option['Value'], $options);
     }
 }
