@@ -858,7 +858,7 @@ class WorxMower extends IPSModule
             return;
         }
         $noop = '// Das Wochenplan-Ereignis dient als Zeitplaneditor; es startet keine Mähaktion.';
-        $actions = [0 => [$this->Translate('Kein Mähfenster'), 0xB0B0B0], 1 => [$this->Translate('Mähen'), 0x66AA33], 2 => [$this->Translate('Mähen mit Kantenschnitt'), 0xE87922], 3 => [$this->Translate('Einsatz 2'), 0x6688CC], 4 => [$this->Translate('Einsatz 2 mit Kantenschnitt'), 0x9966CC]];
+        $actions = [0 => [$this->Translate('Kein Mähfenster'), 0xB0B0B0], 1 => [$this->Translate('Zeitfenster 1'), 0x66AA33], 2 => [$this->Translate('Zeitfenster 1 mit Kantenschnitt'), 0xE87922], 3 => [$this->Translate('Zeitfenster 2'), 0x6688CC], 4 => [$this->Translate('Zeitfenster 2 mit Kantenschnitt'), 0x9966CC]];
         $this->WriteAttributeBoolean('ScheduleEventSyncing', true);
         try {
             foreach ($actions as $id => [$name, $color]) {
