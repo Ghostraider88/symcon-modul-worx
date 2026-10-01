@@ -119,7 +119,7 @@ final class WorxScheduleCodecTest extends TestCase
         $device['last_status']['payload']['cfg']['rd'] = 120;
         $device['last_status']['payload']['cfg']['mz'] = [1, 2, 3, 4];
         $device['last_status']['payload']['cfg']['sc']['sn'] = 'must-not-be-exported';
-        $device['last_status']['payload']['dat'] = ['tq' => -10, 'lz' => 2, 'mac' => 'must-not-be-exported'];
+        $device['last_status']['payload']['dat'] = ['tq' => -10, 'lz' => 2, 'lk' => 1, 'mac' => 'must-not-be-exported'];
         $device['last_status']['payload']['cfg']['sc']['extension'] = [
             'location'  => 'must-not-be-exported',
             'preserved' => true,
@@ -134,7 +134,7 @@ final class WorxScheduleCodecTest extends TestCase
         self::assertSame(['multi_zone_zones' => 4, 'one_time_scheduler' => false, 'party_mode' => true, 'rain_delay' => true], $record['features']);
         self::assertSame(120, $record['cfg']['rd']);
         self::assertSame([1, 2, 3, 4], $record['cfg']['mz']);
-        self::assertSame(['tq' => -10, 'lz' => 2], $record['dat']);
+        self::assertSame(['lk' => 1, 'tq' => -10, 'lz' => 2], $record['dat']);
         self::assertFalse($record['auto_schedule']);
         self::assertFalse($record['locked']);
         self::assertArrayNotHasKey('serial_number', $record);

@@ -108,7 +108,7 @@ final class WorxScheduleCodec
         $statusPayload = $device['last_status']['payload'] ?? [];
         $reportedDat = is_array($statusPayload) && is_array($statusPayload['dat'] ?? null) ? $statusPayload['dat'] : [];
         $safeDat = [];
-        foreach (['fw', 'fwb', 'ls', 'le', 'tq', 'lz', 'rain', 'modules'] as $key) {
+        foreach (['fw', 'fwb', 'ls', 'le', 'lk', 'tq', 'lz', 'rain', 'modules'] as $key) {
             if (array_key_exists($key, $reportedDat)) {
                 $value = $reportedDat[$key];
                 $safeDat[$key] = is_array($value) ? self::removeSensitiveKeys($value) : $value;
