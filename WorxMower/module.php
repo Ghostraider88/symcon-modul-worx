@@ -1124,7 +1124,7 @@ class WorxMower extends IPSModule
         }
         $confirmed = ($command === 1 && in_array($state, [2, 3, 4, 6, 7, 31, 32, 33], true))
             || ($command === 2 && $state === 34)
-            || ($command === 3 && in_array($state, [1, 30], true))
+            || ($command === 3 && in_array($state, [1, 5, 30], true))
             || ($command === 4 && $state === 32);
         if ($confirmed) {
             $this->WriteAttributeString('PendingCommand', '');
