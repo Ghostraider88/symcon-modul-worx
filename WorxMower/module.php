@@ -1494,6 +1494,11 @@ class WorxMower extends IPSModule
     {
         $id = $this->GetIDForIdent($ident);
         if ($id === false || $id === 0) return;
+        // Translate user-facing text values centrally. Unknown or dynamic strings
+        // remain unchanged, while exact locale entries follow the Symcon language.
+        if (is_string($value) && in_array($ident, ['CommandStatus', 'SettingStatus', 'ScheduleSyncStatus', 'LastCommand'], true)) {
+            $value = $this->Translate($value);
+        }
         if (GetValue($id) !== $value) SetValue($id, $value);
     }
 

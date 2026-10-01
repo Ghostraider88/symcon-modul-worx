@@ -645,6 +645,8 @@ final class WorxMowerProfileTest extends TestCase
         $locale = json_decode(file_get_contents(__DIR__ . '/../WorxMower/locale.json'), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame('Mowing', $locale['translations']['en']['Mäht']);
         self::assertSame('Rain', $locale['translations']['en']['Regen']);
+        self::assertSame('Not sent: The mower is offline.', $locale['translations']['en']['Nicht gesendet: Der Mäher ist offline.']);
+        self::assertSame('Schedule sent; awaiting confirmation from the mower read-back.', $locale['translations']['en']['Zeitplan gesendet; Bestätigung durch Zurücklesen des Mähers steht aus.']);
     }
 
     public function testMowerReportStoresNegativeAppScaleInConfirmedVariable(): void
