@@ -71,15 +71,6 @@ final class WorxCloudHttpTestDouble extends WorxCloud
 
 final class WorxCloudSecurityTest extends TestCase
 {
-    private function applyBaseConfiguration(WorxCloud $module, array $configuration): void
-    {
-        foreach ($configuration as $name => $value) {
-            $module->SetProperty($name, $value);
-        }
-        $applyChanges = new ReflectionMethod(IPSModule::class, 'ApplyChanges');
-        $applyChanges->invoke($module);
-    }
-
     public function testRequestRejectsTransportHttpAndMalformedReadResponses(): void
     {
         $request = new ReflectionMethod(WorxCloud::class, 'request');
@@ -333,7 +324,9 @@ final class WorxCloudSecurityTest extends TestCase
         IPS\InstanceManager::connectInstance(1, 2);
         $module = IPS\InstanceManager::getInstanceInterface(1);
         $mqtt = IPS\InstanceManager::getInstanceInterface(2);
-        $this->applyBaseConfiguration($module, ['Email' => 'test@example.invalid', 'Password' => 'secret']);
+        $module->SetProperty('Email', 'test@example.invalid');
+        $module->SetProperty('Password', 'secret');
+        (new ReflectionMethod(IPSModule::class, 'ApplyChanges'))->invoke($module);
         $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
         $writeAttribute->setAccessible(true);
         $writeAttribute->invoke($module, 'Devices', json_encode([[
@@ -376,7 +369,10 @@ final class WorxCloudSecurityTest extends TestCase
             IPS\InstanceManager::connectInstance(1, 2);
             $module = IPS\InstanceManager::getInstanceInterface(1);
             $mqtt = IPS\InstanceManager::getInstanceInterface(2);
-            $this->applyBaseConfiguration($module, $configuration);
+            foreach ($configuration as $name => $value) {
+                $module->SetProperty($name, $value);
+            }
+            (new ReflectionMethod(IPSModule::class, 'ApplyChanges'))->invoke($module);
             $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
             $writeAttribute->invoke($module, 'Devices', json_encode([[
                 'serial_number' => 'SERIAL-TEST',
