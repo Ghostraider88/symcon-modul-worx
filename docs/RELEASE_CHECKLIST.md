@@ -41,6 +41,8 @@ Diese Checkliste gilt für `Ghostraider88/symcon-modul-worx`. Der Branch `codex/
 | Fehlerfälle (falsche Zugangsdaten, Cloud-/MQTT-Ausfall, leere Antwort) | Ungültige Zugangsdaten, fehlende Kontodaten und nicht unterstützte Cloud wurden zuvor in einer separaten Testinstanz geprüft. Build 15 fügt Unit-Tests für Transportfehler, HTTP 503/401, leere Antworten, ungültiges JSON und erfolgreiche/204-Antworten hinzu; CI ist grün. Live-Ausfalltests, vollständige Token-Erneuerung und API-Limits bleiben offen. |
 | Mindestversion IP-Symcon 9.0 | Manifest/README verlangen 9.0; Docker-Kernel 9.0 per read-only RPC bestätigt; PHP-8.5-Syntax- und Repository-Prüfungen in CI erfolgreich |
 
+Live-Zeitplantests verändern die Cloud-Konfiguration und können den nächsten Mähstart verschieben. Vor jeder Änderung den vollständigen redigierten `cfg.sc`-Plan und den Status des nativen Wochenplanereignisses sichern. Danach genau diese Ausgangswerte zurückspielen und das vollständige Mäher-Echo abwarten; keinen früher protokollierten Zustand als aktuelle Ausgangsbasis annehmen. Bleibt das Echo aus oder weicht es ab, keine weiteren Live-Änderungen ausführen.
+
 Gerätesteuerungen nur einzeln und mit sichtbarer Sollwert-/Rückmeldungsprüfung ausprobieren. Ein MQTT-Publish oder HTTP-Erfolg allein gilt nicht als Gerätebestätigung. Keine Aktionen im Rahmen statischer Codeprüfungen ausführen.
 
 ## Prüfschritt: tägliche Arbeitszeit −100…+100 %
