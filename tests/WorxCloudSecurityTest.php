@@ -71,6 +71,15 @@ final class WorxCloudHttpTestDouble extends WorxCloud
 
 final class WorxCloudSecurityTest extends TestCase
 {
+    private function applyBaseConfiguration(WorxCloud $module, array $configuration): void
+    {
+        foreach ($configuration as $name => $value) {
+            $module->SetProperty($name, $value);
+        }
+        $applyChanges = new ReflectionMethod(IPSModule::class, 'ApplyChanges');
+        $applyChanges->invoke($module);
+    }
+
     public function testRequestRejectsTransportHttpAndMalformedReadResponses(): void
     {
         $request = new ReflectionMethod(WorxCloud::class, 'request');
@@ -324,6 +333,7 @@ final class WorxCloudSecurityTest extends TestCase
         IPS\InstanceManager::connectInstance(1, 2);
         $module = IPS\InstanceManager::getInstanceInterface(1);
         $mqtt = IPS\InstanceManager::getInstanceInterface(2);
+        $this->applyBaseConfiguration($module, ['Email' => 'test@example.invalid', 'Password' => 'secret']);
         $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
         $writeAttribute->setAccessible(true);
         $writeAttribute->invoke($module, 'Devices', json_encode([[
@@ -342,5 +352,42 @@ final class WorxCloudSecurityTest extends TestCase
             ['Topic'   => 'test/topic', 'Payload' => ['rd' => 330]],
             ['Topic'   => 'test/topic', 'Payload' => ['rd' => 720]],
         ], $mqtt->messages);
+    }
+    public function testMqttCommandsAreBlockedWhenTransportConfigurationIsDisabledOrInvalid(): void
+    {
+        foreach ([
+            ['Cloud' => 'worx', 'UseMQTT' => false, 'Email' => 'test@example.invalid', 'Password' => 'secret'],
+            ['Cloud' => 'worx', 'UseMQTT' => true, 'Email' => '', 'Password' => 'secret'],
+            ['Cloud' => 'other', 'UseMQTT' => true, 'Email' => 'test@example.invalid', 'Password' => 'secret'],
+        ] as $configuration) {
+            IPS\Kernel::reset();
+            IPS\InstanceManager::createInstance(1, [
+                'Class'      => WorxCloudRequestTestDouble::class,
+                'ModuleID'   => '{2A3889B6-AD03-4B1E-8782-BEB0E6CABCC1}',
+                'ModuleName' => 'Worx Cloud Test',
+                'ModuleType' => 2,
+            ]);
+            IPS\InstanceManager::createInstance(2, [
+                'Class'      => WorxCloudMqttParentTestDouble::class,
+                'ModuleID'   => '{00000000-0000-0000-0000-000000000001}',
+                'ModuleName' => 'MQTT Parent Test',
+                'ModuleType' => 1,
+            ]);
+            IPS\InstanceManager::connectInstance(1, 2);
+            $module = IPS\InstanceManager::getInstanceInterface(1);
+            $mqtt = IPS\InstanceManager::getInstanceInterface(2);
+            $this->applyBaseConfiguration($module, $configuration);
+            $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+            $writeAttribute->invoke($module, 'Devices', json_encode([[
+                'serial_number' => 'SERIAL-TEST',
+                'protocol'      => 0,
+                'capabilities'  => ['rain_delay'],
+                'online'        => true,
+                'mqtt_topics'   => ['command_in' => 'test/topic'],
+            ]]));
+
+            self::assertFalse($module->SetRainDelay('SERIAL-TEST', 30));
+            self::assertSame([], $mqtt->messages);
+        }
     }
 }

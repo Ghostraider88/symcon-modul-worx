@@ -645,6 +645,14 @@ class WorxCloud extends IPSModule
 
     private function publish(string $topic, string $payload): bool
     {
+        if ($this->ReadPropertyString('Cloud') !== 'worx'
+            || !$this->ReadPropertyBoolean('UseMQTT')
+            || $this->ReadPropertyString('Email') === ''
+            || $this->ReadPropertyString('Password') === '') {
+            $this->SendDebug('Publish', 'MQTT-Nachricht verworfen: Cloud, MQTT oder Zugangsdaten sind nicht gültig konfiguriert.', 0);
+            return false;
+        }
+
         $parent = $this->getParent();
         // Nicht nur "verknüpft", sondern auch "verbunden" prüfen — sonst quittiert
         // Symcon jeden Sendeversuch während des Verbindungsaufbaus mit einer Warnung.
