@@ -10,6 +10,11 @@ This MIT-licensed module connects compatible Worx Landroid mowers to IP-Symcon. 
 
 Controls are shown only when the connected mower reports the required capabilities and data. Requested commands and confirmed mower state are kept separate. Applying instance configuration does not issue mowing or schedule commands.
 
+## Requirements
+
+- IP-Symcon 9.0 or later.
+- A Worx account and the Symcon transport modules required by the selected cloud connection.
+
 ## Installation
 
 Add this repository in IP-Symcon Module Control and create a Worx Cloud instance. Configure the account and required Symcon transport modules, then use the Worx Configurator to add a mower. Follow the module configuration and status messages if a transport or account prerequisite is missing.

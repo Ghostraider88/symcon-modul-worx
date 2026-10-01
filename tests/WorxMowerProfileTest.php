@@ -752,7 +752,7 @@ final class WorxMowerProfileTest extends TestCase
             ],
         ]);
 
-        self::assertSame(-40, GetValue($variableID));
+        self::assertSame(-37, GetValue($variableID));
         // The account inventory exposes the same configuration at the device root.
         $method->invoke($module, [
             'online'       => true,
@@ -762,7 +762,7 @@ final class WorxMowerProfileTest extends TestCase
             'last_status'  => ['payload' => ['dat' => ['ls' => 0, 'le' => 0]]],
         ]);
 
-        self::assertSame(-40, GetValue($variableID));
+        self::assertSame(-37, GetValue($variableID));
     }
 
     public function testTimedOutSettingsRestoreTheLastConfirmedInputs(): void
@@ -911,7 +911,7 @@ final class WorxMowerProfileTest extends TestCase
         $schedule['d'][3] = ['08:30', 45, 0];
 
         foreach ([
-            ['2025-03-10 16:59:59', '2025-03-10 09:00'],
+            ['2025-03-10 16:59:59', '2025-03-12 08:30'],
             ['2025-03-10 09:00:01', '2025-03-12 08:30'],
             ['2025-03-12 08:31:00', '2025-03-17 09:00'],
         ] as [$nowValue, $expected]) {

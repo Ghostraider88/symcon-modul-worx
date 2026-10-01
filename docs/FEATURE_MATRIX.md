@@ -11,6 +11,6 @@ The module uses runtime-reported device capabilities and fields to decide which 
 | Weekly schedule | Native Symcon weekly event; changes are validated, sent, and confirmed by device read-back | Only schedule formats and fields understood by the connected mower are editable; unsupported fields must be preserved or rejected safely |
 | Settings | Automatic scheduling, rain delay, time adjustment, lock, and other fields where the required capability is reported | Requested and confirmed values are separate; individual controls remain hidden without supporting device data |
 | Firmware maintenance | Availability check and update request only when explicitly confirmed by the cloud | An update request requires a positive availability response and runtime safety checks; it is never triggered by configuration application |
-| Other features | Not exposed by default | Add controls only after device-specific protocol evidence, validation, and read-back behavior are established |
+| Additional mowing modes | One-time mowing, party mode, and manual edge-cut commands remain unavailable until device support and round-trip behavior are evidenced | Scheduled edge-cut flags remain part of the received weekly schedule. Multi-zone control is outside the current project scope; current-zone telemetry is read-only |
 
 The user-facing module must not log credentials, serial numbers, UUIDs, MAC addresses, locations, or full cloud responses. Redacted diagnostic output should use an explicit field allowlist.
