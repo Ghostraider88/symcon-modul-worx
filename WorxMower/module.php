@@ -1222,10 +1222,7 @@ class WorxMower extends IPSModule
         $supported = in_array('ota_upgrade', $device['capabilities'] ?? [], true);
         IPS_SetHidden($statusID, !$supported);
         IPS_SetHidden($actionID, !$supported);
-        $serialChanged = $this->ReadAttributeString('FirmwareUpgradeAvailableSerial') !== $this->ReadPropertyString('Serial');
-        if (!$supported || $serialChanged) {
-            $this->WriteAttributeBoolean('FirmwareUpgradeAvailable', false);
-            $this->WriteAttributeString('FirmwareUpgradeAvailableSerial', '');
+        if (!$supported) {
             $this->setFirmwareUpgradeActionOptions(false);
         }
         if ($supported && GetValueString($statusID) === '') {

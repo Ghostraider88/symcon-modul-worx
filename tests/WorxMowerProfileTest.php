@@ -258,6 +258,10 @@ final class WorxMowerProfileTest extends TestCase
 
         $statusID = IPS_GetObjectIDByIdent('FirmwareUpgradeStatus', $instanceID);
         $actionID = IPS_GetObjectIDByIdent('FirmwareUpgradeAction', $instanceID);
+        $getActionValues = static function () use ($actionID): array {
+            $options = json_decode(IPS_GetVariablePresentation($actionID)['OPTIONS'] ?? '[]', true, 512, JSON_THROW_ON_ERROR);
+            return array_column($options, 'Value');
+        };
         self::assertSame(3, IPS_GetVariable($statusID)['VariableType']);
         self::assertSame(1, IPS_GetVariable($actionID)['VariableType']);
         self::assertTrue(HasAction($actionID));
@@ -269,26 +273,19 @@ final class WorxMowerProfileTest extends TestCase
         $update->invoke($module, ['capabilities' => ['ota_upgrade']]);
         self::assertFalse(IPS_GetObject($statusID)['ObjectIsHidden']);
         self::assertFalse(IPS_GetObject($actionID)['ObjectIsHidden']);
-        self::assertSame([0, 1], $this->firmwareUpgradeActionValues($actionID));
+        self::assertSame([0, 1], $getActionValues());
 
         $setOptions = new ReflectionMethod(WorxMower::class, 'setFirmwareUpgradeActionOptions');
         $setOptions->setAccessible(true);
         $setOptions->invoke($module, true);
-        self::assertSame([0, 1, 2], $this->firmwareUpgradeActionValues($actionID));
+        self::assertSame([0, 1, 2], $getActionValues());
         $setOptions->invoke($module, false);
-        self::assertSame([0, 1], $this->firmwareUpgradeActionValues($actionID));
+        self::assertSame([0, 1], $getActionValues());
 
         $update->invoke($module, ['capabilities' => []]);
         self::assertTrue(IPS_GetObject($statusID)['ObjectIsHidden']);
         self::assertTrue(IPS_GetObject($actionID)['ObjectIsHidden']);
-        self::assertSame([0, 1], $this->firmwareUpgradeActionValues($actionID));
-    }
-
-    private function firmwareUpgradeActionValues(int $actionID): array
-    {
-        $presentation = IPS_GetVariablePresentation($actionID);
-        $options = json_decode($presentation['OPTIONS'] ?? '[]', true, 512, JSON_THROW_ON_ERROR);
-        return array_column($options, 'Value');
+        self::assertSame([0, 1], $getActionValues());
     }
 
     public function testConfirmedTimeExtensionUsesValuePresentationWithLiteralPercentSuffix(): void
