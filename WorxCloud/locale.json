@@ -1,0 +1,20 @@
+{
+    "translations": {
+        "en": {
+            "Cloud": "Cloud",
+            "Worx Landroid": "Worx Landroid",
+            "E-Mail": "Email",
+            "Passwort": "Password",
+            "Echtzeit und Steuerung über MQTT": "Real-time updates and control via MQTT",
+            "Abfrageintervall (Sekunden)": "Polling interval (seconds)",
+            "Mit MQTT genügt ein großes Abfrageintervall — der Zustand kommt dann von selbst. Worx begrenzt auf 2880 Abfragen pro Tag.": "With MQTT, a longer polling interval is sufficient because status updates arrive automatically. Worx limits polling to 2,880 requests per day.",
+            "Jetzt abfragen": "Poll now",
+            "Verbindung erneuern": "Reconnect",
+            "Verbunden": "Connected",
+            "Zugangsdaten fehlen": "Credentials missing",
+            "Anmeldung fehlgeschlagen — E-Mail/Passwort prüfen": "Login failed — check email and password",
+            "Cloud nicht erreichbar": "Cloud unavailable",
+            "Nicht unterstützter Cloud-Eintrag aus der Altinstallation — Worx auswählen": "Unsupported cloud setting from the previous installation — select Worx"
+        }
+    }
+}

@@ -1,46 +1,21 @@
-# My Symcon Library
+# Worx Landroid for IP-Symcon
 
-[![Check Style](https://github.com/DEIN-USER/DEIN-REPO/actions/workflows/style.yml/badge.svg)](https://github.com/DEIN-USER/DEIN-REPO/actions/workflows/style.yml)
-[![Run Tests](https://github.com/DEIN-USER/DEIN-REPO/actions/workflows/tests.yml/badge.svg)](https://github.com/DEIN-USER/DEIN-REPO/actions/workflows/tests.yml)
+This MIT-licensed module connects compatible Worx Landroid mowers to IP-Symcon. It keeps the existing cloud transport and device discovery components and exposes mower status, supported controls, and schedule data through IP-Symcon.
 
-Bibliothek mit Custom-Modulen für IP-Symcon.
+## Modules
 
-## Enthaltene Module
+- **Worx Cloud** handles account authentication, cloud requests, and MQTT transport.
+- **Worx Configurator** discovers cloud devices and creates mower instances.
+- **Worx Mower** displays confirmed state and provides supported controls. Its native Symcon weekly event is the schedule editor.
 
-| Modul | Beschreibung | Doku |
-|-------|--------------|------|
-| MyModule | [Kurzbeschreibung] | [README](MyModule/README.md) |
+Controls are shown only when the connected mower reports the required capabilities and data. Requested commands and confirmed mower state are kept separate. Applying instance configuration does not issue mowing or schedule commands.
 
 ## Installation
 
-Über das Module Control (Kerninstanz) die Repository-URL hinzufügen:
+Add this repository in IP-Symcon Module Control and create a Worx Cloud instance. Configure the account and required Symcon transport modules, then use the Worx Configurator to add a mower. Follow the module configuration and status messages if a transport or account prerequisite is missing.
 
-https://github.com/DEIN-USER/DEIN-REPO
+Use a test instance before enabling device controls. Confirm schedule changes against the state returned by the mower. Never include credentials, device identifiers, locations, or complete cloud responses in public issue reports.
 
-## Voraussetzungen
+## Development
 
-* IP-Symcon ab Version 8.1
-
-## Entwicklung
-
-Neue Module verwenden den verbindlichen Visu-Stil aus
-[docs/VISU_STYLE.md](docs/VISU_STYLE.md) und den wiederverwendbaren Baukasten
-[libs/VisuStyle.php](libs/VisuStyle.php). Für Zustände, Diagnose und
-fähigkeitsabhängige Bedienfelder stehen zusätzlich folgende Bausteine bereit:
-
-- [libs/VisuState.php](libs/VisuState.php)
-- [libs/VisuDiagnostic.php](libs/VisuDiagnostic.php)
-- [libs/VisuCapability.php](libs/VisuCapability.php)
-
-Das Beispielmodul enthält eine Kachel mit Status, Aktion, Selbsttest,
-Capability-Prüfung und Live-Aktualisierung.
-
-Alle verbindlichen Struktur- und Codiervorgaben für die Modulentwicklung stehen in
-[AGENTS.md](AGENTS.md). Diese Datei dient zugleich als Kontext für Codex.
-
-Optionale Ausbauideen für das Template (kein verbindliches Regelwerk) sammelt
-[docs/template-backlog.md](docs/template-backlog.md).
-
-## Lizenz
-
-[MIT / nach Wahl eintragen]
+The module is licensed under MIT. Third-party integrations may be consulted for protocol research; their source code is not copied. See [architecture](docs/ARCHITECTURE.md), [feature matrix](docs/FEATURE_MATRIX.md), [release checklist](docs/RELEASE_CHECKLIST.md), and [mower guide](WorxMower/README.md).

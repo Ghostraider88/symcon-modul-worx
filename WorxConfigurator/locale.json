@@ -1,0 +1,12 @@
+{
+    "translations": {
+        "en": {
+            "Mähroboter": "Landroid mowers",
+            "Name": "Name",
+            "Seriennummer": "Serial number",
+            "Firmware": "Firmware",
+            "Online": "Online",
+            "Aktiv": "Active"
+        }
+    }
+}
