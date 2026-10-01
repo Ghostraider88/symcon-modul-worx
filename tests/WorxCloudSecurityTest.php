@@ -148,8 +148,8 @@ final class WorxCloudSecurityTest extends TestCase
         $writeInteger->invoke($module, 'TokenExpires', time() - 1);
         $module->httpResponses = [[
             'response' => '{"access_token":"refreshed-access-token","refresh_token":"rotated-refresh-token","expires_in":3600}',
-            'code' => 200,
-            'error' => 0,
+            'code'     => 200,
+            'error'    => 0,
         ]];
 
         $getToken = new ReflectionMethod(WorxCloud::class, 'getToken');
@@ -158,6 +158,8 @@ final class WorxCloudSecurityTest extends TestCase
 
         $readString = new ReflectionMethod(IPSModule::class, 'ReadAttributeString');
         $readString->setAccessible(true);
+        $readInteger = new ReflectionMethod(IPSModule::class, 'ReadAttributeInteger');
+        $readInteger->setAccessible(true);
         self::assertSame('rotated-refresh-token', $readString->invoke($module, 'RefreshToken'));
         self::assertGreaterThan(time(), $readInteger->invoke($module, 'TokenExpires'));
     }
