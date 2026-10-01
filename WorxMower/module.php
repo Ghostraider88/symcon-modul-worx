@@ -95,10 +95,11 @@ class WorxMower extends IPSModule
         $this->registerVariables();
         $this->EnableAction('FirmwareAutoUpgradeSet');
         $this->clearPendingForDifferentMower();
-        foreach (['Schedule', 'SchedulePreview'] as $obsoleteIdent) {
-            $obsoleteID = $this->GetIDForIdent($obsoleteIdent);
-            if ($obsoleteID !== false && $obsoleteID !== 0 && IPS_VariableExists($obsoleteID)) {
-                IPS_SetHidden($obsoleteID, true);
+        // Optional variables from older builds may not exist in a fresh installation.
+        foreach (IPS_GetChildrenIDs($this->InstanceID) as $childID) {
+            $child = IPS_GetObject($childID);
+            if ($child['ObjectType'] === 2 && in_array($child['ObjectIdent'], ['Schedule', 'SchedulePreview'], true)) {
+                IPS_SetHidden($childID, true);
             }
         }
         if ($this->ReadPropertyString('Serial') === '') {
