@@ -1,6 +1,6 @@
 # Worx-Feature-Matrix
 
-Stand: 2026-09-25. Zielgerät: Worx Landroid WR105SI.1.
+Stand: 2026-10-01. Zielgerät: Worx Landroid WR105SI.1.
 
 ## Anlagenstand und Belege
 
@@ -56,6 +56,10 @@ Stand: 2026-09-25. Zielgerät: Worx Landroid WR105SI.1.
 - Symcon-Wochenplan: [offizielle Übersicht](https://www.symcon.de/de/service/dokumentation/grundlagen/ereignisse/wochenplan/), [Kachelvisualisierung](https://www.symcon.de/de/service/dokumentation/komponenten/objekt-darstellung/wochenplan/) und [Schaltpunkte](https://www.symcon.de/de/service/dokumentation/befehlsreferenz/ereignisverwaltung/ips-seteventschedulegrouppoint/).
 
 Zugangsdaten, Seriennummern, UUIDs, MAC-Adressen, Standorte und vollständige Cloud-Antworten gehören nicht in das öffentliche Repository.
+
+## Docker-Abnahme am 2026-10-01
+
+Der dokumentierte SSH-Zugang zum Docker-Server ist erreichbar. Die gezielte Modulaktualisierung über Module Control führte von installiertem Build 8 auf Build 11 (Commit `9aca11c`). Der Docker-Kernel meldet 9.0; Cloud und Mower melden Status 102. Beim Zwischenstand Build 10 erzeugte ApplyChanges Warnungen, weil die optionalen Altvariablen `Schedule` und `SchedulePreview` fehlten. Build 11 sucht diese nur unter tatsächlich vorhandenen Kindern. Zwei anschließende ApplyChanges-Aufrufe liefen ohne Warnungen; alle 35 Kindobjekt-IDs und das native deaktivierte Wochenplanereignis mit sieben Gruppen blieben unverändert. Alle 34 Variablen sind weiterhin ohne Standard- oder benutzerdefinierte Profile. Cloud- und Mower-Formular liefern gültiges JSON. Der Wert von `LastCommand` blieb unverändert; es wurden keine Geräteaktionen aufgerufen. Diese Abnahme bestätigt das Update und die wiederholte Konfiguration, nicht die noch offenen Geräte-Schreibechos oder eine gerenderte Formularansicht.
 
 ## Fortschritt nach Ausführungsplan
 
