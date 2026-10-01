@@ -14,7 +14,7 @@ Zielrepository: [`Ghostraider88/symcon-modul-worx`](https://github.com/Ghostraid
 ## Noch zu erledigen – in dieser Reihenfolge
 
 1. **Manueller Kantenschnitt (abgeschlossen):** Worx führt den WR105SI.1 nicht unter den Modellen für den manuellen Einzel-Kantenschnitt. Die Aktion ist deshalb nicht bedienbar; geplanter Kantenschnitt bleibt im Wochenplan verfügbar.
-2. **Einstellungs-Rückrichtung:** mindestens eine unabhängige Änderung in der Worx-App vornehmen und prüfen, dass Sollwert und bestätigter Istwert in Symcon korrekt auseinandergehalten und danach synchronisiert werden. Frühere Symcon→Cloud-Schreibrundläufe sind bereits belegt.
+2. **Einstellungs-Rückrichtung (abgeschlossen):** Der Nutzer bestätigte am 2026-10-01, dass eine in der Worx-App geänderte tägliche Arbeitszeit unmittelbar in Symcon erscheint. Symcon→Cloud-Schreibrundläufe sind ebenfalls belegt.
 3. **Mehrzonen:** das Modell meldet `multi_zone` und `multi_zone_percentage`, der Nutzer verwendet aber nur eine Zone. Die nichtnullige `cfg.mz`-/`cfg.mzv`-Abbildung und ein sicherer Schreib-Rundlauf fehlen. Keine Bedienelemente oder Payloads raten; erst mit einem echten Mehrzonen-Gerätebeleg implementieren.
 4. **Installationshärtung:** kontrollierte vollständige Neuinstallation mit Kontoeinrichtung und Repository-Deinstallation; Live-Fehlerfälle für Cloud/MQTT, Token-Erneuerung und Rate-Limit. Bestehende Unit-Tests decken HTTP-/Parserfehler bereits ab.
 5. **Nicht belegte App-Felder:** „Ganzer Tag“ und Zeitfenster über Mitternacht bleiben ohne nachgewiesene verlustfreie Protokollabbildung dokumentiert und werden nicht als bedienbar ausgegeben. Einmaliger Einsatz und Party-Modus sind für dieses Modell nicht belegt.
@@ -27,7 +27,7 @@ Zielrepository: [`Ghostraider88/symcon-modul-worx`](https://github.com/Ghostraid
 - Native Symcon-Wochenplanereignis „Mähzeitplan“ als einziger Editor; beide Synchronisationsrichtungen sind im Docker-Test bestätigt. Einzeltage deaktivieren und Kantenschnitt-Tage ändern sich mit Geräteecho. `ApplyChanges()` sendet keinen Mähbefehl.
 - Status-/Fehlerzahlen und direkt daneben lesbare String-Variablen; keine Legacy-Variablenprofile. Die Zeitverlängerung bildet die signierten Werte −100…+100 % direkt ab.
 - Start, Pause und Heimfahrt wurden am Gerät geprüft; der Nutzer bestätigte die Rückkehr in die Ladestation.
-- Regenverzögerung, Sperre, Zeitverlängerung, automatischer Zeitplan und Cloud-Präferenz für Firmware-Auto-Update wurden mit Echo geprüft und auf ihre Ausgangswerte zurückgestellt. Ein Firmware-Update selbst wurde nicht gestartet.
+- Regenverzögerung, Sperre, Zeitverlängerung, automatischer Zeitplan und Cloud-Präferenz für Firmware-Auto-Update wurden mit Echo geprüft und auf ihre Ausgangswerte zurückgestellt. App→Symcon für die tägliche Arbeitszeitänderung wurde live vom Nutzer bestätigt. Ein Firmware-Update selbst wurde nicht gestartet.
 
 ## Testinstallation
 
