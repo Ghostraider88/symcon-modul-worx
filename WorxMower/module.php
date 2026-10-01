@@ -577,7 +577,7 @@ class WorxMower extends IPSModule
             $rows = WorxScheduleCodec::rowsFromEvent($event, $source);
             $desired = WorxScheduleCodec::mergeRows($source, $rows);
         } catch (Throwable $exception) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Ereignisänderung nicht übertragen: ' . $exception->getMessage());
+            $this->SetValueSafe('ScheduleSyncStatus', $this->Translate('Ereignisänderung nicht übertragen: ') . $this->Translate($exception->getMessage()));
             return false;
         }
         $desiredJson = WorxScheduleCodec::canonicalJson($desired);
@@ -848,7 +848,7 @@ class WorxMower extends IPSModule
         try {
             $pointsByDay = WorxScheduleCodec::toEventPoints($schedule);
         } catch (InvalidArgumentException $exception) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Mäherplan im Wochenplan nicht darstellbar: ' . $exception->getMessage());
+            $this->SetValueSafe('ScheduleSyncStatus', $this->Translate('Mäherplan im Wochenplan nicht darstellbar: ') . $this->Translate($exception->getMessage()));
             return;
         }
         $noop = '// Das Wochenplan-Ereignis dient als Zeitplaneditor; es startet keine Mähaktion.';
@@ -879,7 +879,7 @@ class WorxMower extends IPSModule
                 throw new RuntimeException('Symcon-Wochenplan konnte nicht deaktiviert bleiben.');
             }
         } catch (Throwable $exception) {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Symcon-Wochenplan konnte nicht aktualisiert werden: ' . $exception->getMessage());
+            $this->SetValueSafe('ScheduleSyncStatus', $this->Translate('Symcon-Wochenplan konnte nicht aktualisiert werden: ') . $this->Translate($exception->getMessage()));
             return;
         } finally {
             $this->WriteAttributeBoolean('ScheduleEventSyncing', false);
@@ -892,8 +892,9 @@ class WorxMower extends IPSModule
         $statusID = $this->GetIDForIdent('ScheduleSyncStatus');
         if ($statusID !== false && $statusID > 0) {
             $status = GetValueString($statusID);
-            if (strpos($status, 'Symcon-Wochenplan geprüft') === false) {
-                $this->SetValueSafe('ScheduleSyncStatus', rtrim($status, '.') . '; Symcon-Wochenplan geprüft.');
+            $checkedSuffix = $this->Translate('Symcon-Wochenplan geprüft.');
+            if (strpos($status, $checkedSuffix) === false) {
+                $this->SetValueSafe('ScheduleSyncStatus', rtrim($status, '.') . '; ' . $checkedSuffix);
             }
         }
     }
@@ -1121,7 +1122,10 @@ class WorxMower extends IPSModule
             $this->WriteAttributeString('PendingCommand', '');
             $this->WriteAttributeString('PendingCommandSerial', '');
             $this->SetTimerInterval('CommandConfirmationTimeout', 0);
-            $this->SetValueSafe('CommandStatus', 'Mäher meldet einen Fehler: ' . (self::ERRORS[$error] ?? ('Fehler ' . $error)));
+            $errorText = isset(self::ERRORS[$error])
+                ? $this->Translate(self::ERRORS[$error])
+                : $this->Translate('Fehler') . ' ' . $error;
+            $this->SetValueSafe('CommandStatus', $this->Translate('Mäher meldet einen Fehler: ') . $errorText);
             return;
         }
         $confirmed = ($command === 1 && in_array($state, [2, 3, 4, 6, 7, 31, 32, 33], true))
@@ -1132,7 +1136,7 @@ class WorxMower extends IPSModule
             $this->WriteAttributeString('PendingCommand', '');
             $this->WriteAttributeString('PendingCommandSerial', '');
             $this->SetTimerInterval('CommandConfirmationTimeout', 0);
-            $this->SetValueSafe('CommandStatus', 'Vom Mäher bestätigt: ' . self::COMMANDS[$command] . '.');
+            $this->SetValueSafe('CommandStatus', $this->Translate('Vom Mäher bestätigt: ') . $this->Translate(self::COMMANDS[$command]) . '.');
         }
     }
 
@@ -1194,10 +1198,10 @@ class WorxMower extends IPSModule
                 $this->WriteAttributeString('PendingRainDelay', '');
                 $this->WriteAttributeString('PendingRainDelaySerial', '');
                 $this->SetTimerInterval('RainDelayConfirmationTimeout', 0);
-                $this->SetValueSafe('SettingStatus', 'Abweichender Regenverzögerungswert vom Mäher übernommen: ' . $reported . ' Minuten.');
+                $this->SetValueSafe('SettingStatus', $this->Translate('Abweichender Regenverzögerungswert vom Mäher übernommen: ') . $reported . $this->Translate(' Minuten.'));
             }
         } elseif ($previous !== '' && (int) $previous !== $reported) {
-            $this->SetValueSafe('SettingStatus', 'Regenverzögerung aus Worx übernommen: ' . $reported . ' Minuten.');
+            $this->SetValueSafe('SettingStatus', $this->Translate('Regenverzögerung aus Worx übernommen: ') . $reported . $this->Translate(' Minuten.'));
         }
         $this->WriteAttributeString('ReportedRainDelay', (string) $reported);
     }

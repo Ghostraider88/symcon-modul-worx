@@ -647,6 +647,47 @@ final class WorxMowerProfileTest extends TestCase
         self::assertSame('Rain', $locale['translations']['en']['Regen']);
         self::assertSame('Not sent: The mower is offline.', $locale['translations']['en']['Nicht gesendet: Der Mäher ist offline.']);
         self::assertSame('Schedule sent; awaiting confirmation from the mower read-back.', $locale['translations']['en']['Zeitplan gesendet; Bestätigung durch Zurücklesen des Mähers steht aus.']);
+
+        foreach ([
+            'Abweichende Änderung aus der Worx-Cloud übernommen.',
+            'Abweichender Regenverzögerungswert vom Mäher übernommen: ',
+            'Das Kindobjekt WorxWeeklySchedule ist kein Wochenplan-Ereignis.',
+            'Ereignisänderung nicht übertragen: ',
+            'Keine Bestätigung des automatischen Zeitplans innerhalb von 120 Sekunden.',
+            'Keine Bestätigung der täglichen Arbeitszeitänderung innerhalb von 120 Sekunden.',
+            'Keine passende Mäher-Rückmeldung innerhalb von 120 Sekunden; prüfe den zuletzt empfangenen Stand.',
+            'Mäher meldet einen Fehler: ',
+            'Mäherplan empfangen, aber das Symcon-Wochenplan-Ereignis stimmt nach dem Schreiben nicht überein.',
+            'Mäherplan im Wochenplan nicht darstellbar: ',
+            'Nicht gesendet: Worx-Cloud hat die Einstellung abgelehnt oder ist nicht erreichbar.',
+            'Regenverzögerung aus Worx übernommen: ',
+            'Rückmeldung verworfen: Seriennummer der Instanz wurde geändert.',
+            'Symcon-Wochenplan konnte nicht aktualisiert werden: ',
+            'Symcon-Wochenplan geprüft.',
+            'Tägliche Arbeitszeitänderung nicht gesendet: Worx-Cloud-Verbindung fehlt.',
+            'Tägliche Arbeitszeitänderung nicht gesendet: MQTT-Verbindung nicht bereit oder Befehl abgelehnt.',
+            'Vom Mäher bestätigt: ',
+            'Zeitplan gesendet; warte auf die passende Rückmeldung des Mähers.',
+            'Keine passende Mäher-Rückmeldung; die bearbeitete Symcon-Zeit bleibt erhalten.',
+            'Zeitplan nach Verzögerung vom Mäher zurückgelesen und bestätigt.',
+            'Sperre vom Mäher zurückgelesen und bestätigt.',
+            'Entsperren vom Mäher zurückgelesen und bestätigt.',
+            'Tägliche Arbeitszeit vom Mäher zurückgelesen und bestätigt.',
+            'Vom Mäher zurückgelesen und bestätigt.',
+            'Fehler',
+            ' Minuten.',
+            'Vorhandene Symcon-Wochenplangruppe konnte nicht entfernt werden.',
+            'Symcon-Wochenplangruppe konnte nicht angelegt werden.',
+            'Symcon-Wochenplan-Schaltpunkt konnte nicht übernommen werden.',
+            'Symcon-Wochenplan konnte nicht deaktiviert bleiben.',
+        ] as $translationKey) {
+            self::assertArrayHasKey($translationKey, $locale['translations']['en']);
+        }
+
+        $setValueSafe = new ReflectionMethod(WorxMower::class, 'SetValueSafe');
+        $setValueSafe->setAccessible(true);
+        $setValueSafe->invoke($module, 'Firmware', '3.52.0+1');
+        self::assertSame('3.52.0+1', GetValue(IPS_GetObjectIDByIdent('Firmware', $instanceID)));
     }
 
     public function testMowerReportStoresNegativeAppScaleInConfirmedVariable(): void
