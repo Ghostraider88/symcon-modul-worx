@@ -185,6 +185,43 @@ final class WorxScheduleCodecTest extends TestCase
         self::assertSame($expectedRows, $decodedRows);
     }
 
+    public function testDisabledDayRoundTripsAsZeroDurationAndNoMowingEventPoint(): void
+    {
+        $schedule = $this->makeSchedule();
+        $rows = WorxScheduleCodec::toRows($schedule);
+        $rows[0]['Enabled'] = false;
+        $rows[0]['Start'] = '00:00';
+        $rows[0]['Minutes'] = 0;
+        $rows[0]['Border'] = false;
+
+        $updated = WorxScheduleCodec::mergeRows($schedule, $rows);
+        self::assertSame(['00:00', 0, 0, 'unknown-slot-field'], $updated['d'][1]);
+        self::assertSame($schedule['metadata'], $updated['metadata']);
+
+        $eventPoints = WorxScheduleCodec::toEventPoints($updated);
+        self::assertSame([['Minute' => 0, 'Action' => 0]], $eventPoints[0]);
+
+        $groups = [];
+        foreach ($eventPoints as $day => $points) {
+            $groups[] = [
+                'Days'   => 1 << $day,
+                'Points' => array_map(static function (array $point): array
+                {
+                    return [
+                        'Start' => [
+                            'Hour'   => intdiv($point['Minute'], 60),
+                            'Minute' => $point['Minute'] % 60,
+                        ],
+                        'ActionID' => $point['Action'],
+                    ];
+                }, $points),
+            ];
+        }
+        $roundTripRows = WorxScheduleCodec::rowsFromEvent(['EventType' => 2, 'ScheduleGroups' => $groups], $updated);
+        self::assertFalse($roundTripRows[0]['Enabled']);
+        self::assertSame(0, $roundTripRows[0]['Minutes']);
+        self::assertSame('00:00', $roundTripRows[0]['Start']);
+    }
     public function testRejectsUnsupportedOrMalformedSchedule(): void
     {
         $schedule = $this->makeSchedule();
