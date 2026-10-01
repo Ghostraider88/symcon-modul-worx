@@ -5,21 +5,27 @@ Zielrepository: [`Ghostraider88/symcon-modul-worx`](https://github.com/Ghostraid
 ## Aktueller Arbeitsstand (2026-10-01)
 
 - Arbeitsbranch: `codex/worx-wr105si` (laufender Entwicklungs- und Testbranch).
-- Der Docker-Testkernel läuft mit Library 2.0 / Build 20. Der Modul-Checkout wurde am 2026-10-01 auf `07e1a2b` fast-forward aktualisiert und der Container `symcon-test` neu gestartet; die Konsole antwortete danach mit HTTP 200. Der Nutzer bestätigte die Anzeige des nächsten Planstarts mit `01.10.2026 17:00` im Symcon-Testkernel. Ein Mähbefehl wurde beim Update nicht gesendet.
-- GitHub Actions für `07e1a2b`: sechs Prüfungen erfolgreich (PHP-Syntax, Style und Tests auf beiden Runnern).
+- Der Docker-Testkernel (Symcon Kernel 9.0) läuft mit Library 2.0 / Build 20. Der aktuelle Checkout steht auf Branch `codex/worx-wr105si`, Commit `0ef4698`; der letzte PHP-Code-Commit ist `8741ee9`, spätere Commits enthalten Dokumentations- und Prüfnachweise. Der Nutzer bestätigte auf diesem Code die App→Symcon-Rückmeldung der täglichen Arbeitszeit mit +10 % und Rückstellung auf 0 %. Die Anzeige des nächsten Planstarts `01.10.2026 17:00` wurde ebenfalls bestätigt; bei beiden Prüfungen wurde kein Mähbefehl ausgelöst.
+- GitHub Actions für den aktuellen PR-Commit `0ef4698`: sechs Prüfungen erfolgreich (PHP-Syntax, Style und Tests auf beiden Runnern; per GitHub-API verifiziert).
 - PR #1 ist offen und als Entwurf markiert. `main` ist noch nicht veröffentlicht.
 - Der zuletzt dokumentierte Docker-Zustand: Kernel 9.0, Cloud und Mower aktiv, Mäher in der Ladestation, Fehler 0, Mähzeitplan täglich 17:00–19:00 mit den ursprünglichen Kantenschnitt-Tagen. Keine Fahraktion beim Build-20-Check.
 - Die Detailbelege, Gerätegrenzen und nicht belegten Funktionen stehen in der [Feature-Matrix](FEATURE_MATRIX.md). Die Architektur und der Updatepfad stehen in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## Noch zu erledigen – in dieser Reihenfolge
+## Abgeschlossen
 
-1. **Manueller Kantenschnitt (abgeschlossen):** Worx führt den WR105SI.1 nicht unter den Modellen für den manuellen Einzel-Kantenschnitt. Die Aktion ist deshalb nicht bedienbar; geplanter Kantenschnitt bleibt im Wochenplan verfügbar.
-2. **Einstellungs-Rückrichtung (abgeschlossen):** Der Nutzer bestätigte am 2026-10-01, dass eine in der Worx-App geänderte tägliche Arbeitszeit unmittelbar in Symcon erscheint. Symcon→Cloud-Schreibrundläufe sind ebenfalls belegt.
-3. **Mehrzonen:** das Modell meldet `multi_zone` und `multi_zone_percentage`, der Nutzer verwendet aber nur eine Zone. Die nichtnullige `cfg.mz`-/`cfg.mzv`-Abbildung und ein sicherer Schreib-Rundlauf fehlen. Keine Bedienelemente oder Payloads raten; erst mit einem echten Mehrzonen-Gerätebeleg implementieren.
-4. **Installationshärtung:** kontrollierte vollständige Neuinstallation mit Kontoeinrichtung und Repository-Deinstallation; Live-Fehlerfälle für Cloud/MQTT, Token-Erneuerung und Rate-Limit. Bestehende Unit-Tests decken HTTP-/Parserfehler bereits ab.
-5. **Nicht belegte App-Felder:** „Ganzer Tag“ und Zeitfenster über Mitternacht bleiben ohne nachgewiesene verlustfreie Protokollabbildung dokumentiert und werden nicht als bedienbar ausgegeben. Einmaliger Einsatz und Party-Modus sind für dieses Modell nicht belegt.
-6. **Nächster Planstart (abgeschlossen):** read-only Anzeige in Docker geprüft; mit unverändertem Plan wird `01.10.2026 17:00` angezeigt. Es wurde kein Mähbefehl ausgelöst.
-7. **Veröffentlichung:** Matrix, Dokumentation und Teststand abgleichen, alle CI-Prüfungen grün halten und PR #1 nach Abschluss der notwendigen Abnahme zur Veröffentlichung über `main` freigeben.
+- Manueller Einzel-Kantenschnitt wird für WR105SI.1 nicht angeboten; der geplante Kantenschnitt bleibt im Wochenplan verfügbar.
+- App→Symcon für die tägliche Arbeitszeit ist live bestätigt: +10 % erschien unmittelbar in Symcon und wurde danach auf 0 % zurückgestellt. Symcon→Cloud-Schreibrundläufe sind ebenfalls belegt.
+- Die read-only Anzeige „Nächster Planstart“ zeigte bei unverändertem Plan `01.10.2026 17:00`; dabei wurde kein Mähbefehl ausgelöst.
+
+## Vor Veröffentlichung noch erforderlich – in dieser Reihenfolge
+
+1. **Installationshärtung:** kontrollierte vollständige Neuinstallation mit Kontoeinrichtung und Repository-Deinstallation; Live-Fehlerfälle für Cloud/MQTT, Token-Erneuerung und Rate-Limit. Bestehende Unit-Tests decken HTTP-/Parserfehler bereits ab.
+2. **Nicht belegte App-Felder:** „Ganzer Tag“ und Zeitfenster über Mitternacht bleiben ohne nachgewiesene verlustfreie Protokollabbildung dokumentiert und werden nicht als bedienbar ausgegeben. Einmaliger Einsatz und Party-Modus sind für dieses Modell nicht belegt.
+3. **Veröffentlichung:** Matrix, Dokumentation und Teststand abgleichen, alle CI-Prüfungen grün halten und PR #1 nach Abschluss der notwendigen Abnahme über `main` veröffentlichen.
+
+## Explizite Scope-Entscheidung
+
+Mehrzonenbetrieb ist für dieses Vorhaben aus dem Nutzungs- und Abnahmeumfang genommen: Der Nutzer verwendet ausschließlich eine Zone. Die Hersteller-Capability und die nicht geklärte `cfg.mz`/`cfg.mzv`-Semantik bleiben in der Feature-Matrix als Gerätefakten dokumentiert; das Modul zeigt dafür keine Bedienung an und verändert die Gerätekonfiguration nicht.
 
 ## Abgeschlossene Kernabnahme
 
