@@ -28,9 +28,9 @@
 
 ### Privacy and quality
 
-- [x] Reviewed the current tracked file tree at `c42b42ab99ba3288e53cb9c2d75a24ec542dd661`; known device, account, contact, network, path, and credential values are absent from current files.
-- [ ] Rewrite and verify all commits reachable from published branches and tags. A private mower firmware value remains in reachable `main` history; this gate stays open until the value is absent after the history rewrite and remote verification.
+- [x] Reviewed the current tracked file tree at `35f7a762fa70f9a56fabe658609d4f70b3cc2379`; known private device, account, contact, network, path, and credential values are absent from current files.
+- [x] Rewrote and checked the history reachable from published branches and tags at `35f7a762fa70f9a56fabe658609d4f70b3cc2379`; the remote advertises only `main` and no tags, and known private mower identifiers, firmware, and schedule values were not found in its current tree or reachable history.
 - [ ] Ask GitHub Support to purge hidden pull-request refs and cached views that retain device details or personal commit metadata. This is separate from cleanup of published branch and tag history.
 - [x] Screenshots and full cloud responses are excluded from the current tracked file tree.
-- [x] GitHub Actions passed Check Style, Run Tests, and PHP 8.5 syntax checks for commit `c42b42ab99ba3288e53cb9c2d75a24ec542dd661`.
+- [x] GitHub Actions passed Check Style, Run Tests, and PHP 8.5 syntax checks for commit `35f7a762fa70f9a56fabe658609d4f70b3cc2379`.
 - [ ] Review release metadata, release notes, license, manifests, and the final diff together after the remaining V1 gates pass.
