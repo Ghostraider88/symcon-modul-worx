@@ -283,6 +283,15 @@ final class WorxScheduleCodec
         return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
+    /** Confirm that the editable event is based on the latest supported mower plan. */
+    public static function matchesCurrentSchedule(array $freshSchedule, $reportedSchedule): bool
+    {
+        return self::hasValidSlots($freshSchedule, 'd')
+            && is_array($reportedSchedule)
+            && self::hasValidSlots($reportedSchedule, 'd')
+            && self::canonicalJson($freshSchedule) === self::canonicalJson($reportedSchedule);
+    }
+
     /** Compare the schedule fields exposed for editing in the Symcon event. */
     public static function matchesEditableSlots(array $expected, array $reported): bool
     {

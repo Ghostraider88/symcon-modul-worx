@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../libs/WorxScheduleCodec.php';
+require_once __DIR__ . '/../libs/WorxProductAllowlist.php';
 
 /**
  * Worx Landroid instance. Existing variables and actions retain their idents.
@@ -48,6 +49,7 @@ class WorxMower extends IPSModule
     {
         parent::Create();
         $this->RegisterPropertyString('Serial', '');
+        $this->RegisterPropertyInteger('AllowedProductID', 0);
         $this->ConnectParent('{2A3889B6-AD03-4B1E-8782-BEB0E6CABCC1}');
 
         $this->RegisterAttributeString('ReportedSchedule', '');
@@ -117,8 +119,7 @@ class WorxMower extends IPSModule
             $this->SetStatus(104);
             return;
         }
-        $this->SetTimerInterval('NextScheduleStart', 60 * 1000);
-        $this->SetStatus(102);
+        $this->lockUnsupportedDevice($this->checkingDeviceMessage());
         $this->SetValueSafe('Control', 0);
         if (IPS_GetKernelRunlevel() === KR_READY) {
             $this->WriteAttributeBoolean('ScheduleWritesSuppressed', true);
@@ -206,6 +207,10 @@ class WorxMower extends IPSModule
     public function Command(int $Command): bool
     {
         if (!isset(self::COMMANDS[$Command])) {
+            return false;
+        }
+        if ($this->getDevice() === null) {
+            $this->SetValueSafe('CommandStatus', $this->deviceNotAllowedMessage());
             return false;
         }
         if ($this->ReadAttributeString('PendingCommand') !== '') {
@@ -676,6 +681,23 @@ class WorxMower extends IPSModule
     /** Send the current native Symcon weekly event to Worx. */
     public function SendSchedule(): bool
     {
+        $device = $this->getDevice();
+        $freshSchedule = $device === null ? null : WorxScheduleCodec::scheduleFromDevice($device);
+        if ($freshSchedule === null) {
+            $this->SetValueSafe('ScheduleSyncStatus', $device === null
+                ? $this->deviceNotAllowedMessage()
+                : $this->unsupportedScheduleMessage());
+            if ($device !== null) {
+                $this->lockUnsupportedDevice($this->unsupportedScheduleMessage());
+            }
+            return false;
+        }
+        $reportedSchedule = json_decode($this->ReadAttributeString('ReportedSchedule'), true);
+        if (!WorxScheduleCodec::matchesCurrentSchedule($freshSchedule, $reportedSchedule)) {
+            $this->updateSchedule($freshSchedule);
+            $this->SetValueSafe('ScheduleSyncStatus', 'Nicht übertragen: Der bestätigte Mäherplan hat sich geändert und wurde zuerst aktualisiert.');
+            return false;
+        }
         $eventID = $this->scheduleEventID();
         $sourceJson = $this->ReadAttributeString('ReportedSchedule');
         $source = $sourceJson === '' ? null : json_decode($sourceJson, true);
@@ -822,6 +844,8 @@ class WorxMower extends IPSModule
         $schedule = $device === null ? null : WorxScheduleCodec::scheduleFromDevice($device);
         $elements = [
             ['type' => 'ValidationTextBox', 'name' => 'Serial', 'caption' => 'Seriennummer'],
+            ['type' => 'NumberSpinner', 'name' => 'AllowedProductID', 'caption' => 'Lokal freigegebene Produkt-ID', 'minimum' => 0],
+            ['type' => 'Label', 'caption' => '0 sperrt die Instanz. Trage nur die geprüfte Produkt-ID aus dem Worx-Konfigurator ein; die Freigabe wird nicht an Worx übertragen.'],
             ['type' => 'Label', 'caption' => 'Der redigierte Gerätebeleg steht in der Mower-Variable „Gerätenachweis (redigiert)“.'],
         ];
         $configuration = $device === null ? [] : WorxScheduleCodec::deviceConfiguration($device);
@@ -863,6 +887,7 @@ class WorxMower extends IPSModule
             'status'   => [
                 ['code' => 102, 'icon' => 'active', 'caption' => 'Aktiv'],
                 ['code' => 104, 'icon' => 'inactive', 'caption' => 'Seriennummer fehlt'],
+                ['code' => 204, 'icon' => 'error', 'caption' => 'Gerät nicht für V1 freigegeben'],
             ],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
@@ -1066,6 +1091,13 @@ class WorxMower extends IPSModule
 
     private function applyDevice(array $device): void
     {
+        if (!self::IsSupportedDevice($device, $this->ReadPropertyInteger('AllowedProductID'))) {
+            $message = self::IsAllowedProduct($device, $this->ReadPropertyInteger('AllowedProductID'))
+                ? $this->unsupportedScheduleMessage() : $this->deviceNotAllowedMessage();
+            $this->lockUnsupportedDevice($message);
+            return;
+        }
+        $schedule = WorxScheduleCodec::scheduleFromDevice($device);
         $this->SetValueSafe('Online', (bool) ($device['online'] ?? false));
         $this->SetValueSafe('DeviceDiagnostics', WorxScheduleCodec::canonicalJson(WorxScheduleCodec::sanitizedDeviceRecord($device)));
         $this->updateControlPresentation();
@@ -1078,8 +1110,12 @@ class WorxMower extends IPSModule
         $dat = is_array($payload) ? ($payload['dat'] ?? null) : null;
         if (!is_array($dat)) {
             $this->SetSummary($device['name'] ?? '');
+            $this->lockUnsupportedDevice($this->unsupportedScheduleMessage());
             return;
         }
+        $this->restoreAllowedDeviceVisibility();
+        $this->SetStatus(102);
+        $this->SetTimerInterval('NextScheduleStart', 60 * 1000);
 
         $state = (int) ($dat['ls'] ?? 0);
         $error = (int) ($dat['le'] ?? 0);
@@ -1170,12 +1206,7 @@ class WorxMower extends IPSModule
         // Prefer the mower timestamp; fall back to local receipt time when protocol 0 omits dat.tm.
         $timestamp = isset($dat['tm']) ? strtotime((string) $dat['tm']) : false;
         $this->SetValueSafe('LastUpdate', $timestamp === false ? time() : $timestamp);
-        $schedule = WorxScheduleCodec::scheduleFromDevice($device);
-        if ($schedule !== null) {
-            $this->updateSchedule($schedule);
-        } else {
-            $this->SetValueSafe('ScheduleSyncStatus', 'Zeitplanformat des Geräts wird nicht unterstützt oder ist unvollständig.');
-        }
+        $this->updateSchedule($schedule);
         if ($supportsTimeExtension
             && ($this->ReadAttributeString('PendingSchedule') === '' || $this->ReadAttributeString('PendingSchedulePurpose') !== 'time_extension')) {
             $reportedTimeExtension = WorxScheduleCodec::timeExtensionFromProtocol($reportedSchedule['p']);
@@ -1471,7 +1502,42 @@ class WorxMower extends IPSModule
         return $device === null ? null : WorxScheduleCodec::scheduleFromDevice($device);
     }
 
+    public static function IsAllowedProduct(array $device, int $allowedProductID): bool
+    {
+        return WorxProductAllowlist::matches($device, $allowedProductID);
+    }
+
+    public static function IsSupportedDevice(array $device, int $allowedProductID): bool
+    {
+        $dat = $device['last_status']['payload']['dat'] ?? null;
+        $hasValidState = is_array($dat)
+            && $dat !== []
+            && isset($dat['ls'])
+            && ((is_int($dat['ls']) && $dat['ls'] >= 0) || (is_string($dat['ls']) && preg_match('/^\\d+$/', $dat['ls']) === 1));
+
+        return self::IsAllowedProduct($device, $allowedProductID)
+            && WorxScheduleCodec::scheduleFromDevice($device) !== null
+            && $hasValidState;
+    }
+
     private function getDevice(): ?array
+    {
+        $device = $this->getRawDevice();
+        if ($device === null) {
+            $this->lockUnsupportedDevice($this->checkingDeviceMessage());
+            return null;
+        }
+        $allowedProductID = $this->ReadPropertyInteger('AllowedProductID');
+        if (!self::IsSupportedDevice($device, $allowedProductID)) {
+            $message = !self::IsAllowedProduct($device, $allowedProductID)
+                ? $this->deviceNotAllowedMessage() : $this->unsupportedScheduleMessage();
+            $this->lockUnsupportedDevice($message);
+            return null;
+        }
+        return $device;
+    }
+
+    private function getRawDevice(): ?array
     {
         $parent = (int) IPS_GetInstance($this->InstanceID)['ConnectionID'];
         if ($parent === 0 || $this->ReadPropertyString('Serial') === '') return null;
@@ -1482,6 +1548,64 @@ class WorxMower extends IPSModule
         ]));
         $device = json_decode((string) $result, true);
         return is_array($device) ? $device : null;
+    }
+
+    private function checkingDeviceMessage(): string
+    {
+        return $this->Translate('Gesperrt: Warte auf frische, gültige Geräte-, Status- und Zeitplandaten.');
+    }
+
+    private function deviceNotAllowedMessage(): string
+    {
+        return $this->Translate('Gesperrt: Produkt-ID lokal freigeben. Trage die geprüfte ID im Worx-Konfigurator oder in den Mower-Instanzeigenschaften ein.');
+    }
+
+    private function unsupportedScheduleMessage(): string
+    {
+        return $this->Translate('Gesperrt: Kein gültiges unterstütztes Worx-Zeitplanformat empfangen.');
+    }
+
+    private function restoreAllowedDeviceVisibility(): void
+    {
+        foreach (IPS_GetChildrenIDs($this->InstanceID) as $childID) {
+            $child = IPS_GetObject($childID);
+            if (($child['ObjectIdent'] ?? '') === 'WorxWeeklySchedule') {
+                IPS_SetHidden($childID, false);
+                continue;
+            }
+            if ($child['ObjectType'] !== 2) {
+                continue;
+            }
+            $ident = $child['ObjectIdent'] ?? '';
+            if (in_array($ident, self::VARIABLE_IDENTS, true)
+                && !in_array($ident, ['Schedule', 'SchedulePreview', 'Zone', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet', 'FirmwareUpgradeStatus', 'FirmwareUpgradeAction'], true)) {
+                IPS_SetHidden($childID, false);
+            }
+        }
+    }
+
+    private function lockUnsupportedDevice(string $message): void
+    {
+        $this->SetStatus(204);
+        $this->SetValueSafe('CommandStatus', $message);
+        $this->SetValueSafe('SettingStatus', $message);
+        $this->SetValueSafe('ScheduleSyncStatus', $message);
+        foreach (IPS_GetChildrenIDs($this->InstanceID) as $childID) {
+            $child = IPS_GetObject($childID);
+            if (($child['ObjectIdent'] ?? '') === 'WorxWeeklySchedule') {
+                IPS_SetHidden($childID, true);
+                continue;
+            }
+            if ($child['ObjectType'] !== 2) {
+                continue;
+            }
+            $ident = $child['ObjectIdent'] ?? '';
+            if (in_array($ident, self::VARIABLE_IDENTS, true)
+                && !in_array($ident, ['CommandStatus', 'SettingStatus', 'ScheduleSyncStatus'], true)) {
+                IPS_SetHidden($childID, true);
+            }
+        }
+        $this->SetTimerInterval('NextScheduleStart', 0);
     }
 
     /**

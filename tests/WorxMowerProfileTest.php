@@ -49,6 +49,42 @@ final class WorxMowerProfileTest extends TestCase
         IPS\Kernel::reset();
     }
 
+    public function testMowerGateRequiresProductIdSupportedScheduleAndCurrentStatusPayload(): void
+    {
+        $device = [
+            'product_id' => 42,
+            'protocol' => 0,
+            'cfg' => ['sc' => ['d' => array_fill(0, 7, ['09:30',60,1])]],
+            'last_status' => ['payload' => ['dat' => ['ls' => 1]]],
+        ];
+        self::assertTrue(WorxMower::IsSupportedDevice($device, 42));
+        self::assertFalse(WorxMower::IsSupportedDevice($device, 0));
+        self::assertFalse(WorxMower::IsSupportedDevice($device, 43));
+        self::assertFalse(WorxMower::IsSupportedDevice([], 42));
+        $device['product_id'] = '42';
+        self::assertFalse(WorxMower::IsSupportedDevice($device, 42));
+        $device['product_id'] = 42;
+        unset($device['last_status']['payload']['dat']);
+        self::assertFalse(WorxMower::IsSupportedDevice($device, 42));
+        $device['last_status']['payload']['dat'] = [];
+        self::assertFalse(WorxMower::IsSupportedDevice($device, 42));
+        $device['last_status']['payload']['dat'] = ['ls' => 'unknown'];
+        self::assertFalse(WorxMower::IsSupportedDevice($device, 42));
+        $device['last_status']['payload']['dat'] = ['ls' => -1];
+        self::assertFalse(WorxMower::IsSupportedDevice($device, 42));
+        $device['last_status']['payload']['dat'] = ['ls' => 1];
+        $device['protocol'] = 1;
+        self::assertFalse(WorxMower::IsSupportedDevice($device, 42));
+    }
+
+    public function testSchedulePublishRequiresTheFreshScheduleToMatchConfirmedState(): void
+    {
+        $fresh = ['d' => array_fill(0, 7, ['09:30',60,1])];
+        $different = ['d' => array_fill(0, 7, ['18:00', 120, 1])];
+        self::assertTrue(WorxScheduleCodec::matchesCurrentSchedule($fresh, $fresh));
+        self::assertFalse(WorxScheduleCodec::matchesCurrentSchedule($fresh, null));
+        self::assertFalse(WorxScheduleCodec::matchesCurrentSchedule($fresh, $different));
+    }
     public function testApplyChangesSuppressesScheduleWritesDuringRefreshAndResetsTheFlag(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);

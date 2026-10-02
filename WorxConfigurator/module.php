@@ -56,7 +56,7 @@ class WorxConfigurator extends IPSModule
                 'create'      => [
                     'moduleID'      => self::MOWER_GUID,
                     'name'          => $device['name'] ?? $serial,
-                    'configuration' => ['Serial' => $serial],
+                    'configuration' => ['Serial' => $serial, 'AllowedProductID' => $allowedProductID],
                 ],
             ];
         }
