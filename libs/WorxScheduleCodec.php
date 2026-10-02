@@ -135,13 +135,13 @@ final class WorxScheduleCodec
             'capabilities'          => is_array($capabilities)
                 ? array_values(array_filter($capabilities, static function ($value): bool
                 {
-                    return is_string($value) && strpos($value, 'multi_zone') !== 0;
+                    return is_string($value) && strpos($value, 'multi_zone') !== 0 && stripos($value, 'pairing') === false;
                 }))
                 : [],
             'capabilities_available' => is_array($available)
                 ? array_values(array_filter($available, static function ($value): bool
                 {
-                    return is_string($value) && strpos($value, 'multi_zone') !== 0;
+                    return is_string($value) && strpos($value, 'multi_zone') !== 0 && stripos($value, 'pairing') === false;
                 }))
                 : [],
             'features'      => $safeFeatures,

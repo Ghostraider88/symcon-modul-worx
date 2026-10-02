@@ -1167,9 +1167,6 @@ class WorxMower extends IPSModule
                 }
             }
         }
-        // Protocol 0 reports the current zone as dat.lz; accept the nested form as a compatibility fallback.
-        $zone = $dat['lz'] ?? ($dat['cut']['z'] ?? null);
-        if (is_numeric($zone)) $this->SetValueSafe('Zone', (int) $zone);
         // Prefer the mower timestamp; fall back to local receipt time when protocol 0 omits dat.tm.
         $timestamp = isset($dat['tm']) ? strtotime((string) $dat['tm']) : false;
         $this->SetValueSafe('LastUpdate', $timestamp === false ? time() : $timestamp);
@@ -1531,7 +1528,6 @@ class WorxMower extends IPSModule
         $this->RegisterVariableFloat('Distance', 'Gesamtstrecke', $this->valuePresentation(' km'), $p++);
         $this->RegisterVariableFloat('WorkTime', 'Mähzeit gesamt', $this->valuePresentation(' h'), $p++);
         $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', $this->valuePresentation(' h'), $p++);
-        $this->RegisterVariableInteger('Zone', 'Aktuelle Zone', '', $p++);
         $this->RegisterVariableString('Firmware', 'Firmware', '', $p++);
         $this->RegisterVariableBoolean('FirmwareAutoUpgrade', 'Firmware-Update automatisch (Cloud, bestätigt)', $this->booleanValuePresentation('Aus', 'Ein'), $p++);
         $this->RegisterVariableBoolean('FirmwareAutoUpgradeSet', 'Automatische Firmware-Updates setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);

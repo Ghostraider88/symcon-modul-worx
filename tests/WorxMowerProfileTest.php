@@ -92,6 +92,7 @@ final class WorxMowerProfileTest extends TestCase
 
         self::assertTrue(IPS_GetObject($zoneID)['ObjectIsHidden']);
     }
+
     public function testHomeCommandAcceptsSearchingForChargingStationButNotGenericBoundarySearch(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
