@@ -677,24 +677,22 @@ final class WorxMowerProfileTest extends TestCase
     public function testPresentationOptionsProvideSymconEditorDefaults(): void
     {
         $module = new WorxMower(1);
-        $requiredKeys = ['IconActive', 'IconValue', 'ColorActive', 'ColorValue', 'ContentColorActive', 'ContentColorValue'];
 
         foreach ([
-            ['booleanValuePresentation', ['Aus', 'Ein']],
-            ['enumerationPresentation', [[0 => 'Aus', 1 => 'Ein']]],
-        ] as [$methodName, $arguments]) {
+            ['booleanValuePresentation', ['Aus', 'Ein'], ['Value', 'Caption', 'IconActive', 'IconValue', 'ColorActive', 'ColorValue']],
+            ['enumerationPresentation', [[0 => 'Aus', 1 => 'Ein']], ['Value', 'Caption', 'IconActive', 'IconValue', 'Color']],
+        ] as [$methodName, $arguments, $allowedKeys]) {
             $method = new ReflectionMethod(WorxMower::class, $methodName);
             $method->setAccessible(true);
             $presentation = $method->invokeArgs($module, $arguments);
             $options = json_decode($presentation['OPTIONS'], true, 512, JSON_THROW_ON_ERROR);
 
             foreach ($options as $option) {
-                foreach ($requiredKeys as $key) {
-                    self::assertArrayHasKey($key, $option, $methodName . ' option is missing ' . $key);
-                }
+                self::assertSame($allowedKeys, array_keys($option));
                 self::assertFalse($option['IconActive']);
-                self::assertFalse($option['ColorActive']);
-                self::assertFalse($option['ContentColorActive']);
+                if ($methodName === 'booleanValuePresentation') {
+                    self::assertFalse($option['ColorActive']);
+                }
             }
         }
     }
