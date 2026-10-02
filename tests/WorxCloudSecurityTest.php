@@ -65,6 +65,16 @@ final class WorxCloudEmptyInventoryTestDouble extends WorxCloud
 {
     public array $childMessages = [];
 
+    public function SendDataToChildren($JSONString)
+    {
+        $this->childMessages[] = json_decode($JSONString, true);
+    }
+
+    public function readDevicesForTest(): string
+    {
+        return $this->ReadAttributeString('Devices');
+    }
+
     protected function getToken(): string
     {
         return 'test-token';
@@ -79,27 +89,17 @@ final class WorxCloudEmptyInventoryTestDouble extends WorxCloud
     {
         return [];
     }
-
-    public function SendDataToChildren($JSONString)
-    {
-        $this->childMessages[] = json_decode($JSONString, true);
-    }
-
-    public function readDevicesForTest(): string
-    {
-        return $this->ReadAttributeString('Devices');
-    }
 }
 
 final class WorxConfiguratorEmptyInventoryTestDouble extends WorxConfigurator
 {
-    protected function ConnectParent($ModuleID)
-    {
-    }
-
     public function SendDataToParent($JSONString)
     {
         return '[]';
+    }
+
+    protected function ConnectParent($ModuleID)
+    {
     }
 }
 
