@@ -8,7 +8,7 @@
 - [x] The read-only next schedule start was checked against the unchanged test schedule.
 - [x] Numeric status and adjacent readable status text display correctly without legacy profiles.
 - [x] The main branch runtime fix is installed in both Docker test kernels; both were running and their last ten minutes of logs contained no PHP fatal errors, warnings, parse errors, or uncaught exceptions.
-- [x] GitHub Actions passed `Check Style` and `Run Tests` for the current main commit `a14c473b553c81dbf05d90fd9392a5f9bd53512b`.
+- [x] GitHub Actions passed Check Style, Run Tests, and PHP 8.5 syntax checks for source commit a9806cdd2d270f3f8b4e59de6a41c1f95ec4810a.
 - [x] MQTT broker, MQTT Client parent, and Worx Cloud setup are documented in the installation guide.
 
 ## Remaining before a general V1 release
@@ -18,19 +18,19 @@
 - [ ] Install from a clean IP-Symcon 9.x test kernel and remove the test instances cleanly.
 - [ ] Verify missing and invalid credentials, unavailable MQTT transport, and an empty device inventory.
 - [ ] Apply instance configuration repeatedly and confirm there are no duplicate objects or unintended commands.
-- [x] Existing test instances were updated; automated identity checks cover stable module GUIDs and legacy variable identifiers.
+- [x] Existing test instances were updated on main; CI asserts stable library/module GUIDs and prefixes. Variable identifiers remain unchanged in mower registration code.
 
 ### Device behavior and compatibility
 
 - [x] Reviewed visible controls against the V1 feature matrix; excluded controls are not presented as supported actions, and writable options are capability-gated.
 - [ ] Live-check write/read-back for settings not yet confirmed on the test installation; do not issue a firmware installation request as a routine test.
-- [ ] Enter the tested mower product_id in the local Configurator property and verify the exact matching row alone receives a create action; the property defaults to 0 and the code contains no device-specific product ID.
+- [ ] Enter the tested mower product_id in the local Configurator property and verify only rows with that exact model ID receive a create action; the property defaults to 0 and the code contains no device-specific product ID.
 - [x] Documentation keeps other models and protocol variants outside the V1 compatibility claim.
 
 ### Privacy and quality
 
 - [x] Scanned the final tracked main tree, pushed branch/tag refs, and rewritten commit metadata for known private device, account, contact, network, path, and credential data; no such values were found in main. The public maintainer handle remains in package metadata and license attribution.
 - [x] Screenshots and full cloud responses are excluded from the repository.
-- [x] Automated tests, style checks, and CI passed on the current main commit `a14c473b553c81dbf05d90fd9392a5f9bd53512b`.
+- [x] Automated tests, style checks, and CI passed on source commit a9806cdd2d270f3f8b4e59de6a41c1f95ec4810a.
 - [ ] Final release metadata, release notes, license, manifests, and diff must be reviewed together after remaining gates pass.
 - [ ] GitHub retains hidden pull-request refs. PR 1 still contains device details and personal commit metadata; PR 2 retains personal commit metadata. GitHub Support must purge those refs and cached views before complete historical removal can be claimed.
