@@ -303,6 +303,7 @@ final class WorxCloudSecurityTest extends TestCase
             'ModuleType' => 2,
         ]);
         $cloud = IPS\InstanceManager::getInstanceInterface(1);
+        $cloud->SetProperty('Cloud', 'worx');
         $cloud->SetProperty('Email', 'test@example.invalid');
         $cloud->SetProperty('Password', 'secret');
 
