@@ -9,7 +9,7 @@
 - Locks mower instances by default and requires a local exact product-ID match plus valid device status and supported schedule data before exposing operation.
 - Documents MQTT transport setup, installation, update behavior, privacy limits, and the V1 scope.
 
-V1 is validated against one mower setup only. No compatibility claim is made for other models, protocols, or firmware variants. Exact device identifiers, firmware values, and private settings are intentionally omitted.
+V1 is validated against one mower setup only. No compatibility claim is made for other models, protocols, or firmware variants. The current tracked file tree omits exact device identifiers, firmware values, and private settings. Historical removal is not complete; see the release checklist.
 
 Out of scope: multi-zone operation, all-day scheduling, one-time mowing, Party mode, manual edge-cut commands, initial Wi-Fi pairing, ACS, blade-height or torque controls, and other mower models. Scheduled edge-cut flags remain part of the supported weekly schedule format; they do not enable a manual edge-cut action.
 
