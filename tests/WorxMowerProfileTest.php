@@ -44,6 +44,11 @@ final class WorxMowerTranslationTestDouble extends WorxMower
     protected function ConnectParent($ModuleID)
     {
     }
+
+    protected function getTime()
+    {
+        return time();
+    }
 }
 
 final class WorxMowerProfileTest extends TestCase
