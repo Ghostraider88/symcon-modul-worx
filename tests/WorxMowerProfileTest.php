@@ -63,7 +63,7 @@ final class WorxMowerProfileTest extends TestCase
         $device = [
             'product_id'  => 42,
             'protocol'    => 0,
-            'cfg'         => ['sc' => ['d' => array_fill(0, 7, ['09:30',60,1])]],
+            'cfg'         => ['sc' => ['d' => array_fill(0, 7, ['08:30', 60, 1])]],
             'last_status' => ['payload' => ['dat' => ['ls' => 1]]],
         ];
         self::assertTrue(WorxMower::IsSupportedDevice($device, 42));
@@ -88,8 +88,8 @@ final class WorxMowerProfileTest extends TestCase
 
     public function testSchedulePublishRequiresTheFreshScheduleToMatchConfirmedState(): void
     {
-        $fresh = ['d' => array_fill(0, 7, ['09:30',60,1])];
-        $different = ['d' => array_fill(0, 7, ['18:00', 120, 1])];
+        $fresh = ['d' => array_fill(0, 7, ['08:30', 60, 1])];
+        $different = ['d' => array_fill(0, 7, ['09:45', 60, 1])];
         self::assertTrue(WorxScheduleCodec::matchesCurrentSchedule($fresh, $fresh));
         self::assertFalse(WorxScheduleCodec::matchesCurrentSchedule($fresh, null));
         self::assertFalse(WorxScheduleCodec::matchesCurrentSchedule($fresh, $different));
@@ -992,7 +992,7 @@ final class WorxMowerProfileTest extends TestCase
         $device['protocol'] = 0;
         $schedule = $device['last_status']['payload']['cfg']['sc'] ?? $device['cfg']['sc'] ?? [];
         $days = $schedule['d'] ?? [];
-        $firstDay = is_array($days) && isset($days[0]) && is_array($days[0]) ? $days[0] : ['09:30',60,1];
+        $firstDay = is_array($days) && isset($days[0]) && is_array($days[0]) ? $days[0] : ['08:30', 60, 1];
         $schedule['d'] = array_fill(0, 7, $firstDay);
         $device['cfg']['sc'] = $schedule;
         $device['last_status']['payload']['cfg']['sc'] = $schedule;
