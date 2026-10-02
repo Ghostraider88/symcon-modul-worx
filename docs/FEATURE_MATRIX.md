@@ -7,7 +7,7 @@ The modules use capabilities and fields reported at runtime. A feature is shown 
 | Area | V1 behavior | Evidence and limits |
 |---|---|---|
 | Cloud connection | Account authentication, device inventory, REST, and MQTT transport | Requires a reachable MQTT broker and the IP-Symcon transport modules configured on the Worx Cloud instance |
-| Device discovery | Configurator creates Mower instances for devices returned by the cloud | Device identifiers remain in local instance configuration and must not be included in issue reports |
+| Device discovery | Configurator lists devices with the supported schedule shape; new instances require an exact, locally entered product_id allowlist match (default: locked) | Numeric product IDs are shown only in local IP-Symcon configuration and are not hard-coded in the repository |
 | Status | Numeric state/error values with adjacent readable strings, connectivity, battery, and reported telemetry | Only fields present in device data are displayed |
 | Mower commands | Start, pause, and return to charging station | Exercised with the test mower; command feedback and mower-reported state remain separate |
 | Weekly schedule | Native Symcon weekly event is the only schedule editor; changes are validated, sent, and confirmed by mower read-back | App-originated schedule changes update the event. The tested protocol-0 schedule contains seven weekday entries; scheduled edge-cut flags are retained as schedule fields |
