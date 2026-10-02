@@ -306,6 +306,7 @@ final class WorxCloudSecurityTest extends TestCase
         $cloud->SetProperty('Cloud', 'worx');
         $cloud->SetProperty('Email', 'test@example.invalid');
         $cloud->SetProperty('Password', 'secret');
+        (new ReflectionMethod(IPSModule::class, 'ApplyChanges'))->invoke($cloud);
 
         self::assertTrue($cloud->Poll());
         self::assertSame('[]', $cloud->readDevicesForTest());
