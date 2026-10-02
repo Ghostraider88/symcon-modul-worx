@@ -1203,7 +1203,8 @@ class WorxMower extends IPSModule
         }
         $presentation = $this->enumerationPresentation($options);
         IPS_SetVariableCustomPresentation($actionID, $presentation);
-        if (IPS_GetVariablePresentation($actionID) !== $presentation) {
+        $actualPresentation = IPS_GetVariablePresentation($actionID);
+        if (($actualPresentation['PRESENTATION'] ?? null) !== $presentation['PRESENTATION']) {
             throw new RuntimeException('Firmware-Update-Aktionsdarstellung konnte nicht bestätigt werden.');
         }
     }
