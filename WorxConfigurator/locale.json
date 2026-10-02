@@ -1,0 +1,13 @@
+{
+    "translations": {
+        "en": {
+            "Mähroboter": "Landroid mowers",
+            "Mäher mit unterstütztem Zeitplanformat": "Mowers with supported schedule format",
+            "Name": "Name",
+            "Seriennummer": "Serial number",
+            "Firmware": "Firmware",
+            "Online": "Online",
+            "Aktiv": "Active"
+        }
+    }
+}

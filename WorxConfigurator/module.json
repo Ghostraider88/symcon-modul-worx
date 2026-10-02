@@ -1,0 +1,18 @@
+{
+    "id": "{A8373ED9-7396-421E-A78E-4904A6AC4657}",
+    "name": "Worx Configurator",
+    "type": 4,
+    "vendor": "Worx",
+    "aliases": [
+        "Worx Landroid Configurator"
+    ],
+    "parentRequirements": [
+        "{F925090C-4AED-407D-8B80-F1730A55717E}"
+    ],
+    "childRequirements": [],
+    "implemented": [
+        "{F925090C-4AED-407D-8B80-F1730A55717E}"
+    ],
+    "prefix": "WORXCONF",
+    "url": "https://github.com/Ghostraider88/symcon-modul-worx"
+}

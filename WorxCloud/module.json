@@ -1,0 +1,23 @@
+{
+    "id": "{2A3889B6-AD03-4B1E-8782-BEB0E6CABCC1}",
+    "name": "Worx Cloud",
+    "type": 2,
+    "vendor": "Worx",
+    "aliases": [
+        "Worx Landroid Cloud"
+    ],
+    "parentRequirements": [
+        "{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}"
+    ],
+    "childRequirements": [
+        "{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}",
+        "{F925090C-4AED-407D-8B80-F1730A55717E}"
+    ],
+    "implemented": [
+        "{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}",
+        "{557B9D5F-D12D-4E44-87A7-05A5EC0F4F07}",
+        "{F925090C-4AED-407D-8B80-F1730A55717E}"
+    ],
+    "prefix": "WORX",
+    "url": "https://github.com/Ghostraider88/symcon-modul-worx"
+}
