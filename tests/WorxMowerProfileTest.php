@@ -40,6 +40,10 @@ final class WorxMowerTranslationTestDouble extends WorxMower
     {
         return 'EN:' . $Text;
     }
+
+    protected function ConnectParent($ModuleID)
+    {
+    }
 }
 
 final class WorxMowerProfileTest extends TestCase
@@ -410,7 +414,7 @@ final class WorxMowerProfileTest extends TestCase
     {
         IPS\Kernel::reset();
         $instanceID = IPS\ObjectManager::registerObject(1);
-        $module = new WorxMower($instanceID);
+        $module = $this->createMowerInstanceForTest($instanceID);
         $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
         $registerVariables->setAccessible(true);
         $registerVariables->invoke($module);
@@ -444,7 +448,7 @@ final class WorxMowerProfileTest extends TestCase
         ] as $report) {
             $this->applySupportedDevice($applyDevice, $module, [
                 'online'       => true,
-                'protocol'    => 0,
+                'protocol'     => 0,
                 'capabilities' => ['rain_delay', 'unrestricted_mowing_time', 'lock'],
                 'last_status'  => [
                     'payload' => [
@@ -479,7 +483,7 @@ final class WorxMowerProfileTest extends TestCase
 
         $this->applySupportedDevice($applyDevice, $module, [
             'online'       => true,
-            'protocol'    => 0,
+            'protocol'     => 0,
             'capabilities' => ['rain_delay', 'unrestricted_mowing_time', 'lock'],
             'last_status'  => [
                 'payload' => [
@@ -500,7 +504,7 @@ final class WorxMowerProfileTest extends TestCase
     {
         IPS\Kernel::reset();
         $instanceID = IPS\ObjectManager::registerObject(1);
-        $module = new WorxMowerTestDouble($instanceID);
+        $module = $this->createMowerInstanceForTest($instanceID);
         $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
         $registerVariables->setAccessible(true);
         $registerVariables->invoke($module);
@@ -568,7 +572,7 @@ final class WorxMowerProfileTest extends TestCase
     public function testRainDelayConfirmationIgnoresStaleEchoAndAdoptsLaterAppChange(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
-        $module = new WorxMowerTestDouble($instanceID);
+        $module = $this->createMowerInstanceForTest($instanceID);
         $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
         $registerVariables->setAccessible(true);
         $registerVariables->invoke($module);
@@ -632,7 +636,7 @@ final class WorxMowerProfileTest extends TestCase
     public function testManualEdgeCutIsNotOfferedWithoutAnExplicitlySupportedCommand(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
-        $module = new WorxMower($instanceID);
+        $module = $this->createMowerInstanceForTest($instanceID);
         $register = new ReflectionMethod(WorxMower::class, 'registerVariables');
         $register->setAccessible(true);
         $register->invoke($module);
@@ -648,7 +652,7 @@ final class WorxMowerProfileTest extends TestCase
     public function testStatusAndErrorTextVariablesContainReadableConfirmedLabels(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
-        $module = new WorxMower($instanceID);
+        $module = $this->createMowerInstanceForTest($instanceID);
         $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
         $registerVariables->setAccessible(true);
         $registerVariables->invoke($module);
@@ -661,7 +665,7 @@ final class WorxMowerProfileTest extends TestCase
         $method->setAccessible(true);
         $this->applySupportedDevice($method, $module, [
             'online'       => true,
-            'protocol'    => 0,
+            'protocol'     => 0,
             'capabilities' => [],
             'last_status'  => ['payload' => ['dat' => ['ls' => 1, 'le' => 0]]],
         ]);
@@ -675,7 +679,7 @@ final class WorxMowerProfileTest extends TestCase
 
         $this->applySupportedDevice($method, $module, [
             'online'       => true,
-            'protocol'    => 0,
+            'protocol'     => 0,
             'capabilities' => [],
             'last_status'  => ['payload' => ['dat' => ['ls' => 7, 'le' => 5]]],
         ]);
@@ -686,7 +690,7 @@ final class WorxMowerProfileTest extends TestCase
     public function testMowerStateAndErrorTextUseSymconTranslations(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
-        $module = new WorxMowerTranslationTestDouble($instanceID);
+        $module = $this->createMowerInstanceForTest($instanceID, true);
         $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
         $registerVariables->setAccessible(true);
         $registerVariables->invoke($module);
@@ -702,7 +706,7 @@ final class WorxMowerProfileTest extends TestCase
         $applyDevice->setAccessible(true);
         $this->applySupportedDevice($applyDevice, $module, [
             'online'       => true,
-            'protocol'    => 0,
+            'protocol'     => 0,
             'capabilities' => [],
             'last_status'  => ['payload' => ['dat' => ['ls' => 7, 'le' => 5]]],
         ]);
@@ -789,7 +793,7 @@ final class WorxMowerProfileTest extends TestCase
     public function testMowerReportStoresNegativeAppScaleInConfirmedVariable(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);
-        $module = new WorxMowerTestDouble($instanceID);
+        $module = $this->createMowerInstanceForTest($instanceID);
         $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
         $registerVariables->setAccessible(true);
         $registerVariables->invoke($module);
@@ -803,7 +807,7 @@ final class WorxMowerProfileTest extends TestCase
         $method->setAccessible(true);
         $this->applySupportedDevice($method, $module, [
             'online'       => true,
-            'protocol'    => 0,
+            'protocol'     => 0,
             'capabilities' => ['unrestricted_mowing_time'],
             'last_status'  => [
                 'payload' => [
@@ -817,9 +821,9 @@ final class WorxMowerProfileTest extends TestCase
         // The account inventory exposes the same configuration at the device root.
         $this->applySupportedDevice($method, $module, [
             'online'       => true,
-            'protocol'    => 0,
+            'protocol'     => 0,
             'capabilities' => ['unrestricted_mowing_time'],
-            'cfg'         => ['sc' => ['p' => -37]],
+            'cfg'          => ['sc' => ['p' => -37]],
             'last_status'  => ['payload' => ['dat' => ['ls' => 0, 'le' => 0]]],
         ]);
 
@@ -905,13 +909,18 @@ final class WorxMowerProfileTest extends TestCase
             'ModuleType' => 3,
         ]);
         $module = IPS\InstanceManager::getInstanceInterface($instanceID);
+        $module->SetProperty('AllowedProductID', 42);
+        $module->ApplyChanges();
+        $eventID = IPS\ObjectManager::registerObject(4);
+        IPS\ObjectManager::setParent($eventID, $instanceID);
+        IPS\ObjectManager::setIdent($eventID, 'WorxWeeklySchedule');
         $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
         $applyDevice->setAccessible(true);
 
         $before = time();
         $this->applySupportedDevice($applyDevice, $module, [
             'online'       => true,
-            'protocol'    => 0,
+            'protocol'     => 0,
             'capabilities' => [],
             'last_status'  => ['payload' => ['dat' => ['ls' => 1, 'le' => 0]]],
         ]);
@@ -952,30 +961,28 @@ final class WorxMowerProfileTest extends TestCase
         self::assertNull($method->invoke($module, $schedule, new DateTimeImmutable('2025-03-10 16:00', $timezone)));
     }
 
+    private function createMowerInstanceForTest(int $instanceID, bool $translated = false): WorxMower
+    {
+        IPS\InstanceManager::createInstance($instanceID, [
+            'Class'      => $translated ? WorxMowerTranslationTestDouble::class : WorxMowerTestDouble::class,
+            'ModuleID'   => '{39CA7807-D252-4375-8D05-1C5F918552C0}',
+            'ModuleName' => 'Worx Mower Test',
+            'ModuleType' => 3,
+        ]);
+        $module = IPS\InstanceManager::getInstanceInterface($instanceID);
+        $module->SetProperty('AllowedProductID', 42);
+        $module->ApplyChanges();
+
+        $eventID = IPS\ObjectManager::registerObject(4);
+        IPS\ObjectManager::setParent($eventID, $instanceID);
+        IPS\ObjectManager::setIdent($eventID, 'WorxWeeklySchedule');
+        IPS\ObjectManager::setName($eventID, 'Mähzeitplan');
+
+        return $module;
+    }
+
     private function applySupportedDevice(ReflectionMethod $method, WorxMower $module, array $device): void
     {
-        $registerProperty = new ReflectionMethod(IPSModule::class, 'RegisterPropertyInteger');
-        $registerProperty->setAccessible(true);
-        $registerProperty->invoke($module, 'AllowedProductID', 42);
-
-        $instanceIDProperty = new ReflectionProperty(IPSModule::class, 'InstanceID');
-        $instanceIDProperty->setAccessible(true);
-        $instanceID = $instanceIDProperty->getValue($module);
-        if (!IPS\InstanceManager::instanceExists($instanceID)) {
-            IPS\InstanceManager::createInstance($instanceID, [
-                'Class'      => get_class($module),
-                'ModuleID'   => '{39CA7807-D252-4375-8D05-1C5F918552C0}',
-                'ModuleName' => 'Worx Mower Test',
-                'ModuleType' => 3,
-            ]);
-        }
-        if (IPS_GetObjectIDByIdent('WorxWeeklySchedule', $instanceID) === false) {
-            $eventID = IPS\ObjectManager::registerObject(4);
-            IPS\ObjectManager::setParent($eventID, $instanceID);
-            IPS\ObjectManager::setIdent($eventID, 'WorxWeeklySchedule');
-            IPS\ObjectManager::setName($eventID, 'Mähzeitplan');
-        }
-
         $device['product_id'] = 42;
         $device['protocol'] = 0;
         $schedule = $device['last_status']['payload']['cfg']['sc'] ?? $device['cfg']['sc'] ?? [];
