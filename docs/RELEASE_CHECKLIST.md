@@ -7,16 +7,17 @@
 - [x] Start, pause, and return-home were exercised; the mower was confirmed back at the charging station.
 - [x] The read-only next schedule start was checked against the unchanged test schedule.
 - [x] Numeric status and adjacent readable status text display correctly without legacy profiles.
-- [x] Commit `c42b42ab99ba3288e53cb9c2d75a24ec542dd661` is installed in both Docker test kernels; both were running, and their last ten minutes of logs contained no PHP fatal errors, warnings, parse errors, or uncaught exceptions.
+- [x] Commit `8bd6d6fb7075585f639b43d0d3d508cb0e272c74` is installed in both Docker test kernels; both were running with healthy logs.
 - [x] MQTT broker, MQTT Client parent, and Worx Cloud setup are documented in the installation guide.
 
 ## Remaining before a general V1 release
 
 ### Installation and update
 
-- [ ] Install from a clean IP-Symcon 9.x test kernel and remove the test instances cleanly.
+- [x] Installed in a clean IP-Symcon 9.0 lifecycle kernel; removed the test instances and restored the baseline afterward.
+- [ ] Verify installation and update through the Module Control UI.
 - [ ] Verify missing and invalid credentials, unavailable MQTT transport, and an empty device inventory.
-- [ ] Apply instance configuration repeatedly and confirm there are no duplicate objects or unintended commands.
+- [x] Applied instance configuration three times in the isolated lifecycle kernel; all 36 Mower variables and IDs remained stable, with no errors or warnings.
 - [x] Existing test instances were updated on main; CI asserts stable library/module GUIDs and prefixes. Variable identifiers remain unchanged in mower registration code.
 
 ### Device behavior and compatibility
