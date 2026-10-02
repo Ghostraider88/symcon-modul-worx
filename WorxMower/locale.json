@@ -1,6 +1,7 @@
 {
     "translations": {
         "en": {
+            "Nicht übertragen: Der bestätigte Mäherplan hat sich geändert und wurde zuerst aktualisiert.": "Not transferred: The confirmed mower schedule changed and was refreshed first.",
             "Lokal freigegebene Produkt-ID": "Locally allowed product ID",
             "0 sperrt die Instanz. Trage nur die geprüfte Produkt-ID aus dem Worx-Konfigurator ein; die Freigabe wird nicht an Worx übertragen.": "A value of 0 locks this instance. Enter only the verified product ID from the Worx configurator; this local allowlist is not sent to Worx.",
             "Gerät nicht für V1 freigegeben": "Device not allowlisted for V1",
