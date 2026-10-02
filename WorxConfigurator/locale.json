@@ -1,6 +1,9 @@
 {
     "translations": {
         "en": {
+            "Freigegebene Produkt-ID": "Allowed product ID",
+            "0 sperrt alle neuen Mäher. Nur die lokale Produkt-ID des geprüften Geräts eintragen; der Wert wird nicht übertragen.": "A value of 0 locks all new mowers. Enter only the local product ID of the verified device; this value is not transmitted.",
+            "Kandidaten mit unterstütztem Zeitplanformat; neue Instanzen nur für die freigegebene Produkt-ID": "Candidates with a supported schedule format; create instances only for the allowed product ID",
             "Mähroboter": "Landroid mowers",
             "Mäher mit unterstütztem Zeitplanformat": "Mowers with supported schedule format",
             "Name": "Name",
