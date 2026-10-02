@@ -81,12 +81,15 @@ final class WorxMowerProfileTest extends TestCase
             'ModuleType' => 3,
         ]);
         $module = IPS\InstanceManager::getInstanceInterface($instanceID);
-        $idents = array_map(static function (int $objectID): string {
+        $idents = array_map(static function (int $objectID): string
+        {
             return IPS_GetObject($objectID)['ObjectIdent'];
         }, IPS_GetChildrenIDs($instanceID));
         self::assertNotContains('Zone', $idents);
 
-        $module->RegisterVariableInteger('Zone', 'Legacy zone', '', 999);
+        $registerVariable = new ReflectionMethod(WorxMower::class, 'RegisterVariableInteger');
+        $registerVariable->setAccessible(true);
+        $registerVariable->invoke($module, 'Zone', 'Legacy zone', '', 999);
         $zoneID = IPS_GetObjectIDByIdent('Zone', $instanceID);
         $module->ApplyChanges();
 
