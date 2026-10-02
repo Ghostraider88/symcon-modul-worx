@@ -23,7 +23,7 @@ V1 intentionally excludes multi-zone operation, all-day scheduling, one-time mow
 
 1. Make an MQTT broker available to IP-Symcon and create/configure its MQTT Client instance. Use the broker's host, port, and credentials; these are not Worx Cloud server settings. When the broker runs in another Docker container, use its reachable service name or network address, not `localhost`.
 2. Add this repository in IP-Symcon Module Control and create a Worx Cloud instance. Select the configured MQTT Client as its parent transport and enter the Worx account credentials in the instance configuration.
-3. Open the Worx Configurator. It lists local candidates and their numeric product ID; by default, creating a new mower instance is locked. Enter the product ID of the mower validated for this installation in "Freigegebene Produkt-ID". Only an exact integer match is enabled. This value stays in the local IP-Symcon configuration and is not committed to the repository.
+3. Open the Worx Configurator and enable only a device that has been verified to match the supported V1 scope. Unknown or unsupported devices remain locked.
 4. Confirm that the mower is online and its confirmed weekly schedule appears as the native Symcon weekly event before editing it.
 
 For updates, keep the existing Worx Cloud and Worx Mower instances. Their module identities and variable identifiers are part of the update path. Review status and command feedback after updating.

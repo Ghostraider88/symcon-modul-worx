@@ -2,11 +2,8 @@
 
 The Mower instance is created by the Worx Configurator and uses the selected device from its connected Worx Cloud instance. V1 is validated against one mower setup only; additional models and firmware variants are outside its compatibility claim.
 
-Die Laufzeit akzeptiert Geräte nur bei exakter lokaler Produkt-ID-Freigabe sowie gültigem Protokoll-0-Zeitplan und nicht leerem, plausiblem Status-Payload. Einzelne Bedienfunktionen werden zusätzlich nur bei gemeldeter Capability und passenden Feldern freigeschaltet; es gibt keine Firmware-Allowlist.
+Die Laufzeit akzeptiert nur Geräte mit unterstütztem Zeitplanformat und gültigen Statusdaten. Unbekannte oder nicht unterstützte Geräte bleiben gesperrt. Einzelne Bedienfunktionen werden zusätzlich nur bei gemeldeter Capability und passenden Feldern freigeschaltet.
 
-## Lokale Modellfreigabe
-
-Die Mower-Instanz verarbeitet Status und Befehle nur, wenn `AllowedProductID` exakt mit der positiven numerischen `product_id` des Cloud-Geräts übereinstimmt. Der Standardwert `0` sperrt die Instanz. Der Konfigurator zeigt die Produkt-ID geeigneter Zeitplankandidaten lokal an; trage die geprüfte ID dort ein und lege die Instanz neu an. Bei bereits vorhandenen oder manuell angelegten Instanzen den Wert in den Instanzeigenschaften lokal setzen. Die ID wird nur als lokale Instanzeigenschaft gespeichert; sie steht nicht im öffentlichen Quelltext und wird weder protokolliert noch an die Cloud übertragen. Änderungen an `AllowedProductID` aktualisieren nur den gelesenen Gerätezustand; sie senden keinen Mäh- oder Zeitplanbefehl.
 ## Status and commands
 
 Status and error codes remain numeric variables. Adjacent text variables provide readable labels and can be archived independently in Symcon. Commands show the requested action and its response separately from the state subsequently reported by the mower. A successful transport publish is not device confirmation.
