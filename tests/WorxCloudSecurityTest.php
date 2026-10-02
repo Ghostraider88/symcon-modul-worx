@@ -40,11 +40,6 @@ final class WorxCloudMqttParentTestDouble extends IPSModule
 {
     public array $messages = [];
 
-    public function setTestStatus(int $status): void
-    {
-        $this->SetStatus($status);
-    }
-
     public function GetForwardDataFilter()
     {
         return '.*';
@@ -59,6 +54,11 @@ final class WorxCloudMqttParentTestDouble extends IPSModule
         ];
         return '';
     }
+
+    public function setTestStatus(int $status): void
+    {
+        $this->SetStatus($status);
+    }
 }
 
 final class WorxCloudEmptyInventoryTestDouble extends WorxCloud
@@ -68,6 +68,11 @@ final class WorxCloudEmptyInventoryTestDouble extends WorxCloud
     protected function getToken(): string
     {
         return 'test-token';
+    }
+
+    protected function getTime()
+    {
+        return time();
     }
 
     protected function request(string $method, string $path, $body, string $token)
