@@ -892,6 +892,24 @@ class WorxMower extends IPSModule
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
+    public static function IsAllowedProduct(array $device, int $allowedProductID): bool
+    {
+        return WorxProductAllowlist::matches($device, $allowedProductID);
+    }
+
+    public static function IsSupportedDevice(array $device, int $allowedProductID): bool
+    {
+        $dat = $device['last_status']['payload']['dat'] ?? null;
+        $hasValidState = is_array($dat)
+            && $dat !== []
+            && isset($dat['ls'])
+            && ((is_int($dat['ls']) && $dat['ls'] >= 0) || (is_string($dat['ls']) && preg_match('/^\\d+$/', $dat['ls']) === 1));
+
+        return self::IsAllowedProduct($device, $allowedProductID)
+            && WorxScheduleCodec::scheduleFromDevice($device) !== null
+            && $hasValidState;
+    }
+
     private function validatedInteger($value, int $minimum, int $maximum, string $label): int
     {
         if (!is_int($value) && !(is_string($value) && preg_match('/^-?\d+$/', $value))) {
@@ -1500,24 +1518,6 @@ class WorxMower extends IPSModule
     {
         $device = $this->getDevice();
         return $device === null ? null : WorxScheduleCodec::scheduleFromDevice($device);
-    }
-
-    public static function IsAllowedProduct(array $device, int $allowedProductID): bool
-    {
-        return WorxProductAllowlist::matches($device, $allowedProductID);
-    }
-
-    public static function IsSupportedDevice(array $device, int $allowedProductID): bool
-    {
-        $dat = $device['last_status']['payload']['dat'] ?? null;
-        $hasValidState = is_array($dat)
-            && $dat !== []
-            && isset($dat['ls'])
-            && ((is_int($dat['ls']) && $dat['ls'] >= 0) || (is_string($dat['ls']) && preg_match('/^\\d+$/', $dat['ls']) === 1));
-
-        return self::IsAllowedProduct($device, $allowedProductID)
-            && WorxScheduleCodec::scheduleFromDevice($device) !== null
-            && $hasValidState;
     }
 
     private function getDevice(): ?array

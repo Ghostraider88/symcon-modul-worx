@@ -52,9 +52,9 @@ final class WorxMowerProfileTest extends TestCase
     public function testMowerGateRequiresProductIdSupportedScheduleAndCurrentStatusPayload(): void
     {
         $device = [
-            'product_id' => 42,
-            'protocol' => 0,
-            'cfg' => ['sc' => ['d' => array_fill(0, 7, ['09:30',60,1])]],
+            'product_id'   => 42,
+            'protocol'     => 0,
+            'cfg'          => ['sc' => ['d' => array_fill(0, 7, ['09:30',60,1])]],
             'last_status' => ['payload' => ['dat' => ['ls' => 1]]],
         ];
         self::assertTrue(WorxMower::IsSupportedDevice($device, 42));
@@ -442,7 +442,7 @@ final class WorxMowerProfileTest extends TestCase
             ['rd' => 390, 'p' => 23, 'lock' => 0],
             ['rd' => 420, 'p' => -27, 'lock' => 1],
         ] as $report) {
-            $applyDevice->invoke($module, [
+            $this->applySupportedDevice($applyDevice, $module, [
                 'online'       => true,
                 'protocol'     => 0,
                 'capabilities' => ['rain_delay', 'unrestricted_mowing_time', 'lock'],
@@ -477,7 +477,7 @@ final class WorxMowerProfileTest extends TestCase
         SetValue($timeExtensionSetID, 40);
         SetValue($lockCommandID, false);
 
-        $applyDevice->invoke($module, [
+        $this->applySupportedDevice($applyDevice, $module, [
             'online'       => true,
             'protocol'     => 0,
             'capabilities' => ['rain_delay', 'unrestricted_mowing_time', 'lock'],
@@ -538,7 +538,7 @@ final class WorxMowerProfileTest extends TestCase
                 'dat' => ['ls' => 1, 'le' => 0],
             ]],
         ];
-        $applyDevice->invoke($module, $device);
+        $this->applySupportedDevice($applyDevice, $module, $device);
 
         $confirmedID = IPS_GetObjectIDByIdent('AutoSchedule', $instanceID);
         $setID = IPS_GetObjectIDByIdent('AutoScheduleSet', $instanceID);
@@ -548,19 +548,19 @@ final class WorxMowerProfileTest extends TestCase
         $writeAttribute->invoke($module, 'PendingAutoScheduleSerial', 'SERIAL-TEST');
         SetValue($setID, true);
 
-        $applyDevice->invoke($module, $device);
+        $this->applySupportedDevice($applyDevice, $module, $device);
         self::assertFalse(GetValueBoolean($confirmedID));
         self::assertTrue(GetValueBoolean($setID));
         self::assertNotSame('', $module->readAttributeForTest('PendingAutoSchedule'));
 
         $device['auto_schedule'] = true;
-        $applyDevice->invoke($module, $device);
+        $this->applySupportedDevice($applyDevice, $module, $device);
         self::assertTrue(GetValueBoolean($confirmedID));
         self::assertTrue(GetValueBoolean($setID));
         self::assertSame('', $module->readAttributeForTest('PendingAutoSchedule'));
 
         $device['auto_schedule'] = false;
-        $applyDevice->invoke($module, $device);
+        $this->applySupportedDevice($applyDevice, $module, $device);
         self::assertFalse(GetValueBoolean($confirmedID));
         self::assertFalse(GetValueBoolean($setID));
     }
@@ -640,7 +640,7 @@ final class WorxMowerProfileTest extends TestCase
         $apply->setAccessible(true);
         $controlID = IPS_GetObjectIDByIdent('Control', $instanceID);
 
-        $apply->invoke($module, ['protocol' => 0, 'capabilities' => ['follow_border']]);
+        $this->applySupportedDevice($apply, $module, ['protocol' => 0, 'capabilities' => ['follow_border']]);
         self::assertNotContains(4, $this->controlOptions($controlID));
         $this->expectException(InvalidArgumentException::class);
         $module->RequestAction('Control', 4);
@@ -659,7 +659,7 @@ final class WorxMowerProfileTest extends TestCase
         $registerAttribute->invoke($module, 'PendingSchedulePurpose', 'schedule');
         $method = new ReflectionMethod(WorxMower::class, 'applyDevice');
         $method->setAccessible(true);
-        $method->invoke($module, [
+        $this->applySupportedDevice($method, $module, [
             'online'       => true,
             'protocol'     => 0,
             'capabilities' => [],
@@ -673,7 +673,7 @@ final class WorxMowerProfileTest extends TestCase
         self::assertSame('In der Ladestation', GetValue($stateTextID));
         self::assertSame('Kein Fehler', GetValue($errorTextID));
 
-        $method->invoke($module, [
+        $this->applySupportedDevice($method, $module, [
             'online'       => true,
             'protocol'     => 0,
             'capabilities' => [],
@@ -700,7 +700,7 @@ final class WorxMowerProfileTest extends TestCase
 
         $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
         $applyDevice->setAccessible(true);
-        $applyDevice->invoke($module, [
+        $this->applySupportedDevice($applyDevice, $module, [
             'online'       => true,
             'protocol'     => 0,
             'capabilities' => [],
@@ -801,7 +801,7 @@ final class WorxMowerProfileTest extends TestCase
         $registerAttribute->invoke($module, 'PendingSchedulePurpose', 'schedule');
         $method = new ReflectionMethod(WorxMower::class, 'applyDevice');
         $method->setAccessible(true);
-        $method->invoke($module, [
+        $this->applySupportedDevice($method, $module, [
             'online'       => true,
             'protocol'     => 0,
             'capabilities' => ['unrestricted_mowing_time'],
@@ -815,7 +815,7 @@ final class WorxMowerProfileTest extends TestCase
 
         self::assertSame(-37, GetValue($variableID));
         // The account inventory exposes the same configuration at the device root.
-        $method->invoke($module, [
+        $this->applySupportedDevice($method, $module, [
             'online'       => true,
             'protocol'     => 0,
             'capabilities' => ['unrestricted_mowing_time'],
@@ -909,7 +909,7 @@ final class WorxMowerProfileTest extends TestCase
         $applyDevice->setAccessible(true);
 
         $before = time();
-        $applyDevice->invoke($module, [
+        $this->applySupportedDevice($applyDevice, $module, [
             'online'       => true,
             'protocol'     => 0,
             'capabilities' => [],
@@ -950,6 +950,27 @@ final class WorxMowerProfileTest extends TestCase
 
         $schedule['d'] = array_fill(0, 7, ['00:00', 0, 0]);
         self::assertNull($method->invoke($module, $schedule, new DateTimeImmutable('2025-03-10 16:00', $timezone)));
+    }
+
+    private function applySupportedDevice(ReflectionMethod $method, WorxMower $module, array $device): void
+    {
+        $registerProperty = new ReflectionMethod(IPSModule::class, 'RegisterPropertyInteger');
+        $registerProperty->setAccessible(true);
+        $registerProperty->invoke($module, 'AllowedProductID', 42);
+
+        $device['product_id'] = 42;
+        $device['protocol'] = 0;
+        $schedule = $device['last_status']['payload']['cfg']['sc'] ?? $device['cfg']['sc'] ?? [];
+        $days = $schedule['d'] ?? [];
+        $firstDay = is_array($days) && isset($days[0]) && is_array($days[0]) ? $days[0] : ['09:30',60,1];
+        $schedule['d'] = array_fill(0, 7, $firstDay);
+        $device['cfg']['sc'] = $schedule;
+        $device['last_status']['payload']['cfg']['sc'] = $schedule;
+        if (!isset($device['last_status']['payload']['dat'])) {
+            $device['last_status']['payload']['dat'] = ['ls' => 1];
+        }
+
+        $method->invoke($module, $device);
     }
 
     private function controlOptions(int $controlID): array
