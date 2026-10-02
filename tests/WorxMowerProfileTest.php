@@ -186,6 +186,67 @@ final class WorxMowerProfileTest extends TestCase
         }
     }
 
+    public function testPresentationOptionsMatchSymconAndInstanceCreateDoesNotFail(): void
+    {
+        $instanceID = IPS\ObjectManager::registerObject(1);
+        IPS\InstanceManager::createInstance($instanceID, [
+            'Class'      => WorxMowerTestDouble::class,
+            'ModuleID'   => '{39CA7807-D252-4375-8D05-1C5F918552C0}',
+            'ModuleName' => 'Worx Mower Test',
+            'ModuleType' => 3,
+        ]);
+
+        self::assertTrue(IPS\InstanceManager::instanceExists($instanceID));
+        $module = IPS\InstanceManager::getInstanceInterface($instanceID);
+        self::assertInstanceOf(WorxMowerTestDouble::class, $module);
+
+        $valueOptionMethod = new ReflectionMethod(WorxMower::class, 'presentationOption');
+        $valueOptionMethod->setAccessible(true);
+        $valueOption = $valueOptionMethod->invoke($module, true, 'Online');
+        self::assertSame([
+            'Value', 'Caption', 'IconActive', 'IconValue', 'ColorActive', 'ColorValue',
+        ], array_keys($valueOption));
+
+        $booleanPresentationMethod = new ReflectionMethod(WorxMower::class, 'booleanValuePresentation');
+        $booleanPresentationMethod->setAccessible(true);
+        $booleanPresentation = $booleanPresentationMethod->invoke($module, 'Offline', 'Online');
+        self::assertSame(VARIABLE_PRESENTATION_VALUE_PRESENTATION, $booleanPresentation['PRESENTATION']);
+        $booleanOptions = json_decode($booleanPresentation['OPTIONS'], true, 512, JSON_THROW_ON_ERROR);
+        self::assertCount(2, $booleanOptions);
+        foreach ($booleanOptions as $option) {
+            self::assertSame([
+                'Value', 'Caption', 'IconActive', 'IconValue', 'ColorActive', 'ColorValue',
+            ], array_keys($option));
+        }
+
+        $enumerationMethod = new ReflectionMethod(WorxMower::class, 'enumerationPresentation');
+        $enumerationMethod->setAccessible(true);
+        $enumerationPresentation = $enumerationMethod->invoke($module, [0 => 'Choose', 1 => 'Start']);
+        self::assertSame(VARIABLE_PRESENTATION_ENUMERATION, $enumerationPresentation['PRESENTATION']);
+        $enumerationOptions = json_decode($enumerationPresentation['OPTIONS'], true, 512, JSON_THROW_ON_ERROR);
+        self::assertCount(2, $enumerationOptions);
+        foreach ($enumerationOptions as $option) {
+            self::assertSame(['Value', 'Caption', 'IconActive', 'IconValue', 'Color'], array_keys($option));
+        }
+
+        foreach (IPS_GetChildrenIDs($instanceID) as $variableID) {
+            if (IPS_GetObject($variableID)['ObjectType'] !== 2) {
+                continue;
+            }
+            $presentation = IPS_GetVariable($variableID)['VariablePresentation'];
+            if (!isset($presentation['OPTIONS'])) {
+                continue;
+            }
+            $options = json_decode($presentation['OPTIONS'], true, 512, JSON_THROW_ON_ERROR);
+            $allowedKeys = $presentation['PRESENTATION'] === VARIABLE_PRESENTATION_ENUMERATION
+                ? ['Value', 'Caption', 'IconActive', 'IconValue', 'Color']
+                : ['Value', 'Caption', 'IconActive', 'IconValue', 'ColorActive', 'ColorValue'];
+            foreach ($options as $option) {
+                self::assertSame($allowedKeys, array_keys($option));
+            }
+        }
+    }
+
     public function testReregisteringVariablesClearsExistingCustomProfilesBeforeApplyingModernPresentations(): void
     {
         $instanceID = IPS\ObjectManager::registerObject(1);

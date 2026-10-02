@@ -1,6 +1,8 @@
 # Changelog
 
-## V1 release candidate — build 21 (2026-10-02)
+## V1 release candidate — build 22 (2026-10-02)
+
+- Fixes variable presentation option keys for Symcon 9 so presentation editors open without unsupported fields.
 
 - Keeps the native IP-Symcon weekly event as the single schedule editor, with changes sent to Worx and confirmed against the schedule read back from the mower. App-originated schedule changes update the event.
 - Shows numeric status and error values alongside readable text variables, and keeps requested commands separate from the mower-reported state.

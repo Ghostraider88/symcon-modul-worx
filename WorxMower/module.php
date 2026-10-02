@@ -1762,10 +1762,6 @@ class WorxMower extends IPSModule
             'IconValue'          => '',
             'ColorActive'        => false,
             'ColorValue'         => -1,
-            'ContentColorActive' => false,
-            'ContentColorValue'  => -1,
-            'Color'              => -1,
-            'ContentColor'       => -1,
         ];
     }
 
@@ -1781,12 +1777,7 @@ class WorxMower extends IPSModule
                 'Caption'            => $caption,
                 'IconActive'         => false,
                 'IconValue'          => '',
-                'ColorActive'        => false,
-                'ColorValue'         => -1,
-                'ContentColorActive' => false,
-                'ContentColorValue'  => -1,
                 'Color'              => -1,
-                'ContentColor'       => -1,
             ];
         }
 
