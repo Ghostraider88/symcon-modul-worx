@@ -2,7 +2,7 @@
 
 The Mower instance is created by the Worx Configurator and uses the selected device from its connected Worx Cloud instance. V1 is validated against one mower setup only; additional models and firmware variants are outside its compatibility claim.
 
-Bekannte Prüf-Referenz ist Firmware firmware redacted. Die Laufzeit akzeptiert Geräte nur bei exakter lokaler Produkt-ID-Freigabe sowie gültigem Protokoll-0-Zeitplan und nicht leerem, plausiblen Status-Payload. Einzelne Bedienfunktionen werden zusätzlich nur bei gemeldeter Capability und passenden Feldern freigeschaltet; es gibt keine Firmware-Allowlist.
+Die Laufzeit akzeptiert Geräte nur bei exakter lokaler Produkt-ID-Freigabe sowie gültigem Protokoll-0-Zeitplan und nicht leerem, plausiblem Status-Payload. Einzelne Bedienfunktionen werden zusätzlich nur bei gemeldeter Capability und passenden Feldern freigeschaltet; es gibt keine Firmware-Allowlist.
 
 ## Lokale Modellfreigabe
 
