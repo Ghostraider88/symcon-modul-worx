@@ -52,9 +52,9 @@ final class WorxMowerProfileTest extends TestCase
     public function testMowerGateRequiresProductIdSupportedScheduleAndCurrentStatusPayload(): void
     {
         $device = [
-            'product_id'   => 42,
-            'protocol'     => 0,
-            'cfg'          => ['sc' => ['d' => array_fill(0, 7, ['09:30',60,1])]],
+            'product_id'  => 42,
+            'protocol'    => 0,
+            'cfg'         => ['sc' => ['d' => array_fill(0, 7, ['09:30',60,1])]],
             'last_status' => ['payload' => ['dat' => ['ls' => 1]]],
         ];
         self::assertTrue(WorxMower::IsSupportedDevice($device, 42));
@@ -444,7 +444,7 @@ final class WorxMowerProfileTest extends TestCase
         ] as $report) {
             $this->applySupportedDevice($applyDevice, $module, [
                 'online'       => true,
-                'protocol'     => 0,
+                'protocol'    => 0,
                 'capabilities' => ['rain_delay', 'unrestricted_mowing_time', 'lock'],
                 'last_status'  => [
                     'payload' => [
@@ -479,7 +479,7 @@ final class WorxMowerProfileTest extends TestCase
 
         $this->applySupportedDevice($applyDevice, $module, [
             'online'       => true,
-            'protocol'     => 0,
+            'protocol'    => 0,
             'capabilities' => ['rain_delay', 'unrestricted_mowing_time', 'lock'],
             'last_status'  => [
                 'payload' => [
@@ -661,7 +661,7 @@ final class WorxMowerProfileTest extends TestCase
         $method->setAccessible(true);
         $this->applySupportedDevice($method, $module, [
             'online'       => true,
-            'protocol'     => 0,
+            'protocol'    => 0,
             'capabilities' => [],
             'last_status'  => ['payload' => ['dat' => ['ls' => 1, 'le' => 0]]],
         ]);
@@ -675,7 +675,7 @@ final class WorxMowerProfileTest extends TestCase
 
         $this->applySupportedDevice($method, $module, [
             'online'       => true,
-            'protocol'     => 0,
+            'protocol'    => 0,
             'capabilities' => [],
             'last_status'  => ['payload' => ['dat' => ['ls' => 7, 'le' => 5]]],
         ]);
@@ -702,7 +702,7 @@ final class WorxMowerProfileTest extends TestCase
         $applyDevice->setAccessible(true);
         $this->applySupportedDevice($applyDevice, $module, [
             'online'       => true,
-            'protocol'     => 0,
+            'protocol'    => 0,
             'capabilities' => [],
             'last_status'  => ['payload' => ['dat' => ['ls' => 7, 'le' => 5]]],
         ]);
@@ -803,7 +803,7 @@ final class WorxMowerProfileTest extends TestCase
         $method->setAccessible(true);
         $this->applySupportedDevice($method, $module, [
             'online'       => true,
-            'protocol'     => 0,
+            'protocol'    => 0,
             'capabilities' => ['unrestricted_mowing_time'],
             'last_status'  => [
                 'payload' => [
@@ -817,9 +817,9 @@ final class WorxMowerProfileTest extends TestCase
         // The account inventory exposes the same configuration at the device root.
         $this->applySupportedDevice($method, $module, [
             'online'       => true,
-            'protocol'     => 0,
+            'protocol'    => 0,
             'capabilities' => ['unrestricted_mowing_time'],
-            'cfg'          => ['sc' => ['p' => -37]],
+            'cfg'         => ['sc' => ['p' => -37]],
             'last_status'  => ['payload' => ['dat' => ['ls' => 0, 'le' => 0]]],
         ]);
 
@@ -911,7 +911,7 @@ final class WorxMowerProfileTest extends TestCase
         $before = time();
         $this->applySupportedDevice($applyDevice, $module, [
             'online'       => true,
-            'protocol'     => 0,
+            'protocol'    => 0,
             'capabilities' => [],
             'last_status'  => ['payload' => ['dat' => ['ls' => 1, 'le' => 0]]],
         ]);
@@ -957,6 +957,24 @@ final class WorxMowerProfileTest extends TestCase
         $registerProperty = new ReflectionMethod(IPSModule::class, 'RegisterPropertyInteger');
         $registerProperty->setAccessible(true);
         $registerProperty->invoke($module, 'AllowedProductID', 42);
+
+        $instanceIDProperty = new ReflectionProperty(IPSModule::class, 'InstanceID');
+        $instanceIDProperty->setAccessible(true);
+        $instanceID = $instanceIDProperty->getValue($module);
+        if (!IPS\InstanceManager::instanceExists($instanceID)) {
+            IPS\InstanceManager::createInstance($instanceID, [
+                'Class'      => get_class($module),
+                'ModuleID'   => '{39CA7807-D252-4375-8D05-1C5F918552C0}',
+                'ModuleName' => 'Worx Mower Test',
+                'ModuleType' => 3,
+            ]);
+        }
+        if (IPS_GetObjectIDByIdent('WorxWeeklySchedule', $instanceID) === false) {
+            $eventID = IPS\ObjectManager::registerObject(4);
+            IPS\ObjectManager::setParent($eventID, $instanceID);
+            IPS\ObjectManager::setIdent($eventID, 'WorxWeeklySchedule');
+            IPS\ObjectManager::setName($eventID, 'Mähzeitplan');
+        }
 
         $device['product_id'] = 42;
         $device['protocol'] = 0;
