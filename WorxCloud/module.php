@@ -87,6 +87,7 @@ class WorxCloud extends IPSModule
 
         // Zugangsdaten könnten sich geändert haben → Token verwerfen
         $this->WriteAttributeString('AccessToken', '');
+        $this->WriteAttributeString('RefreshToken', '');
         $this->WriteAttributeInteger('TokenExpires', 0);
 
         $this->SetTimerInterval('WorxPoll', max(30, $this->ReadPropertyInteger('Interval')) * 1000);
