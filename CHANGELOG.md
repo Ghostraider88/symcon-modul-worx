@@ -1,5 +1,9 @@
 # Changelog
 
+## V1 release candidate — build 23 (2026-10-10)
+
+- Uses a valid positive Symcon schedule action ID for "no mowing" switch points.
+
 ## V1 release candidate — build 22 (2026-10-02)
 
 - Fixes variable presentation option keys for Symcon 9 so presentation editors open without unsupported fields.

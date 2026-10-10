@@ -346,11 +346,13 @@ final class WorxScheduleCodec
             $action = 1 + ($row['Slot'] * 2) + ($row['Border'] ? 1 : 0);
             if (isset($pointsByDay[$eventDay][$start]) || isset($pointsByDay[$eventDay][$end])) throw new InvalidArgumentException('Doppelte Schaltzeit im Wochenplan.');
             $pointsByDay[$eventDay][$start] = $action;
-            $pointsByDay[$eventDay][$end] = 0;
+            // Symcon schedule action IDs must be greater than zero. Use the
+            // dedicated "no mowing" event action instead of ID 0.
+            $pointsByDay[$eventDay][$end] = 5;
         }
         ksort($pointsByDay, SORT_NUMERIC);
         foreach ($pointsByDay as &$dayPoints) {
-            if (!isset($dayPoints[0])) $dayPoints[0] = 0;
+            if (!isset($dayPoints[0])) $dayPoints[0] = 5;
             ksort($dayPoints, SORT_NUMERIC);
             $normalized = [];
             foreach ($dayPoints as $minute => $action) $normalized[] = ['Minute' => $minute, 'Action' => $action];
@@ -374,6 +376,7 @@ final class WorxScheduleCodec
                     if (!isset($point['Start']['Hour'], $point['Start']['Minute'], $point['ActionID'])) throw new InvalidArgumentException('Ein Schaltpunkt ist unvollständig.');
                     $minute = (int) $point['Start']['Hour'] * 60 + (int) $point['Start']['Minute'];
                     $action = (int) $point['ActionID'];
+                    if ($action === 5) $action = 0;
                     if ($action < 0 || $action > 4 || ($action > 0 && intdiv($action - 1, 2) >= $slotCount)) throw new InvalidArgumentException('Dieser Wochenplan-Zustand wird vom Mäherformat nicht unterstützt.');
                     if (isset($days[$day][$minute])) throw new InvalidArgumentException('Doppelte Schaltzeit im Wochenplan.');
                     $days[$day][$minute] = $action;

@@ -154,7 +154,7 @@ final class WorxScheduleCodecTest extends TestCase
         $eventPoints = WorxScheduleCodec::toEventPoints($schedule);
 
         self::assertSame(2, $eventPoints[0][0]['Action']);
-        self::assertSame(0, $eventPoints[0][1]['Action']);
+        self::assertSame(5, $eventPoints[0][1]['Action']);
 
         $groups = [];
         foreach ($eventPoints as $day => $points) {
@@ -202,7 +202,7 @@ final class WorxScheduleCodecTest extends TestCase
         self::assertSame($schedule['metadata'], $updated['metadata']);
 
         $eventPoints = WorxScheduleCodec::toEventPoints($updated);
-        self::assertSame([['Minute' => 0, 'Action' => 0]], $eventPoints[0]);
+        self::assertSame([['Minute' => 0, 'Action' => 5]], $eventPoints[0]);
 
         $groups = [];
         foreach ($eventPoints as $day => $points) {

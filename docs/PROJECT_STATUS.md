@@ -2,7 +2,7 @@
 
 **Status date:** 2026-10-10
 **Repository branch:** `main`
-**Current module version:** 2.0, build 22
+**Current module version:** 2.0, build 23
 **Compatibility floor:** IP-Symcon 9.0
 **Release state:** Release candidate; the general V1 release is not yet cleared.
 
@@ -10,7 +10,7 @@
 
 The core V1 path has been exercised with the single mower installation used for validation: MQTT/cloud discovery, the native Symcon weekly schedule event, app-to-Symcon schedule updates, signed daily work-time adjustment, and the basic Start, Pause, and return-home actions. The exact device identity and private configuration are deliberately not recorded here or in public source files. V1 does not claim support for other models, protocols, or firmware variants.
 
-Build 22 fixes the Symcon 9 variable-presentation option schema that previously stopped Mower instance creation. The current `main` CI runs for style and tests pass at commit `73f0f7c`. A user subsequently reported that the Mower instance now reaches the explicit status **“Device not allowlisted for V1”**. This is the local product allowlist gate; it does not establish that the device has been released or that the live workflow is complete.
+Build 22 fixes the Symcon 9 variable-presentation option schema that previously stopped Mower instance creation. Build 23 assigns a positive action ID to no-mowing schedule points, as required by Symcon 9. The live reload completed without warnings and the Mower instance returned to active status. The native schedule now contains all seven weekdays and reports a verified event representation. The live MQTT Client and separate MQTT-Landroid bridge are offline, so fresh device data and cloud command confirmation are still unavailable. The local product allowlist is also unconfirmed; neither limitation is treated as a module success.
 
 ## Confirmed
 
@@ -20,6 +20,7 @@ Build 22 fixes the Symcon 9 variable-presentation option schema that previously 
 - [x] Numeric status/error values and adjacent readable text variables were checked; modern value presentations are used instead of legacy profiles.
 - [x] Fresh-install/removal and repeated-configuration lifecycle checks are recorded in the release checklist.
 - [x] Build 22 corrects the unsupported Symcon 9 presentation option keys. GitHub Actions style and test checks pass for the current `main` head.
+- [x] Build 23 uses positive Symcon event action IDs. Live module reload completed without warnings and the native event was rebuilt for all seven weekdays.
 - [x] Only `main` is present as a local or remote branch in the checked repository state.
 
 ## Open work before general V1 release
@@ -32,6 +33,8 @@ Build 22 fixes the Symcon 9 variable-presentation option schema that previously 
 - [ ] Record only the result of this check here; do not add serial numbers, product IDs, account details, or full cloud responses to public documentation.
 
 The allowlist is fail-closed: `0`, a missing product ID, or a mismatch keeps the device locked. If the Configurator does not show a candidate product ID, investigate the returned device fields before changing the gate; do not infer the numeric ID from a marketing model name.
+
+The current live system also reports its MQTT Client parent and the separate MQTT-Landroid bridge offline. Reconnect those transports before checking fresh status, settings, or mower command read-back. The repeated bridge errors originate from that offline transport path, not from the Worx module reload.
 
 ### 2. Verify installation and update delivery
 

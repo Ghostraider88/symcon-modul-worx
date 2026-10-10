@@ -12,6 +12,8 @@
 - [x] Repeated instance configuration completed without errors, warnings, duplicate objects, or changed variable identifiers.
 - [x] Compatibility-critical identifiers are preserved by module registration code and automated checks.
 - [x] Build 22 fixes the Symcon 9 variable-presentation option schema; the current `main` style and test workflows pass.
+- [x] Build 23 uses valid positive action IDs for no-mowing points; live reload completed without warnings and rebuilt the seven-day event.
+- [ ] Restore the live MQTT Client and MQTT-Landroid bridge before checking fresh telemetry or cloud write/read-back.
 - [ ] The user's latest field report reaches the explicit local V1 product-allowlist gate; confirm the verified product ID and active Mower state before treating live instance setup as complete. See [current project status](PROJECT_STATUS.md).
 
 ## Remaining before a general V1 release
