@@ -49,12 +49,14 @@ class WorxCloud extends IPSModule
         $this->RegisterAttributeString('AccessToken', '');
         $this->RegisterAttributeString('RefreshToken', '');
         $this->RegisterAttributeInteger('TokenExpires', 0);
+        $this->RegisterAttributeInteger('TransportReconnectAttempt', 0);
         $this->RegisterAttributeString('Devices', '[]');
 
         $this->RegisterTimer('WorxPoll', 0, 'WORX_Poll($_IPS[\'TARGET\']);');
         // Der Token lebt eine Stunde; die Header der WS-Verbindung müssen vorher neu
         // gesetzt werden, sonst fliegt die MQTT-Verbindung beim nächsten Reconnect raus.
         $this->RegisterTimer('WorxAuth', 0, 'WORX_RefreshTransport($_IPS[\'TARGET\']);');
+        $this->RegisterTimer('WorxTransportWatchdog', 0, 'WORX_WatchTransport($_IPS[\'TARGET\']);');
 
         // ConnectParent() würde sofort den normalen MQTT-Client mit Broker-Abfrage anlegen.
         // Der Worx-Transport wird erst nach der Kontokonfiguration in ApplyChanges() aufgebaut.
@@ -67,6 +69,7 @@ class WorxCloud extends IPSModule
         if ($this->ReadPropertyString('Cloud') !== 'worx') {
             $this->SetTimerInterval('WorxPoll', 0);
             $this->SetTimerInterval('WorxAuth', 0);
+            $this->SetTimerInterval('WorxTransportWatchdog', 0);
             $this->disableManagedTransport();
             $this->SetStatus(203);
             return false;
@@ -74,6 +77,7 @@ class WorxCloud extends IPSModule
         if ($this->ReadPropertyString('Email') === '' || $this->ReadPropertyString('Password') === '') {
             $this->SetTimerInterval('WorxPoll', 0);
             $this->SetTimerInterval('WorxAuth', 0);
+            $this->SetTimerInterval('WorxTransportWatchdog', 0);
             $this->disableManagedTransport();
             $this->SetStatus(104);
             return;
@@ -85,6 +89,7 @@ class WorxCloud extends IPSModule
 
         $this->SetTimerInterval('WorxPoll', max(30, $this->ReadPropertyInteger('Interval')) * 1000);
         $this->SetTimerInterval('WorxAuth', $this->ReadPropertyBoolean('UseMQTT') ? 45 * 60 * 1000 : 0);
+        $this->SetTimerInterval('WorxTransportWatchdog', $this->ReadPropertyBoolean('UseMQTT') ? 5 * 1000 : 0);
 
         if (IPS_GetKernelRunlevel() !== KR_READY) {
             return;
@@ -231,6 +236,49 @@ class WorxCloud extends IPSModule
             }
         }
         return true;
+    }
+
+    /** Reopens the managed transport soon after Worx closes an MQTT WebSocket session. */
+    public function WatchTransport(): void
+    {
+        if (!$this->ReadPropertyBoolean('UseMQTT') || $this->ReadPropertyString('Cloud') !== 'worx') {
+            return;
+        }
+
+        $mqtt = $this->getParent();
+        if ($mqtt === 0) {
+            return;
+        }
+
+        $mqttInstance = IPS_GetInstance($mqtt);
+        if (($mqttInstance['ModuleInfo']['ModuleID'] ?? '') !== self::GUID_MQTT) {
+            return;
+        }
+
+        $ws = (int) ($mqttInstance['ConnectionID'] ?? 0);
+        if ($ws === 0) {
+            return;
+        }
+
+        $wsInstance = IPS_GetInstance($ws);
+        if (($wsInstance['ModuleInfo']['ModuleID'] ?? '') !== self::GUID_WS) {
+            return;
+        }
+
+        if ($mqttInstance['InstanceStatus'] === IS_ACTIVE && $wsInstance['InstanceStatus'] === IS_ACTIVE) {
+            $this->WriteAttributeInteger('TransportReconnectAttempt', 0);
+            return;
+        }
+
+        $lastAttempt = $this->ReadAttributeInteger('TransportReconnectAttempt');
+        if (time() - $lastAttempt < 30) {
+            return;
+        }
+
+        $this->WriteAttributeInteger('TransportReconnectAttempt', time());
+        $this->SendDebug('MQTT', 'Worx-WebSocket getrennt; Transport wird neu verbunden.', 0);
+        $this->setIfChanged($ws, ['Active' => false]);
+        $this->setIfChanged($ws, ['Active' => true]);
     }
 
     /**
