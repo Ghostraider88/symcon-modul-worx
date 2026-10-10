@@ -46,9 +46,9 @@ class WorxMower extends IPSModule
     ];
 
     private const VARIABLE_CATEGORIES = [
-        'WorxDiagnostics' => ['Name' => 'Diagnose und Entwicklung', 'Position' => 50, 'Variables' => ['DeviceDiagnostics']],
-        'WorxFirmware' => ['Name' => 'Firmware-Wartung', 'Position' => 51, 'Variables' => ['Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet', 'FirmwareUpgradeStatus', 'FirmwareUpgradeAction']],
-        'WorxFeedback' => ['Name' => 'Rückmeldung und Verlauf', 'Position' => 52, 'Variables' => ['LastUpdate', 'LastCommand', 'CommandStatus', 'SettingStatus', 'ScheduleSyncStatus']],
+        'WorxDiagnostics'  => ['Name' => 'Diagnose und Entwicklung', 'Position' => 50, 'Variables' => ['DeviceDiagnostics']],
+        'WorxFirmware'     => ['Name' => 'Firmware-Wartung', 'Position' => 51, 'Variables' => ['Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet', 'FirmwareUpgradeStatus', 'FirmwareUpgradeAction']],
+        'WorxFeedback'     => ['Name' => 'Rückmeldung und Verlauf', 'Position' => 52, 'Variables' => ['LastUpdate', 'LastCommand', 'CommandStatus', 'SettingStatus', 'ScheduleSyncStatus']],
         'WorxNumericCodes' => ['Name' => 'Numerische Codes', 'Position' => 53, 'Variables' => ['State', 'Error']],
     ];
 

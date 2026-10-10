@@ -135,7 +135,7 @@ final class WorxMowerProfileTest extends TestCase
         $registerVariable = new ReflectionMethod(WorxMower::class, 'RegisterVariableInteger');
         $registerVariable->setAccessible(true);
         $registerVariable->invoke($module, 'Zone', 'Legacy zone', '', 999);
-        $zoneID = IPS_GetObjectIDByIdent('Zone', $instanceID);
+        $zoneID = $this->findObjectIDByIdent('Zone', $instanceID);
         $module->ApplyChanges();
 
         self::assertTrue(IPS_GetObject($zoneID)['ObjectIsHidden']);
@@ -165,7 +165,7 @@ final class WorxMowerProfileTest extends TestCase
         $confirm->invoke($module, 5, 0);
         self::assertSame('', $module->readAttributeForTest('PendingCommand'));
         self::assertSame('', $module->readAttributeForTest('PendingCommandSerial'));
-        self::assertSame('Vom Mäher bestätigt: Heimfahrt.', GetValue(IPS_GetObjectIDByIdent('CommandStatus', $instanceID)));
+        self::assertSame('Vom Mäher bestätigt: Heimfahrt.', GetValue($this->findObjectIDByIdent('CommandStatus', $instanceID)));
     }
 
     public function testRegisteredMowerVariablesDoNotUseLegacyProfiles(): void
@@ -255,7 +255,7 @@ final class WorxMowerProfileTest extends TestCase
         $method->setAccessible(true);
         $method->invoke($module);
 
-        $variableID = IPS_GetObjectIDByIdent('TimeExtensionSet', $instanceID);
+        $variableID = $this->findObjectIDByIdent('TimeExtensionSet', $instanceID);
         $userVariableID = IPS_CreateVariable(1);
         IPS_SetParent($userVariableID, $instanceID);
         IPS_SetIdent($userVariableID, 'UserAddedVariable');
@@ -300,24 +300,24 @@ final class WorxMowerProfileTest extends TestCase
         $method->setAccessible(true);
         $method->invoke($module);
 
-        $statusID = IPS_GetObjectIDByIdent('State', $instanceID);
-        $errorID = IPS_GetObjectIDByIdent('Error', $instanceID);
-        $stateTextID = IPS_GetObjectIDByIdent('StateText', $instanceID);
-        $errorTextID = IPS_GetObjectIDByIdent('ErrorText', $instanceID);
+        $statusID = $this->findObjectIDByIdent('State', $instanceID);
+        $errorID = $this->findObjectIDByIdent('Error', $instanceID);
+        $stateTextID = $this->findObjectIDByIdent('StateText', $instanceID);
+        $errorTextID = $this->findObjectIDByIdent('ErrorText', $instanceID);
         foreach ([$statusID, $errorID, $stateTextID, $errorTextID] as $readOnlyID) {
             self::assertFalse(HasAction($readOnlyID));
             self::assertArrayNotHasKey('OPTIONS', IPS_GetVariable($readOnlyID)['VariablePresentation']);
         }
 
         // Emulate the old scattered positions already present on an installed instance.
-        IPS_SetPosition(IPS_GetObjectIDByIdent('State', $instanceID), 80);
-        IPS_SetPosition(IPS_GetObjectIDByIdent('StateText', $instanceID), 10);
-        IPS_SetPosition(IPS_GetObjectIDByIdent('Error', $instanceID), 70);
-        IPS_SetPosition(IPS_GetObjectIDByIdent('ErrorText', $instanceID), 20);
+        IPS_SetPosition($this->findObjectIDByIdent('State', $instanceID), 80);
+        IPS_SetPosition($this->findObjectIDByIdent('StateText', $instanceID), 10);
+        IPS_SetPosition($this->findObjectIDByIdent('Error', $instanceID), 70);
+        IPS_SetPosition($this->findObjectIDByIdent('ErrorText', $instanceID), 20);
         $method->invoke($module);
         $positions = [];
         foreach (['State', 'StateText', 'Error', 'ErrorText'] as $ident) {
-            $variableID = IPS_GetObjectIDByIdent($ident, $instanceID);
+            $variableID = $this->findObjectIDByIdent($ident, $instanceID);
             $positions[$ident] = IPS_GetObject($variableID)['ObjectPosition'];
         }
 
@@ -358,8 +358,8 @@ final class WorxMowerProfileTest extends TestCase
         ];
 
         $updateFirmwareAutoUpgrade->invoke($module, $device);
-        $confirmedID = IPS_GetObjectIDByIdent('FirmwareAutoUpgrade', $instanceID);
-        $commandID = IPS_GetObjectIDByIdent('FirmwareAutoUpgradeSet', $instanceID);
+        $confirmedID = $this->findObjectIDByIdent('FirmwareAutoUpgrade', $instanceID);
+        $commandID = $this->findObjectIDByIdent('FirmwareAutoUpgradeSet', $instanceID);
         self::assertTrue(GetValueBoolean($confirmedID));
         self::assertTrue(GetValueBoolean($commandID));
         self::assertFalse(IPS_GetObject($confirmedID)['ObjectIsHidden']);
@@ -387,8 +387,8 @@ final class WorxMowerProfileTest extends TestCase
         $enableAction->setAccessible(true);
         $enableAction->invoke($module, 'FirmwareUpgradeAction');
 
-        $statusID = IPS_GetObjectIDByIdent('FirmwareUpgradeStatus', $instanceID);
-        $actionID = IPS_GetObjectIDByIdent('FirmwareUpgradeAction', $instanceID);
+        $statusID = $this->findObjectIDByIdent('FirmwareUpgradeStatus', $instanceID);
+        $actionID = $this->findObjectIDByIdent('FirmwareUpgradeAction', $instanceID);
         $getActionValues = static function () use ($actionID): array
         {
             $options = json_decode(IPS_GetVariablePresentation($actionID)['OPTIONS'] ?? '[]', true, 512, JSON_THROW_ON_ERROR);
@@ -499,9 +499,9 @@ final class WorxMowerProfileTest extends TestCase
             $registerAttribute->invoke($module, $attribute, $default);
         }
 
-        $rainDelaySetID = IPS_GetObjectIDByIdent('RainDelaySet', $instanceID);
-        $timeExtensionSetID = IPS_GetObjectIDByIdent('TimeExtensionSet', $instanceID);
-        $lockCommandID = IPS_GetObjectIDByIdent('LockCommand', $instanceID);
+        $rainDelaySetID = $this->findObjectIDByIdent('RainDelaySet', $instanceID);
+        $timeExtensionSetID = $this->findObjectIDByIdent('TimeExtensionSet', $instanceID);
+        $lockCommandID = $this->findObjectIDByIdent('LockCommand', $instanceID);
         SetValue($rainDelaySetID, 270);
         SetValue($timeExtensionSetID, -20);
         SetValue($lockCommandID, true);
@@ -610,8 +610,8 @@ final class WorxMowerProfileTest extends TestCase
         ];
         $this->applySupportedDevice($applyDevice, $module, $device);
 
-        $confirmedID = IPS_GetObjectIDByIdent('AutoSchedule', $instanceID);
-        $setID = IPS_GetObjectIDByIdent('AutoScheduleSet', $instanceID);
+        $confirmedID = $this->findObjectIDByIdent('AutoSchedule', $instanceID);
+        $setID = $this->findObjectIDByIdent('AutoScheduleSet', $instanceID);
         $writeAttribute = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
         $writeAttribute->setAccessible(true);
         $writeAttribute->invoke($module, 'PendingAutoSchedule', '{"desired":true,"previous":false}');
@@ -654,7 +654,7 @@ final class WorxMowerProfileTest extends TestCase
         $registerTimer = new ReflectionMethod(IPSModule::class, 'RegisterTimer');
         $registerTimer->setAccessible(true);
         $registerTimer->invoke($module, 'RainDelayConfirmationTimeout', 120000, '', 0);
-        $settingStatusID = IPS_GetObjectIDByIdent('SettingStatus', $instanceID);
+        $settingStatusID = $this->findObjectIDByIdent('SettingStatus', $instanceID);
         SetValue($settingStatusID, 'Regenverzögerung gesendet; Rückmeldung des Mähers steht aus.');
 
         $confirm = new ReflectionMethod(WorxMower::class, 'confirmRainDelay');
@@ -706,7 +706,7 @@ final class WorxMowerProfileTest extends TestCase
         $register->invoke($module);
         $apply = new ReflectionMethod(WorxMower::class, 'applyDevice');
         $apply->setAccessible(true);
-        $controlID = IPS_GetObjectIDByIdent('Control', $instanceID);
+        $controlID = $this->findObjectIDByIdent('Control', $instanceID);
 
         $this->applySupportedDevice($apply, $module, ['protocol' => 0, 'capabilities' => ['follow_border']]);
         self::assertNotContains(4, $this->controlOptions($controlID));
@@ -734,8 +734,8 @@ final class WorxMowerProfileTest extends TestCase
             'last_status'  => ['payload' => ['dat' => ['ls' => 1, 'le' => 0]]],
         ]);
 
-        $stateTextID = IPS_GetObjectIDByIdent('StateText', $instanceID);
-        $errorTextID = IPS_GetObjectIDByIdent('ErrorText', $instanceID);
+        $stateTextID = $this->findObjectIDByIdent('StateText', $instanceID);
+        $errorTextID = $this->findObjectIDByIdent('ErrorText', $instanceID);
         self::assertSame(VARIABLETYPE_STRING, IPS_GetVariable($stateTextID)['VariableType']);
         self::assertSame(VARIABLETYPE_STRING, IPS_GetVariable($errorTextID)['VariableType']);
         self::assertSame('In der Ladestation', GetValue($stateTextID));
@@ -775,8 +775,8 @@ final class WorxMowerProfileTest extends TestCase
             'last_status'  => ['payload' => ['dat' => ['ls' => 7, 'le' => 5]]],
         ]);
 
-        $stateTextID = IPS_GetObjectIDByIdent('StateText', $instanceID);
-        $errorTextID = IPS_GetObjectIDByIdent('ErrorText', $instanceID);
+        $stateTextID = $this->findObjectIDByIdent('StateText', $instanceID);
+        $errorTextID = $this->findObjectIDByIdent('ErrorText', $instanceID);
         self::assertSame('EN:Mäht', GetValue($stateTextID));
         self::assertSame('EN:Regen', GetValue($errorTextID));
 
@@ -849,9 +849,9 @@ final class WorxMowerProfileTest extends TestCase
         $setValueSafe = new ReflectionMethod(WorxMower::class, 'SetValueSafe');
         $setValueSafe->setAccessible(true);
         $setValueSafe->invoke($module, 'CommandStatus', 'Nicht gesendet: Der Mäher ist offline.');
-        self::assertSame('EN:Nicht gesendet: Der Mäher ist offline.', GetValue(IPS_GetObjectIDByIdent('CommandStatus', $instanceID)));
+        self::assertSame('EN:Nicht gesendet: Der Mäher ist offline.', GetValue($this->findObjectIDByIdent('CommandStatus', $instanceID)));
         $setValueSafe->invoke($module, 'Firmware', '9.9.9-test');
-        self::assertSame('9.9.9-test', GetValue(IPS_GetObjectIDByIdent('Firmware', $instanceID)));
+        self::assertSame('9.9.9-test', GetValue($this->findObjectIDByIdent('Firmware', $instanceID)));
     }
 
     public function testMowerReportStoresNegativeAppScaleInConfirmedVariable(): void
@@ -861,7 +861,7 @@ final class WorxMowerProfileTest extends TestCase
         $registerVariables = new ReflectionMethod(WorxMower::class, 'registerVariables');
         $registerVariables->setAccessible(true);
         $registerVariables->invoke($module);
-        $variableID = IPS_GetObjectIDByIdent('TimeExtension', $instanceID);
+        $variableID = $this->findObjectIDByIdent('TimeExtension', $instanceID);
         $registerAttribute = new ReflectionMethod(IPSModule::class, 'RegisterAttributeString');
         $registerAttribute->setAccessible(true);
         $registerAttribute->invoke($module, 'PendingCommand', '');
@@ -938,7 +938,7 @@ final class WorxMowerProfileTest extends TestCase
         ];
         $ids = [];
         foreach ($variables as $ident => $value) {
-            $ids[$ident] = IPS_GetObjectIDByIdent($ident, $instanceID);
+            $ids[$ident] = $this->findObjectIDByIdent($ident, $instanceID);
             SetValue($ids[$ident], $value);
         }
 
@@ -990,7 +990,7 @@ final class WorxMowerProfileTest extends TestCase
         ]);
         $after = time();
 
-        $lastUpdate = GetValueInteger(IPS_GetObjectIDByIdent('LastUpdate', $instanceID));
+        $lastUpdate = GetValueInteger($this->findObjectIDByIdent('LastUpdate', $instanceID));
         self::assertGreaterThanOrEqual($before, $lastUpdate);
         self::assertLessThanOrEqual($after, $lastUpdate);
     }
@@ -1023,6 +1023,24 @@ final class WorxMowerProfileTest extends TestCase
 
         $schedule['d'] = array_fill(0, 7, ['00:00', 0, 0]);
         self::assertNull($method->invoke($module, $schedule, new DateTimeImmutable('2025-03-10 16:00', $timezone)));
+    }
+
+    private function findObjectIDByIdent(string $ident, int $parentID)
+    {
+        $objectID = @IPS_GetObjectIDByIdent($ident, $parentID);
+        if ($objectID !== false) {
+            return $objectID;
+        }
+        foreach (IPS_GetChildrenIDs($parentID) as $childID) {
+            if (IPS_GetObject($childID)['ObjectType'] !== 0) {
+                continue;
+            }
+            $objectID = $this->findObjectIDByIdent($ident, $childID);
+            if ($objectID !== false) {
+                return $objectID;
+            }
+        }
+        return false;
     }
 
     private function createMowerInstanceForTest(int $instanceID, bool $translated = false): WorxMower
