@@ -266,12 +266,15 @@ class WorxCloud extends IPSModule
         }
 
         if ($mqttInstance['InstanceStatus'] === IS_ACTIVE && $wsInstance['InstanceStatus'] === IS_ACTIVE) {
-            $this->WriteAttributeInteger('TransportReconnectAttempt', 0);
+            if ($this->ReadAttributeInteger('TransportReconnectAttempt') > 0) {
+                $this->WriteAttributeInteger('TransportReconnectAttempt', 0);
+                $this->RefreshTransport();
+            }
             return;
         }
 
         $lastAttempt = $this->ReadAttributeInteger('TransportReconnectAttempt');
-        if (time() - $lastAttempt < 30) {
+        if (time() - $lastAttempt < 10) {
             return;
         }
 
