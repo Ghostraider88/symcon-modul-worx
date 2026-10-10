@@ -1698,8 +1698,8 @@ class WorxMower extends IPSModule
         $this->RegisterVariableString('NextScheduleStart', 'Nächster Planstart', '', $p++);
         $this->RegisterVariableFloat('DailyProgress', 'Täglicher Fortschritt', [
             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'DIGITS' => 0,
-            'SUFFIX' => ' %',
+            'DIGITS'       => 0,
+            'SUFFIX'       => ' %',
         ], $p++);
 
         // Battery and mower statistics.
@@ -2058,12 +2058,12 @@ class WorxMower extends IPSModule
     {
         return [
             'PRESENTATION' => '{52D9E126-D7D2-2CBB-5E62-4CF7BA7C5D82}',
-            'OPTIONS' => json_encode([[
-                'Value' => 0,
-                'Caption' => $this->Translate($caption),
+            'OPTIONS'      => json_encode([[
+                'Value'      => 0,
+                'Caption'    => $this->Translate($caption),
                 'IconActive' => false,
-                'IconValue' => '',
-                'Color' => -1,
+                'IconValue'  => '',
+                'Color'      => -1,
             ]], JSON_THROW_ON_ERROR),
         ];
     }
