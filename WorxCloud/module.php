@@ -51,6 +51,7 @@ class WorxCloud extends IPSModule
         $this->RegisterAttributeInteger('TokenExpires', 0);
         $this->RegisterAttributeInteger('TransportReconnectAttempt', 0);
         $this->RegisterAttributeInteger('TransportReconnectDelay', 30);
+        $this->RegisterAttributeInteger('TransportHealthySince', 0);
         $this->RegisterAttributeString('Devices', '[]');
 
         $this->RegisterTimer('WorxPoll', 0, 'WORX_Poll($_IPS[\'TARGET\']);');
@@ -268,13 +269,23 @@ class WorxCloud extends IPSModule
 
         if ($mqttInstance['InstanceStatus'] === IS_ACTIVE && $wsInstance['InstanceStatus'] === IS_ACTIVE) {
             if ($this->ReadAttributeInteger('TransportReconnectAttempt') > 0) {
+                $healthySince = $this->ReadAttributeInteger('TransportHealthySince');
+                if ($healthySince === 0) {
+                    $this->WriteAttributeInteger('TransportHealthySince', time());
+                    return;
+                }
+                if (time() - $healthySince < 60) {
+                    return;
+                }
                 $this->WriteAttributeInteger('TransportReconnectAttempt', 0);
                 $this->WriteAttributeInteger('TransportReconnectDelay', 30);
+                $this->WriteAttributeInteger('TransportHealthySince', 0);
                 $this->RefreshTransport();
             }
             return;
         }
 
+        $this->WriteAttributeInteger('TransportHealthySince', 0);
         $lastAttempt = $this->ReadAttributeInteger('TransportReconnectAttempt');
         $reconnectDelay = max(30, min(300, $this->ReadAttributeInteger('TransportReconnectDelay')));
         if (time() - $lastAttempt < $reconnectDelay) {
