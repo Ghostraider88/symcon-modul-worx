@@ -2,6 +2,7 @@
 
 ## Validated behavior
 
+- [x] Build 24 keeps the native weekly event active for Symcon `NextRun` display; its actions are no-op PHP comments.
 - [x] The native Symcon weekly event is the single schedule editor. Symcon edits are sent and confirmed by mower read-back; app-originated changes update the event without manual refresh.
 - [x] App-originated daily work-time changes are reflected live in Symcon, including signed values.
 - [x] Start, pause, and return-home were exercised; the mower was confirmed back at the charging station.

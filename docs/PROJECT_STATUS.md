@@ -2,7 +2,7 @@
 
 **Status date:** 2026-10-10
 **Repository branch:** `main`
-**Current module version:** 2.0, build 23
+**Current module version:** 2.0, build 24
 **Compatibility floor:** IP-Symcon 9.0
 **Release state:** Release candidate; the general V1 release is not yet cleared.
 
@@ -11,6 +11,8 @@
 The core V1 path has been exercised with the single mower installation used for validation: MQTT/cloud discovery, the native Symcon weekly schedule event, app-to-Symcon schedule updates, signed daily work-time adjustment, and the basic Start, Pause, and return-home actions. The exact device identity and private configuration are deliberately not recorded here or in public source files. V1 does not claim support for other models, protocols, or firmware variants.
 
 Build 22 fixes the Symcon 9 variable-presentation option schema that previously stopped Mower instance creation. Build 23 assigns a positive action ID to no-mowing schedule points, as required by Symcon 9. The live reload completed without warnings and the Mower instance returned to active status. The native schedule now contains all seven weekdays and reports a verified event representation. The live MQTT Client and separate MQTT-Landroid bridge are offline, so fresh device data and cloud command confirmation are still unavailable. The local product allowlist is also unconfirmed; neither limitation is treated as a module success.
+
+Build 24 keeps the native event active so Symcon can calculate `NextRun`. Its event actions are no-op PHP comments and do not call the mower. Live device checks still depend on restoring the MQTT Client and MQTT-Landroid bridge.
 
 ## Confirmed
 

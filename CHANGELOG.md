@@ -1,5 +1,9 @@
 # Changelog
 
+## V1 release candidate — build 24 (2026-10-10)
+
+- Keeps the native weekly schedule event active so Symcon can display its next run; schedule actions remain no-op PHP comments.
+
 ## V1 release candidate — build 23 (2026-10-10)
 
 - Uses a valid positive Symcon schedule action ID for "no mowing" switch points.

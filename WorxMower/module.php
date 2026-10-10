@@ -1038,8 +1038,10 @@ class WorxMower extends IPSModule
                     }
                 }
             }
-            if (!IPS_SetEventActive($eventID, false)) {
-                throw new RuntimeException('Symcon-Wochenplan konnte nicht deaktiviert bleiben.');
+            // Keep the native schedule active so Symcon can calculate and
+            // display NextRun. Every schedule action is a PHP comment only.
+            if (!IPS_SetEventActive($eventID, true)) {
+                throw new RuntimeException('Symcon-Wochenplan konnte nicht aktiviert werden.');
             }
         } catch (Throwable $exception) {
             $this->SetValueSafe('ScheduleSyncStatus', $this->Translate('Symcon-Wochenplan konnte nicht aktualisiert werden: ') . $this->Translate($exception->getMessage()));
