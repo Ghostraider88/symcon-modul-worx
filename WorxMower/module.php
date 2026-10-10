@@ -39,10 +39,12 @@ class WorxMower extends IPSModule
     private const VARIABLE_IDENTS = [
         'State', 'StateText', 'Error', 'ErrorText', 'Online', 'LastUpdate', 'Control', 'LastCommand',
         'CommandStatus', 'Locked', 'LockCommand', 'AutoSchedule', 'AutoScheduleSet', 'TimeExtension',
-        'TimeExtensionSet', 'RainDelay', 'RainDelaySet', 'Rain', 'SettingStatus', 'ScheduleSyncStatus', 'NextScheduleStart',
+        'TimeExtensionSet', 'RainDelay', 'RainDelaySet', 'Rain', 'SettingStatus', 'ScheduleSyncStatus', 'NextScheduleStart', 'DailyProgress',
         'Battery', 'Charging', 'BatteryTemp', 'BatteryVoltage', 'ChargeCycles', 'WifiSignal', 'Distance',
         'WorkTime', 'BladeTime', 'Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet',
-        'FirmwareUpgradeStatus', 'FirmwareUpgradeAction', 'DeviceDiagnostics', 'Schedule', 'SchedulePreview',
+        'FirmwareUpgradeStatus', 'FirmwareUpgradeAction', 'DeviceDiagnostics', 'BladeTimeSinceReset',
+        'BladeTimeAtReset', 'BladeTimeResetAt', 'BladeTimeResetAction', 'ChargeCyclesSinceReset',
+        'ChargeCyclesAtReset', 'ChargeCyclesResetAction', 'Schedule', 'SchedulePreview',
     ];
 
     private const VARIABLE_CATEGORIES = [
@@ -50,6 +52,7 @@ class WorxMower extends IPSModule
         'WorxFirmware'     => ['Name' => 'Firmware-Wartung', 'Position' => 51, 'Variables' => ['Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet', 'FirmwareUpgradeStatus', 'FirmwareUpgradeAction']],
         'WorxFeedback'     => ['Name' => 'Rückmeldung und Verlauf', 'Position' => 52, 'Variables' => ['LastUpdate', 'LastCommand', 'CommandStatus', 'SettingStatus', 'ScheduleSyncStatus']],
         'WorxNumericCodes' => ['Name' => 'Numerische Codes', 'Position' => 53, 'Variables' => ['State', 'Error']],
+        'WorxMaintenance'  => ['Name' => 'Wartungszähler', 'Position' => 54, 'Variables' => ['BladeTimeSinceReset', 'BladeTimeAtReset', 'BladeTimeResetAt', 'BladeTimeResetAction', 'ChargeCyclesSinceReset', 'ChargeCyclesAtReset', 'ChargeCyclesResetAction']],
     ];
 
     public function Create()
@@ -82,6 +85,7 @@ class WorxMower extends IPSModule
         $this->RegisterAttributeBoolean('ScheduleEventSyncing', false);
         $this->RegisterAttributeInteger('ScheduleEventListener', 0);
         $this->RegisterAttributeBoolean('ScheduleWritesSuppressed', false);
+        $this->RegisterAttributeInteger('ReportedBladeTimeSeconds', 0);
         $this->RegisterTimer('CommandConfirmationTimeout', 0, 'WORXMOWER_CommandConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('ScheduleConfirmationTimeout', 0, 'WORXMOWER_ScheduleConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('ScheduleEditDebounce', 0, 'WORXMOWER_ScheduleEditDebounce($_IPS[\'TARGET\']);');
@@ -102,6 +106,8 @@ class WorxMower extends IPSModule
         $this->EnableAction('AutoScheduleSet');
         $this->EnableAction('FirmwareAutoUpgradeSet');
         $this->EnableAction('FirmwareUpgradeAction');
+        $this->EnableAction('BladeTimeResetAction');
+        $this->EnableAction('ChargeCyclesResetAction');
         $this->moveVariablesIntoCategories();
     }
 
@@ -113,6 +119,8 @@ class WorxMower extends IPSModule
         $this->registerVariables();
         $this->EnableAction('FirmwareAutoUpgradeSet');
         $this->EnableAction('FirmwareUpgradeAction');
+        $this->EnableAction('BladeTimeResetAction');
+        $this->EnableAction('ChargeCyclesResetAction');
         $this->clearPendingForDifferentMower();
         // Optional variables from older builds may not exist in a fresh installation.
         foreach (IPS_GetChildrenIDs($this->InstanceID) as $childID) {
@@ -174,6 +182,31 @@ class WorxMower extends IPSModule
             } elseif ($action === 2) {
                 $this->StartFirmwareUpgrade();
             }
+            return;
+        }
+
+        if ($Ident === 'BladeTimeResetAction') {
+            if ((int) $Value !== 0) {
+                throw new InvalidArgumentException('BladeTimeResetAction erwartet den Aktionswert 0.');
+            }
+            $currentSeconds = $this->ReadAttributeInteger('ReportedBladeTimeSeconds');
+            if ($currentSeconds <= 0) {
+                $currentSeconds = (int) round((float) GetValue($this->getObjectIDForIdent('BladeTime')) * 3600);
+            }
+            $this->SetValueSafe('BladeTimeAtReset', max(0, $currentSeconds));
+            $this->SetValueSafe('BladeTimeResetAt', time());
+            $this->SetValueSafe('BladeTimeResetAction', -1);
+            $this->updateMaintenanceCounters();
+            return;
+        }
+
+        if ($Ident === 'ChargeCyclesResetAction') {
+            if ((int) $Value !== 0) {
+                throw new InvalidArgumentException('ChargeCyclesResetAction erwartet den Aktionswert 0.');
+            }
+            $this->SetValueSafe('ChargeCyclesAtReset', (int) GetValue($this->getObjectIDForIdent('ChargeCycles')));
+            $this->SetValueSafe('ChargeCyclesResetAction', -1);
+            $this->updateMaintenanceCounters();
             return;
         }
 
@@ -648,11 +681,14 @@ class WorxMower extends IPSModule
         $schedule = json_decode($this->ReadAttributeString('ReportedSchedule'), true);
         if (!is_array($schedule)) {
             $this->SetValueSafe('NextScheduleStart', $this->Translate('Kein bestätigter Zeitplan'));
+            $this->SetValueSafe('DailyProgress', 0.0);
             return;
         }
 
         $timezone = new DateTimeZone('Europe/Berlin');
-        $next = $this->findNextScheduleStart($schedule, new DateTimeImmutable('now', $timezone));
+        $now = new DateTimeImmutable('now', $timezone);
+        $this->updateDailyProgress($schedule, $now);
+        $next = $this->findNextScheduleStart($schedule, $now);
         if ($next === null) {
             $this->SetValueSafe('NextScheduleStart', $this->Translate('Kein geplanter Einsatz'));
             return;
@@ -1177,7 +1213,10 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('Distance', round(((float) ($stats['d'] ?? 0)) / 1000, 1));
             $this->SetValueSafe('WorkTime', round(((float) ($stats['wt'] ?? 0)) / 60, 1));
             $this->SetValueSafe('BladeTime', round(((float) ($stats['b'] ?? 0)) / 60, 1));
+            // Worx reports blade runtime in minutes; keep exact seconds for reset deltas.
+            $this->WriteAttributeInteger('ReportedBladeTimeSeconds', max(0, (int) round(((float) ($stats['b'] ?? 0)) * 60)));
         }
+        $this->updateMaintenanceCounters();
         if (isset($dat['rsi'])) $this->SetValueSafe('WifiSignal', (int) $dat['rsi']);
         if (isset($dat['rain']['s'])) $this->SetValueSafe('Rain', ((int) $dat['rain']['s']) > 0);
         $configuration = WorxScheduleCodec::deviceConfiguration($device);
@@ -1657,6 +1696,11 @@ class WorxMower extends IPSModule
         $this->RegisterVariableString('SettingStatus', 'Einstellungsrückmeldung', '', $p++);
         $this->RegisterVariableString('ScheduleSyncStatus', 'Zeitplanrückmeldung', '', $p++);
         $this->RegisterVariableString('NextScheduleStart', 'Nächster Planstart', '', $p++);
+        $this->RegisterVariableFloat('DailyProgress', 'Täglicher Fortschritt', [
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'DIGITS' => 0,
+            'SUFFIX' => ' %',
+        ], $p++);
 
         // Battery and mower statistics.
         $this->RegisterVariableInteger('Battery', 'Akku', $this->valuePresentation(' %'), $p++);
@@ -1668,6 +1712,15 @@ class WorxMower extends IPSModule
         $this->RegisterVariableFloat('Distance', 'Gesamtstrecke', $this->valuePresentation(' km'), $p++);
         $this->RegisterVariableFloat('WorkTime', 'Mähzeit gesamt', $this->valuePresentation(' h'), $p++);
         $this->RegisterVariableFloat('BladeTime', 'Messerlaufzeit', $this->valuePresentation(' h'), $p++);
+        $this->RegisterVariableInteger('BladeTimeSinceReset', 'Messerlaufzeit seit Zurücksetzung', ['PRESENTATION' => '{08A6AF76-394E-D354-48D5-BFC690488E4E}', 'FORMAT' => 3], $p++);
+        $this->RegisterVariableInteger('BladeTimeAtReset', 'Messerlaufzeit bei letzter Zurücksetzung', ['PRESENTATION' => '{08A6AF76-394E-D354-48D5-BFC690488E4E}', 'FORMAT' => 3], $p++);
+        $this->RegisterVariableInteger('BladeTimeResetAt', 'Zeitpunkt der Messerlaufzeit-Zurücksetzung', ['PRESENTATION' => VARIABLE_PRESENTATION_DATE_TIME, 'DATE' => 1, 'TIME' => 2], $p++);
+        $this->RegisterVariableInteger('BladeTimeResetAction', 'Messerlaufzeit zurücksetzen', $this->resetActionPresentation('Messerlaufzeit zurücksetzen'), $p++);
+        $this->SetValueSafe('BladeTimeResetAction', -1);
+        $this->RegisterVariableInteger('ChargeCyclesSinceReset', 'Batterieladezyklen seit Zurücksetzung', $this->valuePresentation(''), $p++);
+        $this->RegisterVariableInteger('ChargeCyclesAtReset', 'Batterieladezyklen bei letzter Zurücksetzung', $this->valuePresentation(''), $p++);
+        $this->RegisterVariableInteger('ChargeCyclesResetAction', 'Batteriezyklen zurücksetzen', $this->resetActionPresentation('Batteriezyklen zurücksetzen'), $p++);
+        $this->SetValueSafe('ChargeCyclesResetAction', -1);
         $this->RegisterVariableString('Firmware', 'Firmware', '', $p++);
         $this->RegisterVariableBoolean('FirmwareAutoUpgrade', 'Firmware-Update automatisch (Cloud, bestätigt)', $this->booleanValuePresentation('Aus', 'Ein'), $p++);
         $this->RegisterVariableBoolean('FirmwareAutoUpgradeSet', 'Automatische Firmware-Updates setzen', ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], $p++);
@@ -1689,9 +1742,10 @@ class WorxMower extends IPSModule
             'State', 'StateText', 'Error', 'ErrorText', 'Online', 'LastUpdate',
             'Control', 'LastCommand', 'CommandStatus', 'Locked', 'LockCommand', 'AutoSchedule', 'AutoScheduleSet',
             'TimeExtension', 'TimeExtensionSet', 'RainDelay', 'RainDelaySet', 'Rain', 'SettingStatus', 'ScheduleSyncStatus',
-            'NextScheduleStart',
+            'NextScheduleStart', 'DailyProgress',
             'Battery', 'Charging', 'BatteryTemp', 'BatteryVoltage', 'ChargeCycles', 'WifiSignal', 'Distance', 'WorkTime',
-            'BladeTime', 'Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet',
+            'BladeTime', 'BladeTimeSinceReset', 'BladeTimeAtReset', 'BladeTimeResetAt', 'BladeTimeResetAction',
+            'ChargeCyclesSinceReset', 'ChargeCyclesAtReset', 'ChargeCyclesResetAction', 'Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet',
             'FirmwareUpgradeStatus', 'FirmwareUpgradeAction', 'DeviceDiagnostics',
         ];
         foreach ($orderedIdents as $position => $ident) {
@@ -1932,6 +1986,86 @@ class WorxMower extends IPSModule
             $value = $this->Translate($value);
         }
         if (GetValue($id) !== $value) SetValue($id, $value);
+    }
+
+    /** Keep the historical reset counters independently of commands sent to the mower. */
+    private function updateMaintenanceCounters(): void
+    {
+        $bladeResetAtID = $this->getObjectIDForIdent('BladeTimeResetAt');
+        $bladeAtResetID = $this->getObjectIDForIdent('BladeTimeAtReset');
+        $chargeAtResetID = $this->getObjectIDForIdent('ChargeCyclesAtReset');
+        if ($bladeResetAtID === false || $bladeAtResetID === false || $chargeAtResetID === false) {
+            return;
+        }
+
+        $currentBladeSeconds = $this->ReadAttributeInteger('ReportedBladeTimeSeconds');
+        if ($currentBladeSeconds <= 0) {
+            $bladeID = $this->getObjectIDForIdent('BladeTime');
+            $currentBladeSeconds = $bladeID !== false ? (int) round((float) GetValue($bladeID) * 3600) : 0;
+        }
+        $chargeCyclesID = $this->getObjectIDForIdent('ChargeCycles');
+        $currentChargeCycles = $chargeCyclesID !== false ? (int) GetValue($chargeCyclesID) : 0;
+
+        // A zero timestamp means this is a new installation without an imported baseline.
+        // Seed it once; a migrated or user-reset baseline has a real timestamp and is retained.
+        $initializeBaselines = (int) GetValue($bladeResetAtID) <= 0;
+        if ($initializeBaselines) {
+            $this->SetValueSafe('BladeTimeAtReset', max(0, $currentBladeSeconds));
+            $this->SetValueSafe('BladeTimeResetAt', time());
+            $this->SetValueSafe('ChargeCyclesAtReset', max(0, $currentChargeCycles));
+        }
+
+        $bladeBaseline = (int) GetValue($bladeAtResetID);
+        $chargeBaseline = (int) GetValue($chargeAtResetID);
+        $this->SetValueSafe('BladeTimeSinceReset', max(0, $currentBladeSeconds - $bladeBaseline));
+        $this->SetValueSafe('ChargeCyclesSinceReset', max(0, $currentChargeCycles - $chargeBaseline));
+    }
+
+    /** Calculate elapsed time inside today's confirmed mower schedule, as the HA sensor did. */
+    private function updateDailyProgress(array $schedule, DateTimeImmutable $now): void
+    {
+        try {
+            $rows = WorxScheduleCodec::toRows($schedule);
+        } catch (InvalidArgumentException $exception) {
+            $this->SetValueSafe('DailyProgress', 0.0);
+            return;
+        }
+
+        $today = (int) $now->format('w'); // Protocol rows are Sunday=0 through Saturday=6.
+        $minuteOfDay = ((int) $now->format('G') * 60)
+            + (int) $now->format('i')
+            + ((int) $now->format('s') / 60);
+        $scheduledMinutes = 0;
+        $elapsedMinutes = 0.0;
+        foreach ($rows as $row) {
+            if (!$row['Enabled'] || (int) $row['Day'] !== $today) {
+                continue;
+            }
+            [$hour, $minute] = array_map('intval', explode(':', (string) $row['Start']));
+            $startMinute = ($hour * 60) + $minute;
+            $duration = max(0, (int) $row['Minutes']);
+            $scheduledMinutes += $duration;
+            $elapsedMinutes += min($duration, max(0, $minuteOfDay - $startMinute));
+        }
+
+        $progress = $scheduledMinutes > 0
+            ? (int) round(($elapsedMinutes / $scheduledMinutes) * 100)
+            : 0;
+        $this->SetValueSafe('DailyProgress', (float) max(0, min(100, $progress)));
+    }
+
+    private function resetActionPresentation(string $caption): array
+    {
+        return [
+            'PRESENTATION' => '{52D9E126-D7D2-2CBB-5E62-4CF7BA7C5D82}',
+            'OPTIONS' => json_encode([[
+                'Value' => 0,
+                'Caption' => $this->Translate($caption),
+                'IconActive' => false,
+                'IconValue' => '',
+                'Color' => -1,
+            ]], JSON_THROW_ON_ERROR),
+        ];
     }
 
     private function restoreSettingInput(string $inputIdent, string $confirmedIdent): void

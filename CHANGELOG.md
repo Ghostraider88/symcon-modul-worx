@@ -1,5 +1,10 @@
 # Changelog
 
+## V1 release candidate — build 28 (2026-10-10)
+
+- Adds daily schedule progress and compatible archive history migration.
+- Adds blade-runtime and battery-cycle reset baselines and local reset actions.
+
 ## V1 release candidate — build 27 (2026-10-10)
 
 - Restores categorized variables before registration during instance creation, preventing duplicate idents on reload.
