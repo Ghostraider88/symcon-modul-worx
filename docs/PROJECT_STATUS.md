@@ -2,7 +2,7 @@
 
 **Status date:** 2026-10-10
 **Repository branch:** `main`
-**Current module version:** 2.0, build 25
+**Current module version:** 2.0, build 27
 **Compatibility floor:** IP-Symcon 9.0
 **Release state:** Release candidate; the general V1 release is not yet cleared.
 

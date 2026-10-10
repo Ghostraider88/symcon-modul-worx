@@ -1,5 +1,13 @@
 # Changelog
 
+## V1 release candidate — build 27 (2026-10-10)
+
+- Restores categorized variables before registration during instance creation, preventing duplicate idents on reload.
+
+## V1 release candidate — build 26 (2026-10-10)
+
+- Fixes lookup of variables moved into child categories without logging missing direct-child IDs during module updates.
+
 ## V1 release candidate — build 25 (2026-10-10)
 
 - Groups diagnostics, firmware maintenance, feedback/history, and numeric state/error codes in child categories while preserving variable IDs and module access.

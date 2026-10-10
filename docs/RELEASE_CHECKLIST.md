@@ -3,6 +3,8 @@
 ## Validated behavior
 
 - [x] Build 25 groups diagnostic, firmware, feedback/history, and numeric-code variables below the Mower instance.
+- [x] Build 26 finds categorized variables without warnings during module reload.
+- [x] Build 27 restores categorized variables before registration during instance creation.
 - [x] Build 24 keeps the native weekly event active for Symcon `NextRun` display; its actions are no-op PHP comments.
 - [x] The native Symcon weekly event is the single schedule editor. Symcon edits are sent and confirmed by mower read-back; app-originated changes update the event without manual refresh.
 - [x] App-originated daily work-time changes are reflected live in Symcon, including signed values.

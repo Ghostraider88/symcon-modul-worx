@@ -91,6 +91,9 @@ class WorxMower extends IPSModule
         $this->RegisterTimer('AutoScheduleConfirmationTimeout', 0, 'WORXMOWER_AutoScheduleConfirmationTimeout($_IPS[\'TARGET\']);');
         $this->RegisterTimer('FirmwareAutoUpgradeConfirmationTimeout', 0, 'WORXMOWER_FirmwareAutoUpgradeConfirmationTimeout($_IPS[\'TARGET\']);');
 
+        // Existing installations keep grouped variables below child categories between reloads.
+        // Restore them first so RegisterVariable* reuses their IDs instead of creating duplicates.
+        $this->restoreCategorizedVariables();
         $this->registerVariables();
         $this->EnableAction('Control');
         $this->EnableAction('TimeExtensionSet');
@@ -1709,7 +1712,7 @@ class WorxMower extends IPSModule
     private function restoreCategorizedVariables(): void
     {
         foreach (self::VARIABLE_CATEGORIES as $categoryIdent => $category) {
-            $categoryID = @IPS_GetObjectIDByIdent($categoryIdent, $this->InstanceID);
+            $categoryID = $this->findDirectChildIDByIdent($categoryIdent, $this->InstanceID);
             if ($categoryID === false) {
                 continue;
             }
@@ -1730,7 +1733,7 @@ class WorxMower extends IPSModule
     private function moveVariablesIntoCategories(): void
     {
         foreach (self::VARIABLE_CATEGORIES as $categoryIdent => $category) {
-            $categoryID = @IPS_GetObjectIDByIdent($categoryIdent, $this->InstanceID);
+            $categoryID = $this->findDirectChildIDByIdent($categoryIdent, $this->InstanceID);
             if ($categoryID === false) {
                 $categoryID = IPS_CreateCategory();
                 IPS_SetParent($categoryID, $this->InstanceID);
@@ -1748,7 +1751,10 @@ class WorxMower extends IPSModule
                 IPS_SetPosition($categoryID, $category['Position']);
             }
             foreach ($category['Variables'] as $position => $ident) {
-                $variableID = $this->GetIDForIdent($ident);
+                $variableID = $this->findDirectChildIDByIdent($ident, $this->InstanceID);
+                if ($variableID === false) {
+                    $variableID = $this->findDirectChildIDByIdent($ident, $categoryID);
+                }
                 if ($variableID === false || $variableID <= 0) {
                     continue;
                 }
@@ -1768,7 +1774,7 @@ class WorxMower extends IPSModule
     /** Resolve a direct variable first, then a variable grouped under this module's child categories. */
     private function getObjectIDForIdent(string $ident)
     {
-        $objectID = $this->GetIDForIdent($ident);
+        $objectID = $this->findDirectChildIDByIdent($ident, $this->InstanceID);
         if ($objectID !== false && $objectID > 0) {
             return $objectID;
         }
@@ -1776,12 +1782,22 @@ class WorxMower extends IPSModule
             if (!in_array($ident, $category['Variables'], true)) {
                 continue;
             }
-            $categoryID = @IPS_GetObjectIDByIdent($categoryIdent, $this->InstanceID);
+            $categoryID = $this->findDirectChildIDByIdent($categoryIdent, $this->InstanceID);
             if ($categoryID === false) {
                 return false;
             }
-            $objectID = @IPS_GetObjectIDByIdent($ident, $categoryID);
-            return $objectID === false ? false : $objectID;
+            return $this->findDirectChildIDByIdent($ident, $categoryID);
+        }
+        return false;
+    }
+
+    /** Find a child by ident without calling GetIDForIdent on a missing direct child. */
+    private function findDirectChildIDByIdent(string $ident, int $parentID)
+    {
+        foreach (IPS_GetChildrenIDs($parentID) as $childID) {
+            if ((IPS_GetObject($childID)['ObjectIdent'] ?? '') === $ident) {
+                return $childID;
+            }
         }
         return false;
     }
