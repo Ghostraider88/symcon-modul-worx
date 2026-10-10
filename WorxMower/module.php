@@ -45,6 +45,13 @@ class WorxMower extends IPSModule
         'FirmwareUpgradeStatus', 'FirmwareUpgradeAction', 'DeviceDiagnostics', 'Schedule', 'SchedulePreview',
     ];
 
+    private const VARIABLE_CATEGORIES = [
+        'WorxDiagnostics' => ['Name' => 'Diagnose und Entwicklung', 'Position' => 50, 'Variables' => ['DeviceDiagnostics']],
+        'WorxFirmware' => ['Name' => 'Firmware-Wartung', 'Position' => 51, 'Variables' => ['Firmware', 'FirmwareAutoUpgrade', 'FirmwareAutoUpgradeSet', 'FirmwareUpgradeStatus', 'FirmwareUpgradeAction']],
+        'WorxFeedback' => ['Name' => 'Rückmeldung und Verlauf', 'Position' => 52, 'Variables' => ['LastUpdate', 'LastCommand', 'CommandStatus', 'SettingStatus', 'ScheduleSyncStatus']],
+        'WorxNumericCodes' => ['Name' => 'Numerische Codes', 'Position' => 53, 'Variables' => ['State', 'Error']],
+    ];
+
     public function Create()
     {
         parent::Create();
@@ -92,10 +99,12 @@ class WorxMower extends IPSModule
         $this->EnableAction('AutoScheduleSet');
         $this->EnableAction('FirmwareAutoUpgradeSet');
         $this->EnableAction('FirmwareUpgradeAction');
+        $this->moveVariablesIntoCategories();
     }
 
     public function ApplyChanges()
     {
+        $this->restoreCategorizedVariables();
         parent::ApplyChanges();
         // Re-register presentations so an update replaces legacy profiles on existing variables.
         $this->registerVariables();
@@ -109,6 +118,7 @@ class WorxMower extends IPSModule
                 IPS_SetHidden($childID, true);
             }
         }
+        $this->moveVariablesIntoCategories();
         if ($this->ReadPropertyString('Serial') === '') {
             $this->SetTimerInterval('CommandConfirmationTimeout', 0);
             $this->SetTimerInterval('ScheduleConfirmationTimeout', 0);
@@ -264,7 +274,7 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Worx-Cloud-Verbindung fehlt.');
             return false;
         }
-        $reportedID = $this->GetIDForIdent('AutoSchedule');
+        $reportedID = $this->getObjectIDForIdent('AutoSchedule');
         $previous = $reportedID === false || $reportedID === 0 ? (bool) $device['auto_schedule'] : (bool) GetValue($reportedID);
         $this->WriteAttributeString('PendingAutoSchedule', json_encode(['desired' => $enabled, 'previous' => $previous]));
         $this->WriteAttributeString('PendingAutoScheduleSerial', $this->ReadPropertyString('Serial'));
@@ -313,7 +323,7 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Worx-Cloud-Verbindung fehlt.');
             return false;
         }
-        $reportedID = $this->GetIDForIdent('FirmwareAutoUpgrade');
+        $reportedID = $this->getObjectIDForIdent('FirmwareAutoUpgrade');
         $previous = $reportedID === false || $reportedID === 0
             ? $device['firmware_auto_upgrade']
             : (bool) GetValue($reportedID);
@@ -399,9 +409,9 @@ class WorxMower extends IPSModule
     public function StartFirmwareUpgrade(): bool
     {
         $device = $this->getDevice();
-        $stateID = $this->GetIDForIdent('State');
-        $batteryID = $this->GetIDForIdent('Battery');
-        $chargingID = $this->GetIDForIdent('Charging');
+        $stateID = $this->getObjectIDForIdent('State');
+        $batteryID = $this->getObjectIDForIdent('Battery');
+        $chargingID = $this->getObjectIDForIdent('Charging');
         $safeState = $stateID !== false && $stateID > 0 && GetValueInteger($stateID) === 1;
         $charging = $chargingID !== false && $chargingID > 0 && GetValueBoolean($chargingID);
         $battery = $batteryID !== false && $batteryID > 0 ? GetValueInteger($batteryID) : 0;
@@ -453,7 +463,7 @@ class WorxMower extends IPSModule
         $this->WriteAttributeString('PendingFirmwareAutoUpgrade', '');
         $this->WriteAttributeString('PendingFirmwareAutoUpgradeSerial', '');
         $this->SetTimerInterval('FirmwareAutoUpgradeConfirmationTimeout', 0);
-        $reportedID = $this->GetIDForIdent('FirmwareAutoUpgrade');
+        $reportedID = $this->getObjectIDForIdent('FirmwareAutoUpgrade');
         if ($reportedID !== false && $reportedID > 0) {
             $this->SetValueSafe('FirmwareAutoUpgradeSet', (bool) GetValue($reportedID));
         }
@@ -496,7 +506,7 @@ class WorxMower extends IPSModule
             $this->SetValueSafe('SettingStatus', 'Nicht gesendet: Worx-Cloud-Verbindung fehlt.');
             return false;
         }
-        $currentID = $this->GetIDForIdent('Locked');
+        $currentID = $this->getObjectIDForIdent('Locked');
         $current = $currentID === false || $currentID === 0 ? false : (bool) GetValue($currentID);
         $serial = $this->ReadPropertyString('Serial');
         $this->WriteAttributeString('PendingLock', json_encode(['desired' => $locked, 'previous' => $current]));
@@ -933,7 +943,7 @@ class WorxMower extends IPSModule
 
     private function GetValueForIdent(string $ident): int
     {
-        $id = $this->GetIDForIdent($ident);
+        $id = $this->getObjectIDForIdent($ident);
         return $id === false || $id === 0 ? 0 : (int) GetValue($id);
     }
     private function scheduleEventID(): int
@@ -1054,7 +1064,7 @@ class WorxMower extends IPSModule
             return;
         }
         $this->WriteAttributeString('ScheduleEventSnapshot', $this->scheduleEventFingerprint($eventID));
-        $statusID = $this->GetIDForIdent('ScheduleSyncStatus');
+        $statusID = $this->getObjectIDForIdent('ScheduleSyncStatus');
         if ($statusID !== false && $statusID > 0) {
             $status = GetValueString($statusID);
             $checkedSuffix = $this->Translate('Symcon-Wochenplan geprüft.');
@@ -1172,17 +1182,17 @@ class WorxMower extends IPSModule
         $supportsTimeExtension = in_array('unrestricted_mowing_time', $device['capabilities'] ?? [], true)
             && is_array($reportedSchedule) && isset($reportedSchedule['p'])
             && WorxScheduleCodec::timeExtensionFromProtocol($reportedSchedule['p']) !== null;
-        $timeExtensionID = $this->GetIDForIdent('TimeExtension');
+        $timeExtensionID = $this->getObjectIDForIdent('TimeExtension');
         if ($timeExtensionID !== false && $timeExtensionID > 0) {
             IPS_SetHidden($timeExtensionID, !$supportsTimeExtension);
             if ($supportsTimeExtension) $this->SetValueSafe('TimeExtension', WorxScheduleCodec::timeExtensionFromProtocol($reportedSchedule['p']));
         }
-        $timeExtensionSetID = $this->GetIDForIdent('TimeExtensionSet');
+        $timeExtensionSetID = $this->getObjectIDForIdent('TimeExtensionSet');
         if ($timeExtensionSetID !== false && $timeExtensionSetID > 0) IPS_SetHidden($timeExtensionSetID, !$supportsTimeExtension);
         $supportsRainDelay = in_array('rain_delay', $device['capabilities'] ?? [], true)
             && isset($configuration['rd']) && is_numeric($configuration['rd'])
             && (int) $configuration['rd'] >= 0;
-        $rainDelayID = $this->GetIDForIdent('RainDelay');
+        $rainDelayID = $this->getObjectIDForIdent('RainDelay');
         if ($rainDelayID !== false && $rainDelayID > 0) {
             IPS_SetHidden($rainDelayID, !$supportsRainDelay);
             if ($supportsRainDelay) {
@@ -1194,11 +1204,11 @@ class WorxMower extends IPSModule
                 }
             }
         }
-        $rainDelaySetID = $this->GetIDForIdent('RainDelaySet');
+        $rainDelaySetID = $this->getObjectIDForIdent('RainDelaySet');
         if ($rainDelaySetID !== false && $rainDelaySetID > 0) IPS_SetHidden($rainDelaySetID, !$supportsRainDelay);
         $autoScheduleSupported = array_key_exists('auto_schedule', $device) && is_bool($device['auto_schedule']);
-        $autoScheduleID = $this->GetIDForIdent('AutoSchedule');
-        $autoScheduleSetID = $this->GetIDForIdent('AutoScheduleSet');
+        $autoScheduleID = $this->getObjectIDForIdent('AutoSchedule');
+        $autoScheduleSetID = $this->getObjectIDForIdent('AutoScheduleSet');
         if ($autoScheduleID !== false && $autoScheduleID > 0) {
             IPS_SetHidden($autoScheduleID, !$autoScheduleSupported);
             if ($autoScheduleSupported) {
@@ -1211,7 +1221,7 @@ class WorxMower extends IPSModule
         }
         if ($autoScheduleSetID !== false && $autoScheduleSetID > 0) IPS_SetHidden($autoScheduleSetID, !$autoScheduleSupported);
         $lockCapability = in_array('lock', $device['capabilities'] ?? [], true) && (int) ($device['protocol'] ?? -1) === 0;
-        $lockCommandID = $this->GetIDForIdent('LockCommand');
+        $lockCommandID = $this->getObjectIDForIdent('LockCommand');
         if ($lockCommandID !== false && $lockCommandID > 0) IPS_SetHidden($lockCommandID, !$lockCapability);
         if (isset($dat['lk'])) {
             $locked = ((int) $dat['lk']) > 0;
@@ -1241,7 +1251,7 @@ class WorxMower extends IPSModule
 
     private function setFirmwareUpgradeActionOptions(bool $canStart): void
     {
-        $actionID = $this->GetIDForIdent('FirmwareUpgradeAction');
+        $actionID = $this->getObjectIDForIdent('FirmwareUpgradeAction');
         if ($actionID === false || $actionID <= 0) {
             return;
         }
@@ -1262,8 +1272,8 @@ class WorxMower extends IPSModule
 
     private function updateFirmwareUpgradeAvailability(array $device): void
     {
-        $statusID = $this->GetIDForIdent('FirmwareUpgradeStatus');
-        $actionID = $this->GetIDForIdent('FirmwareUpgradeAction');
+        $statusID = $this->getObjectIDForIdent('FirmwareUpgradeStatus');
+        $actionID = $this->getObjectIDForIdent('FirmwareUpgradeAction');
         if ($statusID === false || $statusID <= 0 || $actionID === false || $actionID <= 0) {
             return;
         }
@@ -1280,8 +1290,8 @@ class WorxMower extends IPSModule
 
     private function updateFirmwareAutoUpgrade(array $device): void
     {
-        $firmwareAutoUpdateID = $this->GetIDForIdent('FirmwareAutoUpgrade');
-        $firmwareAutoUpdateSetID = $this->GetIDForIdent('FirmwareAutoUpgradeSet');
+        $firmwareAutoUpdateID = $this->getObjectIDForIdent('FirmwareAutoUpgrade');
+        $firmwareAutoUpdateSetID = $this->getObjectIDForIdent('FirmwareAutoUpgradeSet');
         $supported = in_array('ota_upgrade', $device['capabilities'] ?? [], true)
             && array_key_exists('firmware_auto_upgrade', $device) && is_bool($device['firmware_auto_upgrade']);
         if ($firmwareAutoUpdateID === false || $firmwareAutoUpdateID <= 0
@@ -1569,7 +1579,7 @@ class WorxMower extends IPSModule
 
     private function restoreAllowedDeviceVisibility(): void
     {
-        foreach (IPS_GetChildrenIDs($this->InstanceID) as $childID) {
+        foreach ($this->getDescendantObjectIDs($this->InstanceID) as $childID) {
             $child = IPS_GetObject($childID);
             if (($child['ObjectIdent'] ?? '') === 'WorxWeeklySchedule') {
                 IPS_SetHidden($childID, false);
@@ -1592,7 +1602,7 @@ class WorxMower extends IPSModule
         $this->SetValueSafe('CommandStatus', $message);
         $this->SetValueSafe('SettingStatus', $message);
         $this->SetValueSafe('ScheduleSyncStatus', $message);
-        foreach (IPS_GetChildrenIDs($this->InstanceID) as $childID) {
+        foreach ($this->getDescendantObjectIDs($this->InstanceID) as $childID) {
             $child = IPS_GetObject($childID);
             if (($child['ObjectIdent'] ?? '') === 'WorxWeeklySchedule') {
                 IPS_SetHidden($childID, true);
@@ -1664,8 +1674,8 @@ class WorxMower extends IPSModule
             1 => $this->Translate('Firmwareverfügbarkeit prüfen'),
         ]), $p++);
         $this->setFirmwareUpgradeActionOptions(false);
-        IPS_SetHidden($this->GetIDForIdent('FirmwareUpgradeStatus'), true);
-        IPS_SetHidden($this->GetIDForIdent('FirmwareUpgradeAction'), true);
+        IPS_SetHidden($this->getObjectIDForIdent('FirmwareUpgradeStatus'), true);
+        IPS_SetHidden($this->getObjectIDForIdent('FirmwareUpgradeAction'), true);
 
         // Redacted development diagnostic is intentionally last in the object tree.
         $this->RegisterVariableString('DeviceDiagnostics', 'Gerätenachweis (redigiert)', '', $p++);
@@ -1682,7 +1692,7 @@ class WorxMower extends IPSModule
             'FirmwareUpgradeStatus', 'FirmwareUpgradeAction', 'DeviceDiagnostics',
         ];
         foreach ($orderedIdents as $position => $ident) {
-            $variableID = $this->GetIDForIdent($ident);
+            $variableID = $this->getObjectIDForIdent($ident);
             if ($variableID === false || $variableID <= 0) {
                 continue;
             }
@@ -1693,6 +1703,98 @@ class WorxMower extends IPSModule
                 }
             }
         }
+    }
+
+    /** Move existing grouped variables back temporarily so RegisterVariable* and EnableAction can find them. */
+    private function restoreCategorizedVariables(): void
+    {
+        foreach (self::VARIABLE_CATEGORIES as $categoryIdent => $category) {
+            $categoryID = @IPS_GetObjectIDByIdent($categoryIdent, $this->InstanceID);
+            if ($categoryID === false) {
+                continue;
+            }
+            foreach (IPS_GetChildrenIDs($categoryID) as $childID) {
+                $child = IPS_GetObject($childID);
+                if ($child['ObjectType'] === 2 && in_array($child['ObjectIdent'] ?? '', $category['Variables'], true)
+                    && IPS_GetParent($childID) !== $this->InstanceID) {
+                    IPS_SetParent($childID, $this->InstanceID);
+                    if (IPS_GetParent($childID) !== $this->InstanceID) {
+                        throw new RuntimeException(sprintf('Mower-Variable %s konnte für die Modulaktualisierung nicht zurückverschoben werden.', $child['ObjectIdent'] ?? ''));
+                    }
+                }
+            }
+        }
+    }
+
+    /** Place selected variables in stable instance child categories without changing their IDs. */
+    private function moveVariablesIntoCategories(): void
+    {
+        foreach (self::VARIABLE_CATEGORIES as $categoryIdent => $category) {
+            $categoryID = @IPS_GetObjectIDByIdent($categoryIdent, $this->InstanceID);
+            if ($categoryID === false) {
+                $categoryID = IPS_CreateCategory();
+                IPS_SetParent($categoryID, $this->InstanceID);
+                IPS_SetIdent($categoryID, $categoryIdent);
+                IPS_SetName($categoryID, $this->Translate($category['Name']));
+                if (IPS_GetParent($categoryID) !== $this->InstanceID
+                    || (IPS_GetObject($categoryID)['ObjectIdent'] ?? '') !== $categoryIdent) {
+                    throw new RuntimeException(sprintf('Mower-Kategorie %s konnte nicht angelegt werden.', $category['Name']));
+                }
+            }
+            if (IPS_GetObject($categoryID)['ObjectType'] !== 0) {
+                throw new RuntimeException(sprintf('Mower-Kategorie-Ident %s ist bereits durch ein anderes Objekt belegt.', $categoryIdent));
+            }
+            if (IPS_GetObject($categoryID)['ObjectPosition'] !== $category['Position']) {
+                IPS_SetPosition($categoryID, $category['Position']);
+            }
+            foreach ($category['Variables'] as $position => $ident) {
+                $variableID = $this->GetIDForIdent($ident);
+                if ($variableID === false || $variableID <= 0) {
+                    continue;
+                }
+                if (IPS_GetParent($variableID) !== $categoryID) {
+                    IPS_SetParent($variableID, $categoryID);
+                    if (IPS_GetParent($variableID) !== $categoryID) {
+                        throw new RuntimeException(sprintf('Mower-Variable %s konnte nicht in die Kategorie verschoben werden.', $ident));
+                    }
+                }
+                if (IPS_GetObject($variableID)['ObjectPosition'] !== $position) {
+                    IPS_SetPosition($variableID, $position);
+                }
+            }
+        }
+    }
+
+    /** Resolve a direct variable first, then a variable grouped under this module's child categories. */
+    private function getObjectIDForIdent(string $ident)
+    {
+        $objectID = $this->GetIDForIdent($ident);
+        if ($objectID !== false && $objectID > 0) {
+            return $objectID;
+        }
+        foreach (self::VARIABLE_CATEGORIES as $categoryIdent => $category) {
+            if (!in_array($ident, $category['Variables'], true)) {
+                continue;
+            }
+            $categoryID = @IPS_GetObjectIDByIdent($categoryIdent, $this->InstanceID);
+            if ($categoryID === false) {
+                return false;
+            }
+            $objectID = @IPS_GetObjectIDByIdent($ident, $categoryID);
+            return $objectID === false ? false : $objectID;
+        }
+        return false;
+    }
+
+    /** Return direct and nested descendants for visibility handling. */
+    private function getDescendantObjectIDs(int $parentID): array
+    {
+        $result = [];
+        foreach (IPS_GetChildrenIDs($parentID) as $childID) {
+            $result[] = $childID;
+            $result = array_merge($result, $this->getDescendantObjectIDs($childID));
+        }
+        return $result;
     }
 
     private function clearCustomVariableProfiles(): void
@@ -1716,7 +1818,7 @@ class WorxMower extends IPSModule
 
     private function updateControlPresentation(): void
     {
-        $controlID = $this->GetIDForIdent('Control');
+        $controlID = $this->getObjectIDForIdent('Control');
         if ($controlID === false || $controlID <= 0) {
             return;
         }
@@ -1806,7 +1908,7 @@ class WorxMower extends IPSModule
 
     private function SetValueSafe(string $ident, $value): void
     {
-        $id = $this->GetIDForIdent($ident);
+        $id = $this->getObjectIDForIdent($ident);
         if ($id === false || $id === 0) return;
         // Translate user-facing text values centrally. Unknown or dynamic strings
         // remain unchanged, while exact locale entries follow the Symcon language.
@@ -1818,8 +1920,8 @@ class WorxMower extends IPSModule
 
     private function restoreSettingInput(string $inputIdent, string $confirmedIdent): void
     {
-        $inputID = $this->GetIDForIdent($inputIdent);
-        $confirmedID = $this->GetIDForIdent($confirmedIdent);
+        $inputID = $this->getObjectIDForIdent($inputIdent);
+        $confirmedID = $this->getObjectIDForIdent($confirmedIdent);
         if ($inputID === false || $inputID <= 0 || $confirmedID === false || $confirmedID <= 0) {
             return;
         }

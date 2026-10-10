@@ -2,7 +2,7 @@
 
 **Status date:** 2026-10-10
 **Repository branch:** `main`
-**Current module version:** 2.0, build 24
+**Current module version:** 2.0, build 25
 **Compatibility floor:** IP-Symcon 9.0
 **Release state:** Release candidate; the general V1 release is not yet cleared.
 
@@ -15,6 +15,8 @@ Build 22 fixes the Symcon 9 variable-presentation option schema that previously 
 Build 24 keeps the native event active so Symcon can calculate `NextRun`. Its event actions are no-op PHP comments and do not call the mower. Live device checks still depend on restoring the MQTT Client and MQTT-Landroid bridge.
 
 ## Confirmed
+
+- [x] Diagnostic/development, firmware-maintenance, feedback/history, and numeric status/error variables are grouped in categories beneath the Mower instance; module access resolves the same existing variable IDs.
 
 - [x] The weekly schedule is represented by one native Symcon weekly event. Symcon edits are sent to Worx and checked against the mower's returned schedule; app-originated schedule changes are reflected in Symcon.
 - [x] App-originated signed daily work-time changes are reflected live in Symcon.

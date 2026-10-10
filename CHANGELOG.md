@@ -1,5 +1,9 @@
 # Changelog
 
+## V1 release candidate — build 25 (2026-10-10)
+
+- Groups diagnostics, firmware maintenance, feedback/history, and numeric state/error codes in child categories while preserving variable IDs and module access.
+
 ## V1 release candidate — build 24 (2026-10-10)
 
 - Keeps the native weekly schedule event active so Symcon can display its next run; schedule actions remain no-op PHP comments.
