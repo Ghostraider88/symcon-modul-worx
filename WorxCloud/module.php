@@ -50,6 +50,7 @@ class WorxCloud extends IPSModule
         $this->RegisterAttributeString('RefreshToken', '');
         $this->RegisterAttributeInteger('TokenExpires', 0);
         $this->RegisterAttributeInteger('TransportReconnectAttempt', 0);
+        $this->RegisterAttributeInteger('TransportReconnectDelay', 30);
         $this->RegisterAttributeString('Devices', '[]');
 
         $this->RegisterTimer('WorxPoll', 0, 'WORX_Poll($_IPS[\'TARGET\']);');
@@ -268,17 +269,20 @@ class WorxCloud extends IPSModule
         if ($mqttInstance['InstanceStatus'] === IS_ACTIVE && $wsInstance['InstanceStatus'] === IS_ACTIVE) {
             if ($this->ReadAttributeInteger('TransportReconnectAttempt') > 0) {
                 $this->WriteAttributeInteger('TransportReconnectAttempt', 0);
+                $this->WriteAttributeInteger('TransportReconnectDelay', 30);
                 $this->RefreshTransport();
             }
             return;
         }
 
         $lastAttempt = $this->ReadAttributeInteger('TransportReconnectAttempt');
-        if (time() - $lastAttempt < 10) {
+        $reconnectDelay = max(30, min(300, $this->ReadAttributeInteger('TransportReconnectDelay')));
+        if (time() - $lastAttempt < $reconnectDelay) {
             return;
         }
 
         $this->WriteAttributeInteger('TransportReconnectAttempt', time());
+        $this->WriteAttributeInteger('TransportReconnectDelay', min(300, $reconnectDelay * 2));
         $this->SendDebug('MQTT', 'Worx-WebSocket getrennt; Transport wird neu verbunden.', 0);
         $this->setIfChanged($ws, ['Active' => false]);
         $this->setIfChanged($ws, ['Active' => true]);
