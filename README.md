@@ -32,4 +32,4 @@ Use a test instance before enabling device controls. Confirm schedule changes ag
 
 ## Development
 
-The module is licensed under MIT. Third-party integrations may be consulted for protocol research; their source code is not copied. See [architecture](docs/ARCHITECTURE.md), [feature matrix](docs/FEATURE_MATRIX.md), [release checklist](docs/RELEASE_CHECKLIST.md), and [mower guide](WorxMower/README.md).
+The module is licensed under MIT. Third-party integrations may be consulted for protocol research; their source code is not copied. See [current project status and release gates](docs/PROJECT_STATUS.md), [architecture](docs/ARCHITECTURE.md), [feature matrix](docs/FEATURE_MATRIX.md), [release checklist](docs/RELEASE_CHECKLIST.md), and [mower guide](WorxMower/README.md).
