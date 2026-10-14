@@ -997,7 +997,7 @@ final class WorxMowerProfileTest extends TestCase
 
     public function testFreshSupportedDeviceClearsOnlyTemporaryCheckingFeedback(): void
     {
-        $instanceID = IPS\\ObjectManager::registerObject(1);
+        $instanceID = IPS\ObjectManager::registerObject(1);
         $module = $this->createMowerInstanceForTest($instanceID);
         $lockUnsupportedDevice = new ReflectionMethod(WorxMower::class, 'lockUnsupportedDevice');
         $lockUnsupportedDevice->setAccessible(true);
