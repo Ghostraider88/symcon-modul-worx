@@ -12,7 +12,8 @@ The modules use capabilities and fields reported at runtime. A feature is shown 
 | Mower commands | Start, pause, and return to charging station | Exercised with the test mower; command feedback and mower-reported state remain separate |
 | Weekly schedule | Native Symcon weekly event is the only schedule editor; changes are validated, sent, and confirmed by mower read-back | App-originated schedule changes update the event. The tested protocol-0 schedule contains seven weekday entries; scheduled edge-cut flags are retained as schedule fields |
 | Daily work-time adjustment | Signed percentage adjustment, read from the cloud and sent when supported | App-originated changes were observed live in Symcon; the displayed scale follows the signed device value |
-| Other settings | Automatic scheduling, rain delay, lock, firmware preference, and firmware maintenance only when required capabilities/fields are reported | Runtime-gated. Individual write/read-back behavior must be checked before relying on a setting; firmware installation is not part of routine testing |
+| Automatic schedule, rain delay, and lock | Controls appear only when the device reports the required data/capability | Write and mower read-back were tested on the validated mower; all three values were restored afterward |
+| Firmware preference and maintenance | Firmware preference and actions are shown only when supported fields are reported | Preference write/read-back is not part of the V1 live validation; firmware installation is not part of routine release testing |
 
 ## Explicitly out of scope for V1
 

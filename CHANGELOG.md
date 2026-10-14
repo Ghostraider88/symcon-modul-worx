@@ -1,5 +1,21 @@
 # Changelog
 
+## V1.0.0 — build 37 (2026-10-14)
+
+First general release of the Worx Landroid IP-Symcon module. Validated with one mower setup; no compatibility claim is made for other models, protocols, or firmware variants.
+
+- Connects to Worx Cloud, discovers supported devices, and uses the configured IP-Symcon MQTT transport for mower commands.
+- Provides Start, Pause, and return-home controls with separate command feedback and mower-reported state.
+- Uses the native IP-Symcon weekly event as the single schedule editor and confirms changes by reading the schedule back from the mower.
+- Reflects app-originated schedule and daily work-time changes in Symcon.
+- Supports capability-gated automatic scheduling, rain delay, and lock; write/read-back was confirmed on the validation mower.
+- Displays readable status and error text, telemetry, daily progress, and maintenance counters.
+- Refreshes Worx tokens before reconnecting MQTT authorization and applies bounded transport reconnect backoff.
+- Handles an incomplete weekly-event record without an undefined EventType warning.
+- Keeps unknown devices and unsupported actions locked.
+
+Firmware auto-upgrade preference write/read-back was not live-tested. Firmware installation is not part of routine release validation. See the README and feature matrix for V1 exclusions and setup requirements.
+
 ## V1 release candidate — build 36 (2026-10-14)
 
 - Renews the Worx access token before expiry and refreshes MQTT authorization before watchdog reconnects.
@@ -65,16 +81,3 @@
 ## V1 release candidate — build 22 (2026-10-02)
 
 - Fixes variable presentation option keys for Symcon 9 so presentation editors open without unsupported fields.
-
-- Keeps the native IP-Symcon weekly event as the single schedule editor, with changes sent to Worx and confirmed against the schedule read back from the mower. App-originated schedule changes update the event.
-- Shows numeric status and error values alongside readable text variables, and keeps requested commands separate from the mower-reported state.
-- Provides Start, Pause, and return-to-charging-station controls, exercised on the test mower.
-- Reflects app-originated daily work-time adjustments live in Symcon. Write/read-back behavior for other settings remains unverified.
-- Keeps unknown or unsupported devices locked and exposes controls only when the required device data and capabilities are available.
-- Documents MQTT transport setup, installation, update behavior, privacy limits, and the V1 scope.
-
-V1 is validated against one mower setup only. No compatibility claim is made for other models, protocols, or firmware variants.
-
-Out of scope: multi-zone operation, all-day scheduling, one-time mowing, Party mode, manual edge-cut commands, initial Wi-Fi pairing, ACS, blade-height or torque controls, and other mower models. Scheduled edge-cut flags remain part of the supported weekly schedule format; they do not enable a manual edge-cut action.
-
-This is a release candidate, not a general-release declaration. Fresh installation and repeated configuration have passed. Installation and update through the Module Control UI, live handling of invalid credentials and unavailable transports, and write/read-back checks for remaining settings are still open; see [the release checklist](docs/RELEASE_CHECKLIST.md).

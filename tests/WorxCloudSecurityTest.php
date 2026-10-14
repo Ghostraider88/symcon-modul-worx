@@ -323,7 +323,10 @@ final class WorxCloudSecurityTest extends TestCase
         $readString = new ReflectionMethod(IPSModule::class, 'ReadAttributeString');
         $readString->setAccessible(true);
         self::assertSame('fresh-token.payload.signature', $readString->invoke($module, 'AccessToken'));
-        self::assertStringContainsString('fresh-token.payload.signature', IPS_GetProperty(2, 'UserName'));
+        self::assertSame(
+            "bot?jwt=fresh%2Btoken.payload&x-amz-customauthorizer-name=''&x-amz-customauthorizer-signature=signature",
+            IPS_GetProperty(2, 'UserName')
+        );
         self::assertGreaterThan(1, IPS\InstanceManager::getInstanceInterface(3)->applyChangesCount);
     }
 
@@ -418,6 +421,7 @@ final class WorxCloudSecurityTest extends TestCase
         ]);
         $cloud = IPS\InstanceManager::getInstanceInterface(1);
         $cloud->SetProperty('Cloud', 'worx');
+        $cloud->SetProperty('UseMQTT', false);
         $cloud->SetProperty('Email', 'test@example.invalid');
         $cloud->SetProperty('Password', 'secret');
         (new ReflectionMethod(IPSModule::class, 'ApplyChanges'))->invoke($cloud);

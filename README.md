@@ -1,6 +1,6 @@
 # Worx Landroid for IP-Symcon
 
-This MIT-licensed module connects the Worx Landroid installation used to validate V1 to IP-Symcon. V1 has been tested with one mower setup; it does not claim compatibility with other models, protocols, or firmware versions. Exact device identifiers and private configuration are intentionally omitted from this repository.
+This MIT-licensed module connects Worx Landroid devices to IP-Symcon. The V1.0.0 release has been tested with one mower setup; it does not claim compatibility with other models, protocols, or firmware versions. Exact device identifiers and private configuration are intentionally omitted from this repository.
 
 ## Modules
 

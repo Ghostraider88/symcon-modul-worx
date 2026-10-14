@@ -182,108 +182,6 @@ class WorxCloud extends IPSModule
         return $this->configureTransport(false);
     }
 
-    /** Update the MQTT/WebSocket configuration and optionally force a reconnect when it is unchanged. */
-    private function configureTransport(bool $forceReconnect): bool
-    {
-        if ($this->ReadPropertyString('Cloud') !== 'worx') {
-            $this->SetStatus(203);
-            return false;
-        }
-        if (!$this->ReadPropertyBoolean('UseMQTT')) {
-            return false;
-        }
-        $token = $this->getToken();
-        if ($token === '') {
-            return false;
-        }
-        $this->ensureParent();
-        $mqtt = $this->getParent();
-        if ($mqtt === 0) {
-            $this->SendDebug('MQTT', 'Keine MQTT-Client-Instanz als Übergeordnete gefunden', 0);
-            return false;
-        }
-        $ws = IPS_GetInstance($mqtt)['ConnectionID'];
-        if ($ws === 0) {
-            $ws = IPS_CreateInstance(self::GUID_WS);
-            IPS_SetName($ws, 'Worx WebSocket');
-            IPS_ConnectInstance($mqtt, $ws);
-        }
-
-        $devices = json_decode($this->ReadAttributeString('Devices'), true) ?: [];
-        if (!$devices) {
-            return false;
-        }
-        $endpoint = $devices[0]['mqtt_endpoint'] ?? 'iot.eu-west-1.worxlandroid.com';
-        $userId = $devices[0]['user_id'] ?? 0;
-        $deviceUuid = (string) ($devices[0]['uuid'] ?? '');
-        $prefix = self::CLOUD_PREFIX;
-        $clientIdPrefix = sprintf('%s/USER/%s/IPSymconWorx/', $prefix, $userId);
-        // MQTT ClientID is unique per Symcon transport and remains stable across token refreshes.
-        $currentClientId = (string) IPS_GetProperty($mqtt, 'ClientID');
-        $legacyClientId = $clientIdPrefix . $deviceUuid;
-        if ($currentClientId === '' || $currentClientId === $legacyClientId || strpos($currentClientId, $clientIdPrefix) !== 0) {
-            $uuid = $this->createUuid();
-        } else {
-            // Keep this client ID stable while refreshing the short-lived token.
-            $uuid = substr($currentClientId, strlen($clientIdPrefix));
-        }
-        $clientId = $clientIdPrefix . $uuid;
-
-        // Der Zugangs-Token ist ein JWT in base64url. AWS erwartet ihn zerlegt:
-        // Signatur separat, Kopf und Nutzlast zusammen im Header "jwt".
-        $parts = explode('.', str_replace(['_', '-'], ['/', '+'], $token));
-        if (count($parts) !== 3) {
-            return false;
-        }
-        $headers = [
-            // Ohne dieses Subprotokoll antwortet AWS mit HTTP 426 Upgrade Required
-            ['Name' => 'Sec-WebSocket-Protocol', 'Value' => 'mqtt'],
-        ];
-
-        // Worx' AWS endpoint expects its custom authorizer in the MQTT CONNECT
-        // username. This matches the working Home Assistant/pyworxcloud client.
-        $mqttUsername = 'bot?jwt=' . $this->quoteMqttAuthComponent($parts[0]) . '.' . $this->quoteMqttAuthComponent($parts[1])
-            . "&x-amz-customauthorizer-name=''"
-            . '&x-amz-customauthorizer-signature=' . $this->quoteMqttAuthComponent($parts[2]);
-
-        $webSocketChanged = $this->setIfChanged($ws, [
-            'URL'               => 'wss://' . $endpoint . '/mqtt',
-            'Type'              => 1,        // binäre Frames — MQTT ist kein Text
-            'VerifyCertificate' => true,
-            'Headers'           => json_encode($headers),
-            'Active'            => true,
-        ]);
-
-        $subs = [];
-        foreach ($devices as $d) {
-            if (isset($d['mqtt_topics']['command_out'])) {
-                // QoS 0: Symcons MQTT Client unterstützt (Stand 9.0) nichts anderes —
-                // ein Abonnement mit QoS 1 wird kommentarlos nicht bedient.
-                $subs[] = ['Topic' => $d['mqtt_topics']['command_out'], 'QoS' => 0];
-            }
-        }
-        $mqttChanged = $this->setIfChanged($mqtt, [
-            'ClientID'      => $clientId,
-            'UserName'      => $mqttUsername,
-            'Password'      => '',
-            'Subscriptions' => json_encode($subs),
-        ]);
-
-        if ($forceReconnect && !$webSocketChanged && !$mqttChanged) {
-            // ApplyChanges reopens an inactive socket even when all saved properties are already current.
-            IPS_ApplyChanges($ws);
-        }
-
-        // Stupst den Mäher an, damit er seinen Zustand meldet — sonst bleibt es
-        // still, bis er von sich aus etwas sendet.
-        foreach ($devices as $d) {
-            if (isset($d['mqtt_topics']['command_in'])) {
-                $this->publish($d['mqtt_topics']['command_in'], '{}');
-            }
-        }
-        return true;
-    }
-
     /** Renew the short-lived cloud token before refreshing MQTT authorizer headers. */
     public function RefreshAuthTransport(): bool
     {
@@ -792,7 +690,8 @@ class WorxCloud extends IPSModule
             CURLOPT_CUSTOMREQUEST  => $method,
             CURLOPT_HTTPHEADER     => $headers,
             CURLOPT_TIMEOUT        => 30,
-            CURLOPT_HEADERFUNCTION => static function ($handle, string $line) use (&$responseHeaders): int {
+            CURLOPT_HEADERFUNCTION => static function ($handle, string $line) use (&$responseHeaders): int
+            {
                 $separator = strpos($line, ':');
                 if ($separator !== false) {
                     $name = strtolower(trim(substr($line, 0, $separator)));
@@ -862,6 +761,108 @@ class WorxCloud extends IPSModule
         $this->WriteAttributeInteger('ApiRateLimitDelay', 300);
         $this->SetTimerInterval('WorxPoll', max(60, $this->ReadPropertyInteger('Interval')) * 1000);
         return $decoded;
+    }
+
+    /** Update the MQTT/WebSocket configuration and optionally force a reconnect when it is unchanged. */
+    private function configureTransport(bool $forceReconnect): bool
+    {
+        if ($this->ReadPropertyString('Cloud') !== 'worx') {
+            $this->SetStatus(203);
+            return false;
+        }
+        if (!$this->ReadPropertyBoolean('UseMQTT')) {
+            return false;
+        }
+        $token = $this->getToken();
+        if ($token === '') {
+            return false;
+        }
+        $this->ensureParent();
+        $mqtt = $this->getParent();
+        if ($mqtt === 0) {
+            $this->SendDebug('MQTT', 'Keine MQTT-Client-Instanz als Übergeordnete gefunden', 0);
+            return false;
+        }
+        $ws = IPS_GetInstance($mqtt)['ConnectionID'];
+        if ($ws === 0) {
+            $ws = IPS_CreateInstance(self::GUID_WS);
+            IPS_SetName($ws, 'Worx WebSocket');
+            IPS_ConnectInstance($mqtt, $ws);
+        }
+
+        $devices = json_decode($this->ReadAttributeString('Devices'), true) ?: [];
+        if (!$devices) {
+            return false;
+        }
+        $endpoint = $devices[0]['mqtt_endpoint'] ?? 'iot.eu-west-1.worxlandroid.com';
+        $userId = $devices[0]['user_id'] ?? 0;
+        $deviceUuid = (string) ($devices[0]['uuid'] ?? '');
+        $prefix = self::CLOUD_PREFIX;
+        $clientIdPrefix = sprintf('%s/USER/%s/IPSymconWorx/', $prefix, $userId);
+        // MQTT ClientID is unique per Symcon transport and remains stable across token refreshes.
+        $currentClientId = (string) IPS_GetProperty($mqtt, 'ClientID');
+        $legacyClientId = $clientIdPrefix . $deviceUuid;
+        if ($currentClientId === '' || $currentClientId === $legacyClientId || strpos($currentClientId, $clientIdPrefix) !== 0) {
+            $uuid = $this->createUuid();
+        } else {
+            // Keep this client ID stable while refreshing the short-lived token.
+            $uuid = substr($currentClientId, strlen($clientIdPrefix));
+        }
+        $clientId = $clientIdPrefix . $uuid;
+
+        // Der Zugangs-Token ist ein JWT in base64url. AWS erwartet ihn zerlegt:
+        // Signatur separat, Kopf und Nutzlast zusammen im Header "jwt".
+        $parts = explode('.', str_replace(['_', '-'], ['/', '+'], $token));
+        if (count($parts) !== 3) {
+            return false;
+        }
+        $headers = [
+            // Ohne dieses Subprotokoll antwortet AWS mit HTTP 426 Upgrade Required
+            ['Name' => 'Sec-WebSocket-Protocol', 'Value' => 'mqtt'],
+        ];
+
+        // Worx' AWS endpoint expects its custom authorizer in the MQTT CONNECT
+        // username. This matches the working Home Assistant/pyworxcloud client.
+        $mqttUsername = 'bot?jwt=' . $this->quoteMqttAuthComponent($parts[0]) . '.' . $this->quoteMqttAuthComponent($parts[1])
+            . "&x-amz-customauthorizer-name=''"
+            . '&x-amz-customauthorizer-signature=' . $this->quoteMqttAuthComponent($parts[2]);
+
+        $webSocketChanged = $this->setIfChanged($ws, [
+            'URL'               => 'wss://' . $endpoint . '/mqtt',
+            'Type'              => 1,        // binäre Frames — MQTT ist kein Text
+            'VerifyCertificate' => true,
+            'Headers'           => json_encode($headers),
+            'Active'            => true,
+        ]);
+
+        $subs = [];
+        foreach ($devices as $d) {
+            if (isset($d['mqtt_topics']['command_out'])) {
+                // QoS 0: Symcons MQTT Client unterstützt (Stand 9.0) nichts anderes —
+                // ein Abonnement mit QoS 1 wird kommentarlos nicht bedient.
+                $subs[] = ['Topic' => $d['mqtt_topics']['command_out'], 'QoS' => 0];
+            }
+        }
+        $mqttChanged = $this->setIfChanged($mqtt, [
+            'ClientID'      => $clientId,
+            'UserName'      => $mqttUsername,
+            'Password'      => '',
+            'Subscriptions' => json_encode($subs),
+        ]);
+
+        if ($forceReconnect && !$webSocketChanged && !$mqttChanged) {
+            // ApplyChanges reopens an inactive socket even when all saved properties are already current.
+            IPS_ApplyChanges($ws);
+        }
+
+        // Stupst den Mäher an, damit er seinen Zustand meldet — sonst bleibt es
+        // still, bis er von sich aus etwas sendet.
+        foreach ($devices as $d) {
+            if (isset($d['mqtt_topics']['command_in'])) {
+                $this->publish($d['mqtt_topics']['command_in'], '{}');
+            }
+        }
+        return true;
     }
 
     /**
@@ -971,7 +972,8 @@ class WorxCloud extends IPSModule
         $bytes[8] = chr((ord($bytes[8]) & 0x3F) | 0x80);
         $hex = bin2hex($bytes);
 
-        return sprintf('%s-%s-%s-%s-%s',
+        return sprintf(
+            '%s-%s-%s-%s-%s',
             substr($hex, 0, 8),
             substr($hex, 8, 4),
             substr($hex, 12, 4),

@@ -1031,7 +1031,8 @@ class WorxMower extends IPSModule
     private function syncScheduleEvent(array $schedule, bool $force = false): void
     {
         $eventID = $this->scheduleEventID();
-        if ($eventID !== 0 && IPS_GetEvent($eventID)['EventType'] !== 2) {
+        $event = $eventID === 0 ? [] : IPS_GetEvent($eventID);
+        if ($eventID !== 0 && ($event['EventType'] ?? null) !== 2) {
             $this->SetValueSafe('ScheduleSyncStatus', 'Das Kindobjekt WorxWeeklySchedule ist kein Wochenplan-Ereignis.');
             return;
         }

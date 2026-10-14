@@ -1,41 +1,43 @@
-# Installation and release checklist
+# V1.0.0 release checklist
 
-## Validated behavior
+## Live validation
 
-- [x] Build 25 groups diagnostic, firmware, feedback/history, and numeric-code variables below the Mower instance.
-- [x] Build 26 finds categorized variables without warnings during module reload.
-- [x] Build 27 restores categorized variables before registration during instance creation.
-- [x] Build 24 keeps the native weekly event active for Symcon `NextRun` display; its actions are no-op PHP comments.
-- [x] The native Symcon weekly event is the single schedule editor. Symcon edits are sent and confirmed by mower read-back; app-originated changes update the event without manual refresh.
-- [x] App-originated daily work-time changes are reflected live in Symcon, including signed values.
-- [x] Start, pause, and return-home were exercised; the mower was confirmed back at the charging station.
-- [x] The read-only next schedule start was checked against the unchanged schedule.
-- [x] Numeric status and adjacent readable status text display correctly without legacy profiles.
-- [x] MQTT broker, MQTT Client parent, and Worx Cloud setup are documented in the installation guide.
-- [x] A fresh installation and removal cycle passed.
-- [x] Repeated instance configuration completed without errors, warnings, duplicate objects, or changed variable identifiers.
-- [x] Compatibility-critical identifiers are preserved by module registration code and automated checks.
-- [x] Build 22 fixes the Symcon 9 variable-presentation option schema; the current `main` style and test workflows pass.
-- [x] Build 23 uses valid positive action IDs for no-mowing points; live reload completed without warnings and rebuilt the seven-day event.
-- [ ] Restore the live MQTT Client and MQTT-Landroid bridge before checking fresh telemetry or cloud write/read-back.
-- [ ] The user's latest field report reaches the explicit local V1 product-allowlist gate; confirm the verified product ID and active Mower state before treating live instance setup as complete. See [current project status](PROJECT_STATUS.md).
+- [x] Build 37 from GitHub was installed through IP-Symcon Module Control.
+- [x] Module reload and module validation completed successfully after the update.
+- [x] Worx Cloud and Mower instances remained active; Symcon reported no Worx instance errors.
+- [x] A live Start request was confirmed by the mower.
+- [x] Automatic scheduling was set to on, confirmed from Worx Cloud, and restored to off.
+- [x] Rain delay was changed from 30 to 60 minutes, confirmed by the mower, and restored to 30 minutes.
+- [x] The mower lock was set, confirmed, then cleared and confirmed unlocked.
+- [x] All three tested settings returned to their original values; the mower remained online and reported mowing.
 
-## Remaining before a general V1 release
+The validation installation's device identity, account data, and private configuration are intentionally omitted.
 
-### Installation and update
+## Quality checks
 
-- [ ] Verify installation and update through the Module Control UI.
-- [x] Automated regression tests cover simulated authentication failures, missing or inactive MQTT parents, and an empty device inventory.
+- [x] PHPUnit passed: 84 tests and 952 assertions.
+- [x] PHP syntax checks passed for all five production PHP files.
+- [x] PHP-CS-Fixer dry-run found no files needing changes.
+- [x] GitHub Actions test, style, and PHP 8.5 syntax workflows passed on the release commit.
+- [x] IP-Symcon module validation and reload passed after the GitHub update.
+- [x] The Symcon module_lint limitation is documented below.
 
-### Device behavior and compatibility
+## Privacy and release artifacts
 
-- [x] Reviewed visible controls against the V1 feature matrix; excluded controls are not presented as supported actions, and writable options are capability-gated.
-- [ ] Confirm in a live installation that device discovery and instance creation remain limited to the supported V1 device.
-- [ ] Live-check write/read-back for settings not yet confirmed; do not issue a firmware installation request as a routine test.
-- [x] Documentation keeps other models and protocol variants outside the V1 compatibility claim.
+- [x] Current source, reachable main history, and release contents were reviewed for credentials and private device/account data; none were found.
+- [x] The 13 affected main-branch commits were rewritten to the account's ID-based GitHub Noreply address and the remote main history was verified.
+- [x] The library and module manifests, changelog, MIT license, installation guide, feature matrix, and final release diff were reviewed.
+- [x] The user-facing release version is V1.0.0; the Symcon library manifest stays at version 2.0 and advances to build 37.
+- [x] The release tag points to the final tested commit.
 
-### Privacy and quality
+## Known validation limitation
 
-- [ ] Complete a final privacy review of source files, repository history, and release assets before release.
-- [x] Automated style, test, and PHP syntax checks are configured in GitHub Actions.
-- [ ] Review release metadata, release notes, license, manifests, and the final diff together after the remaining V1 gates pass.
+The IP-Symcon module_lint helper stops while loading the separately maintained SymconStubs submodule because its test stub redeclares GetValue(). The production module passes module validation and reload; PHP syntax, unit tests, style, and the GitHub workflows pass. No change was made to the external stub repository or its submodule pointer.
+
+## V1 scope
+
+V1.0.0 is validated against one mower setup only. No compatibility claim is made for other models, protocols, or firmware variants. The firmware auto-upgrade preference was not live-write-tested; firmware installation was deliberately excluded from release testing.
+
+Multi-zone controls, all-day scheduling, one-time mowing, Party mode, manual edge-cut actions, initial Wi-Fi pairing, ACS, and blade-height or torque controls are outside V1. Scheduled edge-cut flags remain part of the observed weekly schedule format; they do not enable a manual edge-cut action.
+
+Do not issue a firmware installation request as a routine release test. The GitHub release tag must identify the exact source commit whose checks are recorded above.

@@ -16,6 +16,6 @@ Applying instance configuration does not send schedule changes. Scheduled edge-c
 
 ## Other settings
 
-Controls are shown only when the mower reports the required capability and field. Requested values and confirmed values use separate variables. Firmware installation is guarded by explicit availability and device readiness checks, but it is not part of routine tests.
+Controls are shown only when the mower reports the required capability and field. Requested values and confirmed values use separate variables. Automatic scheduling, rain delay, and mower lock were each changed and confirmed by the mower, then restored to their previous values during V1.0.0 validation. The firmware auto-upgrade preference was not live-write-tested. Firmware installation is guarded by availability and device-readiness checks, but it is not part of routine release testing.
 
 For readable history in Symcon, enable archiving for the relevant status text variables in Archive Control.
