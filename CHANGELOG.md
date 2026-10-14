@@ -1,5 +1,42 @@
 # Changelog
 
+## V1 release candidate — build 36 (2026-10-14)
+
+- Renews the Worx access token before expiry and refreshes MQTT authorization before watchdog reconnects.
+- Updates the WebSocket transport when REST polling rotates the token.
+
+## V1 release candidate — build 35 (2026-10-10)
+
+- Backs off repeated MQTT/WebSocket reconnects from five minutes up to one hour.
+- Resets reconnect backoff only after ten minutes of stable transport and avoids a needless reconnect at that point.
+
+## V1 release candidate — build 34 (2026-10-10)
+
+- Sets REST polling to 15 minutes by default and honors HTTP 429 Retry-After with bounded backoff.
+- Keeps valid cloud tokens across configuration applies, avoiding unnecessary sign-ins during routine changes.
+
+## V1 release candidate — build 33 (2026-10-10)
+
+- Clears the MQTT password field; Worx custom authorization is carried in the username only.
+
+## V1 release candidate — build 32 (2026-10-10)
+
+- Matches pyworxcloud's URL quoting for Worx MQTT authorizer components, preserving forward slashes.
+
+## V1 release candidate — build 31 (2026-10-10)
+
+- Generates a unique Worx MQTT client ID and keeps it stable across token refreshes to avoid client ID collisions.
+
+## V1 release candidate — build 30 (2026-10-10)
+
+- Sends Worx AWS custom-authorizer credentials in the MQTT CONNECT username, following pyworxcloud/Home Assistant.
+
+## V1 release candidate — build 29 (2026-10-10)
+
+- Keeps REST polling operational when the unofficial Worx MQTT endpoint disconnects.
+- Extends MQTT reconnect backoff to 15 minutes with jitter and resets it only after a stable connection.
+- Renews the Worx access token before rebuilding MQTT authorizer headers.
+
 ## V1 release candidate — build 28 (2026-10-10)
 
 - Adds daily schedule progress and compatible archive history migration.

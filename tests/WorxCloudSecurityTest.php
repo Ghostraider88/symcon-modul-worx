@@ -40,6 +40,15 @@ final class WorxCloudMqttParentTestDouble extends IPSModule
 {
     public array $messages = [];
 
+    public function Create()
+    {
+        parent::Create();
+        $this->RegisterPropertyString('ClientID', '');
+        $this->RegisterPropertyString('UserName', '');
+        $this->RegisterPropertyString('Password', '');
+        $this->RegisterPropertyString('Subscriptions', '[]');
+    }
+
     public function GetForwardDataFilter()
     {
         return '.*';
@@ -105,10 +114,27 @@ final class WorxConfiguratorEmptyInventoryTestDouble extends WorxConfigurator
 
 final class WorxCloudWsTestDouble extends IPSModule
 {
+    public int $applyChangesCount = 0;
+
     public function Create()
     {
         parent::Create();
+        $this->RegisterPropertyString('URL', '');
+        $this->RegisterPropertyInteger('Type', 0);
+        $this->RegisterPropertyBoolean('VerifyCertificate', true);
+        $this->RegisterPropertyString('Headers', '[]');
         $this->RegisterPropertyBoolean('Active', true);
+    }
+
+    public function ApplyChanges()
+    {
+        parent::ApplyChanges();
+        $this->applyChangesCount++;
+    }
+
+    public function setTestStatus(int $status): void
+    {
+        $this->SetStatus($status);
     }
 }
 
@@ -211,6 +237,94 @@ final class WorxCloudSecurityTest extends TestCase
         $readInteger->setAccessible(true);
         self::assertSame('rotated-refresh-token', $readString->invoke($module, 'RefreshToken'));
         self::assertGreaterThan(time(), $readInteger->invoke($module, 'TokenExpires'));
+    }
+
+    public function testAccessTokenIsRenewedBeforeFifteenMinuteMargin(): void
+    {
+        IPS\Kernel::reset();
+        $module = new WorxCloudHttpTestDouble(1);
+        $module->Create();
+        $writeString = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeString->setAccessible(true);
+        $writeInteger = new ReflectionMethod(IPSModule::class, 'WriteAttributeInteger');
+        $writeInteger->setAccessible(true);
+        $writeString->invoke($module, 'AccessToken', 'nearly-expired-token');
+        $writeString->invoke($module, 'RefreshToken', 'valid-refresh-token');
+        $writeInteger->invoke($module, 'TokenExpires', time() + 600);
+        $module->httpResponses = [[
+            'response' => '{"access_token":"early-refreshed-token","refresh_token":"rotated-refresh-token","expires_in":3600}',
+            'code'     => 200,
+            'error'    => 0,
+        ]];
+
+        $getToken = new ReflectionMethod(WorxCloud::class, 'getToken');
+        $getToken->setAccessible(true);
+        self::assertSame('early-refreshed-token', $getToken->invoke($module));
+        self::assertSame([], $module->httpResponses);
+    }
+
+    public function testWatchdogRefreshesExpiredTokenBeforeReconnecting(): void
+    {
+        IPS\Kernel::reset();
+        IPS\InstanceManager::createInstance(1, [
+            'Class'      => WorxCloudHttpTestDouble::class,
+            'ModuleID'   => '{2A3889B6-AD03-4B1E-8782-BEB0E6CABCC1}',
+            'ModuleName' => 'Worx Cloud Test',
+            'ModuleType' => 2,
+        ]);
+        IPS\InstanceManager::createInstance(2, [
+            'Class'      => WorxCloudMqttParentTestDouble::class,
+            'ModuleID'   => '{F7A0DD2E-7684-95C0-64C2-D2A9DC47577B}',
+            'ModuleName' => 'Worx MQTT Test',
+            'ModuleType' => 2,
+        ]);
+        IPS\InstanceManager::createInstance(3, [
+            'Class'      => WorxCloudWsTestDouble::class,
+            'ModuleID'   => '{D68FD31F-0E90-7019-F16C-1949BD3079EF}',
+            'ModuleName' => 'Worx WS Test',
+            'ModuleType' => 1,
+        ]);
+        IPS\InstanceManager::connectInstance(2, 3);
+        IPS\InstanceManager::connectInstance(1, 2);
+
+        $module = IPS\InstanceManager::getInstanceInterface(1);
+        $module->SetProperty('Cloud', 'worx');
+        $module->SetProperty('UseMQTT', true);
+        $module->SetProperty('Email', 'test@example.invalid');
+        $module->SetProperty('Password', 'secret');
+        (new ReflectionMethod(IPSModule::class, 'ApplyChanges'))->invoke($module);
+
+        $writeString = new ReflectionMethod(IPSModule::class, 'WriteAttributeString');
+        $writeString->setAccessible(true);
+        $writeInteger = new ReflectionMethod(IPSModule::class, 'WriteAttributeInteger');
+        $writeInteger->setAccessible(true);
+        $writeString->invoke($module, 'AccessToken', 'old-token.payload.signature');
+        $writeString->invoke($module, 'RefreshToken', 'valid-refresh-token');
+        $writeString->invoke($module, 'Devices', json_encode([[
+            'serial_number' => 'SERIAL-TEST',
+            'uuid'          => 'device-uuid',
+            'user_id'       => 123,
+            'mqtt_endpoint' => 'iot.eu-west-1.worxlandroid.com',
+            'mqtt_topics'   => [],
+        ]]));
+        $writeInteger->invoke($module, 'TokenExpires', time() - 1);
+        $writeInteger->invoke($module, 'TransportReconnectAttempt', time() - 1);
+        $writeInteger->invoke($module, 'TransportReconnectDelay', 300);
+
+        $module->httpResponses = [[
+            'response' => '{"access_token":"fresh-token.payload.signature","refresh_token":"rotated-refresh-token","expires_in":3600}',
+            'code'     => 200,
+            'error'    => 0,
+        ]];
+        IPS\InstanceManager::getInstanceInterface(3)->setTestStatus(200);
+
+        $module->WatchTransport();
+
+        $readString = new ReflectionMethod(IPSModule::class, 'ReadAttributeString');
+        $readString->setAccessible(true);
+        self::assertSame('fresh-token.payload.signature', $readString->invoke($module, 'AccessToken'));
+        self::assertStringContainsString('fresh-token.payload.signature', IPS_GetProperty(2, 'UserName'));
+        self::assertGreaterThan(1, IPS\InstanceManager::getInstanceInterface(3)->applyChangesCount);
     }
 
     public function testRejectedRefreshTokenFallsBackToPasswordGrant(): void

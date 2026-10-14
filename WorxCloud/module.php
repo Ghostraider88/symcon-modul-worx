@@ -43,21 +43,23 @@ class WorxCloud extends IPSModule
         $this->RegisterPropertyString('Email', '');
         $this->RegisterPropertyString('Password', '');
         $this->RegisterPropertyString('Cloud', 'worx');
-        $this->RegisterPropertyInteger('Interval', 300);
+        $this->RegisterPropertyInteger('Interval', 900);
         $this->RegisterPropertyBoolean('UseMQTT', true);
 
         $this->RegisterAttributeString('AccessToken', '');
         $this->RegisterAttributeString('RefreshToken', '');
         $this->RegisterAttributeInteger('TokenExpires', 0);
         $this->RegisterAttributeInteger('TransportReconnectAttempt', 0);
-        $this->RegisterAttributeInteger('TransportReconnectDelay', 30);
+        $this->RegisterAttributeInteger('TransportReconnectDelay', 300);
         $this->RegisterAttributeInteger('TransportHealthySince', 0);
+        $this->RegisterAttributeInteger('ApiRateLimitUntil', 0);
+        $this->RegisterAttributeInteger('ApiRateLimitDelay', 300);
         $this->RegisterAttributeString('Devices', '[]');
 
         $this->RegisterTimer('WorxPoll', 0, 'WORX_Poll($_IPS[\'TARGET\']);');
         // Der Token lebt eine Stunde; die Header der WS-Verbindung müssen vorher neu
         // gesetzt werden, sonst fliegt die MQTT-Verbindung beim nächsten Reconnect raus.
-        $this->RegisterTimer('WorxAuth', 0, 'WORX_RefreshTransport($_IPS[\'TARGET\']);');
+        $this->RegisterTimer('WorxAuth', 0, 'WORX_RefreshAuthTransport($_IPS[\'TARGET\']);');
         $this->RegisterTimer('WorxTransportWatchdog', 0, 'WORX_WatchTransport($_IPS[\'TARGET\']);');
 
         // ConnectParent() würde sofort den normalen MQTT-Client mit Broker-Abfrage anlegen.
@@ -85,12 +87,11 @@ class WorxCloud extends IPSModule
             return;
         }
 
-        // Zugangsdaten könnten sich geändert haben → Token verwerfen
-        $this->WriteAttributeString('AccessToken', '');
-        $this->WriteAttributeString('RefreshToken', '');
-        $this->WriteAttributeInteger('TokenExpires', 0);
+        $this->WriteAttributeInteger('TransportReconnectAttempt', 0);
+        $this->WriteAttributeInteger('TransportReconnectDelay', 300);
+        $this->WriteAttributeInteger('TransportHealthySince', 0);
 
-        $this->SetTimerInterval('WorxPoll', max(30, $this->ReadPropertyInteger('Interval')) * 1000);
+        $this->SetTimerInterval('WorxPoll', max(60, $this->ReadPropertyInteger('Interval')) * 1000);
         $this->SetTimerInterval('WorxAuth', $this->ReadPropertyBoolean('UseMQTT') ? 45 * 60 * 1000 : 0);
         $this->SetTimerInterval('WorxTransportWatchdog', $this->ReadPropertyBoolean('UseMQTT') ? 5 * 1000 : 0);
 
@@ -112,6 +113,11 @@ class WorxCloud extends IPSModule
     /** Holt die Mäherliste und verteilt sie an die Kind-Instanzen. */
     public function Poll(): bool
     {
+        $rateLimitUntil = $this->ReadAttributeInteger('ApiRateLimitUntil');
+        if ($rateLimitUntil > time()) {
+            $this->SetTimerInterval('WorxPoll', max(60, $rateLimitUntil - time()) * 1000);
+            return false;
+        }
         if ($this->ReadPropertyString('Cloud') !== 'worx') {
             $this->SetTimerInterval('WorxPoll', 0);
             $this->SetTimerInterval('WorxAuth', 0);
@@ -122,10 +128,17 @@ class WorxCloud extends IPSModule
             $this->SetStatus(104);
             return false;
         }
+        $previousToken = $this->ReadAttributeString('AccessToken');
         $token = $this->getToken();
         if ($token === '') {
             $this->SetStatus(201);
             return false;
+        }
+        $tokenChanged = $token !== $previousToken;
+        $transportUpdated = false;
+        if ($tokenChanged && $this->ReadPropertyBoolean('UseMQTT')) {
+            // The MQTT authorizer uses the access token too; keep it in sync when REST polling rotates it.
+            $transportUpdated = $this->RefreshTransport();
         }
         $devices = $this->request('GET', '/api/v2/product-items?status=1', null, $token);
         if (!is_array($devices)) {
@@ -149,6 +162,10 @@ class WorxCloud extends IPSModule
             ]));
         }
         $this->SetSummary(implode(', ', $names));
+        if ($tokenChanged && $this->ReadPropertyBoolean('UseMQTT') && !$transportUpdated) {
+            // First successful login may have had no device inventory when the transport was prepared.
+            $this->RefreshTransport();
+        }
         return true;
     }
 
@@ -161,6 +178,12 @@ class WorxCloud extends IPSModule
      * sind und mit ihm ablaufen.
      */
     public function RefreshTransport(): bool
+    {
+        return $this->configureTransport(false);
+    }
+
+    /** Update the MQTT/WebSocket configuration and optionally force a reconnect when it is unchanged. */
+    private function configureTransport(bool $forceReconnect): bool
     {
         if ($this->ReadPropertyString('Cloud') !== 'worx') {
             $this->SetStatus(203);
@@ -192,8 +215,19 @@ class WorxCloud extends IPSModule
         }
         $endpoint = $devices[0]['mqtt_endpoint'] ?? 'iot.eu-west-1.worxlandroid.com';
         $userId = $devices[0]['user_id'] ?? 0;
-        $uuid = $devices[0]['uuid'] ?? '';
+        $deviceUuid = (string) ($devices[0]['uuid'] ?? '');
         $prefix = self::CLOUD_PREFIX;
+        $clientIdPrefix = sprintf('%s/USER/%s/IPSymconWorx/', $prefix, $userId);
+        // MQTT ClientID is unique per Symcon transport and remains stable across token refreshes.
+        $currentClientId = (string) IPS_GetProperty($mqtt, 'ClientID');
+        $legacyClientId = $clientIdPrefix . $deviceUuid;
+        if ($currentClientId === '' || $currentClientId === $legacyClientId || strpos($currentClientId, $clientIdPrefix) !== 0) {
+            $uuid = $this->createUuid();
+        } else {
+            // Keep this client ID stable while refreshing the short-lived token.
+            $uuid = substr($currentClientId, strlen($clientIdPrefix));
+        }
+        $clientId = $clientIdPrefix . $uuid;
 
         // Der Zugangs-Token ist ein JWT in base64url. AWS erwartet ihn zerlegt:
         // Signatur separat, Kopf und Nutzlast zusammen im Header "jwt".
@@ -203,13 +237,16 @@ class WorxCloud extends IPSModule
         }
         $headers = [
             // Ohne dieses Subprotokoll antwortet AWS mit HTTP 426 Upgrade Required
-            ['Name' => 'Sec-WebSocket-Protocol',           'Value' => 'mqtt'],
-            ['Name' => 'x-amz-customauthorizer-name',      'Value' => 'com-worxlandroid-customer'],
-            ['Name' => 'x-amz-customauthorizer-signature', 'Value' => $parts[2]],
-            ['Name' => 'jwt',                              'Value' => $parts[0] . '.' . $parts[1]],
+            ['Name' => 'Sec-WebSocket-Protocol', 'Value' => 'mqtt'],
         ];
 
-        $this->setIfChanged($ws, [
+        // Worx' AWS endpoint expects its custom authorizer in the MQTT CONNECT
+        // username. This matches the working Home Assistant/pyworxcloud client.
+        $mqttUsername = 'bot?jwt=' . $this->quoteMqttAuthComponent($parts[0]) . '.' . $this->quoteMqttAuthComponent($parts[1])
+            . "&x-amz-customauthorizer-name=''"
+            . '&x-amz-customauthorizer-signature=' . $this->quoteMqttAuthComponent($parts[2]);
+
+        $webSocketChanged = $this->setIfChanged($ws, [
             'URL'               => 'wss://' . $endpoint . '/mqtt',
             'Type'              => 1,        // binäre Frames — MQTT ist kein Text
             'VerifyCertificate' => true,
@@ -225,11 +262,17 @@ class WorxCloud extends IPSModule
                 $subs[] = ['Topic' => $d['mqtt_topics']['command_out'], 'QoS' => 0];
             }
         }
-        $this->setIfChanged($mqtt, [
-            'ClientID'      => sprintf('%s/USER/%s/IPSymconWorx/%s', $prefix, $userId, $uuid),
-            'UserName'      => 'IPSymconWorx',
+        $mqttChanged = $this->setIfChanged($mqtt, [
+            'ClientID'      => $clientId,
+            'UserName'      => $mqttUsername,
+            'Password'      => '',
             'Subscriptions' => json_encode($subs),
         ]);
+
+        if ($forceReconnect && !$webSocketChanged && !$mqttChanged) {
+            // ApplyChanges reopens an inactive socket even when all saved properties are already current.
+            IPS_ApplyChanges($ws);
+        }
 
         // Stupst den Mäher an, damit er seinen Zustand meldet — sonst bleibt es
         // still, bis er von sich aus etwas sendet.
@@ -241,7 +284,40 @@ class WorxCloud extends IPSModule
         return true;
     }
 
-    /** Reopens the managed transport soon after Worx closes an MQTT WebSocket session. */
+    /** Renew the short-lived cloud token before refreshing MQTT authorizer headers. */
+    public function RefreshAuthTransport(): bool
+    {
+        if ($this->ReadPropertyString('Cloud') !== 'worx' || !$this->ReadPropertyBoolean('UseMQTT')) {
+            return false;
+        }
+
+        $refreshToken = $this->ReadAttributeString('RefreshToken');
+        if ($refreshToken !== '') {
+            $result = $this->authRequest([
+                'client_id'     => self::CLIENT_ID,
+                'refresh_token' => $refreshToken,
+                'scope'         => '*',
+                'grant_type'    => 'refresh_token',
+            ]);
+            if (!$this->storeToken($result)) {
+                $this->SendDebug('Auth', 'Vorzeitige Token-Erneuerung fehlgeschlagen; verwende die normale Token-Erneuerung.', 0);
+                $this->WriteAttributeInteger('TokenExpires', 0);
+            }
+        } else {
+            // Accounts without a refresh token need a fresh password grant.
+            $this->WriteAttributeString('AccessToken', '');
+            $this->WriteAttributeInteger('TokenExpires', 0);
+        }
+
+        if ($this->getToken() === '') {
+            $this->SendDebug('Auth', 'Token-Erneuerung fehlgeschlagen; MQTT-Header wurden nicht aktualisiert.', 0);
+            return false;
+        }
+
+        return $this->RefreshTransport();
+    }
+
+    /** Reopens the managed transport after Worx closes an MQTT WebSocket session. */
     public function WatchTransport(): void
     {
         if (!$this->ReadPropertyBoolean('UseMQTT') || $this->ReadPropertyString('Cloud') !== 'worx') {
@@ -275,29 +351,37 @@ class WorxCloud extends IPSModule
                     $this->WriteAttributeInteger('TransportHealthySince', time());
                     return;
                 }
-                if (time() - $healthySince < 60) {
+                if (time() - $healthySince < 600) {
                     return;
                 }
                 $this->WriteAttributeInteger('TransportReconnectAttempt', 0);
-                $this->WriteAttributeInteger('TransportReconnectDelay', 30);
+                $this->WriteAttributeInteger('TransportReconnectDelay', 300);
                 $this->WriteAttributeInteger('TransportHealthySince', 0);
-                $this->RefreshTransport();
             }
             return;
         }
 
         $this->WriteAttributeInteger('TransportHealthySince', 0);
-        $lastAttempt = $this->ReadAttributeInteger('TransportReconnectAttempt');
-        $reconnectDelay = max(30, min(300, $this->ReadAttributeInteger('TransportReconnectDelay')));
-        if (time() - $lastAttempt < $reconnectDelay) {
+        $reconnectDelay = max(300, min(3600, $this->ReadAttributeInteger('TransportReconnectDelay')));
+        $nextRetry = $this->ReadAttributeInteger('TransportReconnectAttempt');
+        if ($nextRetry === 0) {
+            $retryAfter = $reconnectDelay + mt_rand(0, max(1, (int) ceil($reconnectDelay * 0.1)));
+            $this->WriteAttributeInteger('TransportReconnectAttempt', time() + $retryAfter);
+            $this->SendDebug('MQTT', sprintf('Worx-WebSocket getrennt; nächster Wiederverbindungsversuch in %d Sekunden.', $retryAfter), 0);
+            return;
+        }
+        if (time() < $nextRetry) {
             return;
         }
 
-        $this->WriteAttributeInteger('TransportReconnectAttempt', time());
-        $this->WriteAttributeInteger('TransportReconnectDelay', min(300, $reconnectDelay * 2));
-        $this->SendDebug('MQTT', 'Worx-WebSocket getrennt; Transport wird neu verbunden.', 0);
-        $this->setIfChanged($ws, ['Active' => false]);
-        $this->setIfChanged($ws, ['Active' => true]);
+        $nextDelay = min(3600, $reconnectDelay * 2);
+        $nextInterval = $nextDelay + mt_rand(0, max(1, (int) ceil($nextDelay * 0.1)));
+        $this->WriteAttributeInteger('TransportReconnectAttempt', time() + $nextInterval);
+        $this->WriteAttributeInteger('TransportReconnectDelay', $nextDelay);
+        $this->SendDebug('MQTT', 'Worx-WebSocket getrennt; Transport wird jetzt neu verbunden.', 0);
+        if (!$this->configureTransport(true)) {
+            $this->SendDebug('MQTT', 'Reconnect ausgesetzt: Worx-Token oder Transportkonfiguration konnte nicht erneuert werden.', 0);
+        }
     }
 
     /**
@@ -646,8 +730,8 @@ class WorxCloud extends IPSModule
                 ['type' => 'ValidationTextBox', 'name' => 'Email', 'caption' => 'E-Mail'],
                 ['type' => 'PasswordTextBox', 'name' => 'Password', 'caption' => 'Passwort'],
                 ['type' => 'CheckBox', 'name' => 'UseMQTT', 'caption' => 'Echtzeit und Steuerung über MQTT'],
-                ['type' => 'NumberSpinner', 'name' => 'Interval', 'caption' => 'Abfrageintervall (Sekunden)', 'minimum' => 30],
-                ['type' => 'Label', 'caption' => 'Mit MQTT genügt ein großes Abfrageintervall — der Zustand kommt dann von selbst. Worx begrenzt auf 2880 Abfragen pro Tag.'],
+                ['type' => 'NumberSpinner', 'name' => 'Interval', 'caption' => 'Abfrageintervall (Sekunden)', 'minimum' => 60],
+                ['type' => 'Label', 'caption' => 'Empfehlung: 900 Sekunden (15 Minuten). Bei HTTP 429 pausiert das Modul automatisch und beachtet Retry-After.'],
             ],
             'actions' => [
                 ['type' => 'Button', 'caption' => 'Jetzt abfragen', 'onClick' => 'WORX_Poll($id);'],
@@ -666,7 +750,8 @@ class WorxCloud extends IPSModule
     protected function getToken(): string
     {
         $token = $this->ReadAttributeString('AccessToken');
-        if ($token !== '' && $this->ReadAttributeInteger('TokenExpires') > time() + 60) {
+        // Renew early enough that the token used for the next WebSocket reconnect is still valid.
+        if ($token !== '' && $this->ReadAttributeInteger('TokenExpires') > time() + 900) {
             return $token;
         }
 
@@ -701,11 +786,20 @@ class WorxCloud extends IPSModule
         if ($ch === false) {
             return ['response' => false, 'code' => 0, 'error' => -1];
         }
+        $responseHeaders = [];
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CUSTOMREQUEST  => $method,
             CURLOPT_HTTPHEADER     => $headers,
             CURLOPT_TIMEOUT        => 30,
+            CURLOPT_HEADERFUNCTION => static function ($handle, string $line) use (&$responseHeaders): int {
+                $separator = strpos($line, ':');
+                if ($separator !== false) {
+                    $name = strtolower(trim(substr($line, 0, $separator)));
+                    $responseHeaders[$name] = trim(substr($line, $separator + 1));
+                }
+                return strlen($line);
+            },
         ]);
         if ($body !== null) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
@@ -715,7 +809,7 @@ class WorxCloud extends IPSModule
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        return ['response' => $response, 'code' => $code, 'error' => $error];
+        return ['response' => $response, 'code' => $code, 'error' => $error, 'headers' => $responseHeaders];
     }
 
     protected function request(string $method, string $path, $body, string $token)
@@ -746,6 +840,10 @@ class WorxCloud extends IPSModule
             $this->WriteAttributeInteger('TokenExpires', 0);
             return null;
         }
+        if ($code === 429) {
+            $this->deferAfterRateLimit($result['headers'] ?? []);
+            return null;
+        }
         if ($code < 200 || $code >= 300) {
             return null;
         }
@@ -760,6 +858,9 @@ class WorxCloud extends IPSModule
             $this->SendDebug('API', 'Antwort enthält kein gültiges JSON.', 0);
             return null;
         }
+        $this->WriteAttributeInteger('ApiRateLimitUntil', 0);
+        $this->WriteAttributeInteger('ApiRateLimitDelay', 300);
+        $this->SetTimerInterval('WorxPoll', max(60, $this->ReadPropertyInteger('Interval')) * 1000);
         return $decoded;
     }
 
@@ -856,7 +957,30 @@ class WorxCloud extends IPSModule
 
     /** Schreibt Eigenschaften nur bei echter Abweichung — ein ApplyChanges auf
      *  den WS Client kappt die Verbindung, das soll nicht bei jedem Lauf passieren. */
-    private function setIfChanged(int $instance, array $props): void
+    /** Match Python urllib.parse.quote(value), which leaves slash safe by default. */
+    private function quoteMqttAuthComponent(string $value): string
+    {
+        return str_replace('%2F', '/', rawurlencode($value));
+    }
+
+    /** Return an RFC 4122 version 4 UUID for this MQTT client session. */
+    private function createUuid(): string
+    {
+        $bytes = random_bytes(16);
+        $bytes[6] = chr((ord($bytes[6]) & 0x0F) | 0x40);
+        $bytes[8] = chr((ord($bytes[8]) & 0x3F) | 0x80);
+        $hex = bin2hex($bytes);
+
+        return sprintf('%s-%s-%s-%s-%s',
+            substr($hex, 0, 8),
+            substr($hex, 8, 4),
+            substr($hex, 12, 4),
+            substr($hex, 16, 4),
+            substr($hex, 20, 12)
+        );
+    }
+
+    private function setIfChanged(int $instance, array $props): bool
     {
         $changed = false;
         foreach ($props as $key => $value) {
@@ -868,6 +992,25 @@ class WorxCloud extends IPSModule
         if ($changed) {
             IPS_ApplyChanges($instance);
         }
+        return $changed;
+    }
+
+    /** Honor Retry-After, with a bounded exponential fallback when the server omits it. */
+    private function deferAfterRateLimit(array $headers): void
+    {
+        $retryAfter = trim((string) ($headers['retry-after'] ?? ''));
+        if ($retryAfter !== '' && ctype_digit($retryAfter)) {
+            $delay = (int) $retryAfter;
+        } elseif ($retryAfter !== '' && ($retryTime = strtotime($retryAfter)) !== false) {
+            $delay = $retryTime - time();
+        } else {
+            $delay = max(300, $this->ReadAttributeInteger('ApiRateLimitDelay'));
+        }
+        $delay = max(60, min(21600, $delay));
+        $this->WriteAttributeInteger('ApiRateLimitUntil', time() + $delay);
+        $this->WriteAttributeInteger('ApiRateLimitDelay', min(21600, max(300, $delay * 2)));
+        $this->SetTimerInterval('WorxPoll', $delay * 1000);
+        $this->SendDebug('API', sprintf('HTTP 429: nächste Abfrage in %d Sekunden.', $delay), 0);
     }
 
     private function storeToken($result): bool
