@@ -2,18 +2,18 @@
 
 - Release version: V1.0.0
 - Status date: 2026-10-14
-- IP-Symcon library metadata: version 2.0, build 37
+- IP-Symcon library metadata: version 2.0, build 38
 - Validated scope: IP-Symcon 9.0 and one mower setup
 
 ## Summary
 
-Build 37 was installed from GitHub through IP-Symcon Module Control. The library reload and module validation succeeded. The Worx Cloud and Mower instances stayed active, and Symcon reported no Worx instance errors. A live Start command was confirmed by the mower.
+Build 38 was installed from GitHub through IP-Symcon Module Control. The library reload and module validation succeeded. The Worx Cloud and Mower instances stayed active, and Symcon reported no Worx instance errors. A live Start command was confirmed by the mower. Fresh valid mower data now clears the temporary "waiting for fresh data" feedback, while real command and setting feedback stays visible.
 
 The automatic schedule, rain delay, and mower lock controls were each changed and confirmed by the mower, then restored to their previous values. The final read-back showed automatic schedule off, rain delay at 30 minutes, and the mower unlocked. The mower remained online and reported mowing after the checks.
 
 ## Quality checks
 
-- PHPUnit: 84 tests and 952 assertions passed.
+- PHPUnit: 85 tests and 957 assertions passed.
 - PHP syntax: all five production PHP files passed.
 - PHP-CS-Fixer: dry-run reported no files needing changes. Its only remaining notice is the deprecated configured rule visibility_required.
 - GitHub Actions: test, style, and PHP 8.5 syntax workflows passed on the release commit.
@@ -25,7 +25,7 @@ The IP-Symcon module_lint helper still stops while loading the external SymconSt
 
 The privacy review found no real credentials, tokens, account data, mower serials, or private installation identifiers in repository files or reachable main history. The 13 main-branch commits that used a non-Noreply author/committer address were rewritten to the account's ID-based GitHub Noreply address; the release branch was checked after the rewrite.
 
-The public GitHub release is V1.0.0. The IP-Symcon library manifest retains version 2.0 and advances its build from 36 to 37 so existing installations keep their established library version while receiving the release build.
+The public GitHub release is V1.0.0. The IP-Symcon library manifest retains version 2.0 and advances its build from 37 to 38 so existing installations keep their established library version while receiving the release build.
 
 ## V1 scope and limits
 

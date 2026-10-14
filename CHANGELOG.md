@@ -1,6 +1,6 @@
 # Changelog
 
-## V1.0.0 — build 37 (2026-10-14)
+## V1.0.0 — build 38 (2026-10-14)
 
 First general release of the Worx Landroid IP-Symcon module. Validated with one mower setup; no compatibility claim is made for other models, protocols, or firmware variants.
 
@@ -12,6 +12,7 @@ First general release of the Worx Landroid IP-Symcon module. Validated with one 
 - Displays readable status and error text, telemetry, daily progress, and maintenance counters.
 - Refreshes Worx tokens before reconnecting MQTT authorization and applies bounded transport reconnect backoff.
 - Handles an incomplete weekly-event record without an undefined EventType warning.
+- Clears temporary "waiting for fresh data" feedback after a valid device report arrives, while preserving actual command and setting feedback.
 - Keeps unknown devices and unsupported actions locked.
 
 Firmware auto-upgrade preference write/read-back was not live-tested. Firmware installation is not part of routine release validation. See the README and feature matrix for V1 exclusions and setup requirements.

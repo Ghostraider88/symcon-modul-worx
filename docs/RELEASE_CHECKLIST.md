@@ -2,7 +2,7 @@
 
 ## Live validation
 
-- [x] Build 37 from GitHub was installed through IP-Symcon Module Control.
+- [x] Build 38 from GitHub was installed through IP-Symcon Module Control.
 - [x] Module reload and module validation completed successfully after the update.
 - [x] Worx Cloud and Mower instances remained active; Symcon reported no Worx instance errors.
 - [x] A live Start request was confirmed by the mower.
@@ -10,12 +10,13 @@
 - [x] Rain delay was changed from 30 to 60 minutes, confirmed by the mower, and restored to 30 minutes.
 - [x] The mower lock was set, confirmed, then cleared and confirmed unlocked.
 - [x] All three tested settings returned to their original values; the mower remained online and reported mowing.
+- [x] Fresh valid mower data clears the temporary device-check feedback and preserves actual command and setting feedback.
 
 The validation installation's device identity, account data, and private configuration are intentionally omitted.
 
 ## Quality checks
 
-- [x] PHPUnit passed: 84 tests and 952 assertions.
+- [x] PHPUnit passed: 85 tests and 957 assertions.
 - [x] PHP syntax checks passed for all five production PHP files.
 - [x] PHP-CS-Fixer dry-run found no files needing changes.
 - [x] GitHub Actions test, style, and PHP 8.5 syntax workflows passed on the release commit.
@@ -27,7 +28,7 @@ The validation installation's device identity, account data, and private configu
 - [x] Current source, reachable main history, and release contents were reviewed for credentials and private device/account data; none were found.
 - [x] The 13 affected main-branch commits were rewritten to the account's ID-based GitHub Noreply address and the remote main history was verified.
 - [x] The library and module manifests, changelog, MIT license, installation guide, feature matrix, and final release diff were reviewed.
-- [x] The user-facing release version is V1.0.0; the Symcon library manifest stays at version 2.0 and advances to build 37.
+- [x] The user-facing release version is V1.0.0; the Symcon library manifest stays at version 2.0 and advances to build 38.
 - [x] The release tag points to the final tested commit.
 
 ## Known validation limitation

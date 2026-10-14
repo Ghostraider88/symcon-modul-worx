@@ -995,6 +995,42 @@ final class WorxMowerProfileTest extends TestCase
         self::assertLessThanOrEqual($after, $lastUpdate);
     }
 
+    public function testFreshSupportedDeviceClearsOnlyTemporaryCheckingFeedback(): void
+    {
+        $instanceID = IPS\\ObjectManager::registerObject(1);
+        $module = $this->createMowerInstanceForTest($instanceID);
+        $lockUnsupportedDevice = new ReflectionMethod(WorxMower::class, 'lockUnsupportedDevice');
+        $lockUnsupportedDevice->setAccessible(true);
+        $lockUnsupportedDevice->invoke($module, 'Gesperrt: Warte auf frische, gültige Geräte-, Status- und Zeitplandaten.');
+
+        $commandStatusID = $this->findObjectIDByIdent('CommandStatus', $instanceID);
+        $settingStatusID = $this->findObjectIDByIdent('SettingStatus', $instanceID);
+        SetValue($commandStatusID, 'Gesperrt: Warte auf frische, gültige Geräte-, Status- und Zeitplandaten.');
+        SetValue($settingStatusID, 'Gesperrt: Warte auf frische, gültige Geräte-, Status- und Zeitplandaten.');
+
+        $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
+        $applyDevice->setAccessible(true);
+        $device = [
+            'online' => true,
+            'last_status' => ['payload' => [
+                'cfg' => ['sc' => ['p' => 0, 'd' => [['08:30', 60, 1]]]],
+                'dat' => ['ls' => 1, 'le' => 0],
+            ]],
+        ];
+        $this->applySupportedDevice($applyDevice, $module, $device);
+
+        self::assertSame(102, IPS_GetInstance($instanceID)['InstanceStatus']);
+        self::assertSame('', GetValue($commandStatusID));
+        self::assertSame('', GetValue($settingStatusID));
+
+        SetValue($commandStatusID, 'Vom Mäher bestätigt: Start.');
+        SetValue($settingStatusID, 'Regenverzögerung vom Mäher zurückgelesen und bestätigt.');
+        $this->applySupportedDevice($applyDevice, $module, $device);
+
+        self::assertSame('Vom Mäher bestätigt: Start.', GetValue($commandStatusID));
+        self::assertSame('Regenverzögerung vom Mäher zurückgelesen und bestätigt.', GetValue($settingStatusID));
+    }
+
     public function testNextScheduleStartUsesOnlyEnabledConfirmedRowsAndBerlinLocalTime(): void
     {
         $module = new WorxMower(1);

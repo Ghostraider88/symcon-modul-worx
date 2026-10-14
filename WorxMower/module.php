@@ -1185,6 +1185,7 @@ class WorxMower extends IPSModule
         }
         $this->restoreAllowedDeviceVisibility();
         $this->SetStatus(102);
+        $this->clearCheckingDeviceFeedback();
         $this->SetTimerInterval('NextScheduleStart', 60 * 1000);
 
         $state = (int) ($dat['ls'] ?? 0);
@@ -1608,6 +1609,22 @@ class WorxMower extends IPSModule
     private function checkingDeviceMessage(): string
     {
         return $this->Translate('Gesperrt: Warte auf frische, gültige Geräte-, Status- und Zeitplandaten.');
+    }
+
+    private function clearCheckingDeviceFeedback(): void
+    {
+        $checkingMessage = $this->checkingDeviceMessage();
+        $translatedCheckingMessage = $this->Translate($checkingMessage);
+        foreach (['CommandStatus', 'SettingStatus'] as $ident) {
+            $statusID = $this->getObjectIDForIdent($ident);
+            if ($statusID === false || $statusID <= 0) {
+                continue;
+            }
+            if (!in_array(GetValueString($statusID), [$checkingMessage, $translatedCheckingMessage], true)) {
+                continue;
+            }
+            SetValue($statusID, '');
+        }
     }
 
     private function deviceNotAllowedMessage(): string
