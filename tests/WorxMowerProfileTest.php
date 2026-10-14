@@ -1011,7 +1011,7 @@ final class WorxMowerProfileTest extends TestCase
         $applyDevice = new ReflectionMethod(WorxMower::class, 'applyDevice');
         $applyDevice->setAccessible(true);
         $device = [
-            'online' => true,
+            'online'      => true,
             'last_status' => ['payload' => [
                 'cfg' => ['sc' => ['p' => 0, 'd' => [['08:30', 60, 1]]]],
                 'dat' => ['ls' => 1, 'le' => 0],
